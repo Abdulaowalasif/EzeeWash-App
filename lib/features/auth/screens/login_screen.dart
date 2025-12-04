@@ -1,5 +1,7 @@
+import 'package:ezeewash/routes/routes_name.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 
@@ -190,7 +192,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          onPressed: () {},
+                          onPressed: () {
+                            context.push(RoutesName.main);
+                          },
                           child: Text(
                             isLogin ? "Login" : "Create Account",
                             style: GoogleFonts.poppins(
