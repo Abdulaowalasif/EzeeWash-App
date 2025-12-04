@@ -1,3 +1,6 @@
+import 'package:ezeewash/features/auth/screens/login_screen.dart';
+import 'package:ezeewash/routes/routes_name.dart';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -13,6 +16,11 @@ import 'package:ezeewash/features/error/screen/error_screen.dart';
 
 /// Main App Router
 final GoRouter appRouter = GoRouter(
+  routes: [
+    // /// Initial Splash
+    GoRoute(
+      path: RoutesName.login,
+      pageBuilder: (context, state) => _buildPage(const LoginScreen(), state),
   initialLocation: RoutesName.main,
   routes: [
 
