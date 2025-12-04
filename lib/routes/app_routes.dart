@@ -1,4 +1,4 @@
-import 'package:ezeewash/features/home/screens/home_screen.dart';
+import 'package:ezeewash/features/auth/screens/login_screen.dart';
 import 'package:ezeewash/routes/routes_name.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -7,12 +7,12 @@ import '../features/error/screen/error_screen.dart';
 
 
 final GoRouter appRouter = GoRouter(
-  initialLocation: RoutesName.home,
+  initialLocation: RoutesName.login,
   routes: [
     // /// Initial Splash
     GoRoute(
-      path: RoutesName.home,
-      pageBuilder: (context, state) => _buildPage(const HomeScreen(), state),
+      path: RoutesName.login,
+      pageBuilder: (context, state) => _buildPage(const LoginScreen(), state),
     ),
     //
     // /// Onboarding
