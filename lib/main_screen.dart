@@ -18,57 +18,72 @@ class MainScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.white,
-        elevation: 10,
-        currentIndex: navigationShell.currentIndex,
-        onTap: _onTabTapped,
-        type: BottomNavigationBarType.fixed,
-        showUnselectedLabels: true,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey,
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(
-              navigationShell.currentIndex == 0
-                  ? Iconsax.home
-                  : Iconsax.home_2,
-            ),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              navigationShell.currentIndex == 1
-                  ? Iconsax.calendar5
-                  : Iconsax.calendar,
-            ),
-            label: 'Calendar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              navigationShell.currentIndex == 2
-                  ? Iconsax.discover
-                  : Iconsax.discover_1,
-            ),
-            label: 'Explore',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              navigationShell.currentIndex == 3
-                  ? Iconsax.gift
-                  : Iconsax.gift5,
-            ),
-            label: 'Perks',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              navigationShell.currentIndex == 4
-                  ? Iconsax.user
-                  : Iconsax.user4,
-            ),
-            label: 'Account',
+      bottomNavigationBar: _buildCustomNavBar(context),
+    );
+  }
+
+  Widget _buildCustomNavBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
           ),
         ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(5, (index) {
+          final isSelected = navigationShell.currentIndex == index;
+
+          final icons = [
+            [Iconsax.home5, Iconsax.home], // filled , outline
+            [Iconsax.heart5, Iconsax.heart],
+            [Iconsax.truck_fast, Iconsax.truck_fast],
+            [Iconsax.notification5, Iconsax.notification],
+            [Iconsax.user4, Iconsax.user],
+          ];
+
+          final labels = ["Home", "Services", "Orders", "Alerts", "Profile"];
+
+          return GestureDetector(
+            onTap: () => _onTabTapped(index),
+            child: SafeArea(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.blue : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isSelected ? icons[index][0] : icons[index][1],
+                      color: isSelected ? Colors.white : Colors.grey,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      labels[index],
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isSelected ? Colors.white : Colors.grey,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
