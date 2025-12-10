@@ -16,83 +16,82 @@ import 'package:ezeewash/features/error/screen/error_screen.dart';
 
 /// Main App Router
 final GoRouter appRouter = GoRouter(
+  initialLocation: RoutesName.login,
   routes: [
     // /// Initial Splash
     GoRoute(
       path: RoutesName.login,
       pageBuilder: (context, state) => _buildPage(const LoginScreen(), state),
-  initialLocation: RoutesName.main,
-  routes: [
-
-    /// SHELL ROUTE (Bottom Navigation with Indexed Stack)
-    StatefulShellRoute.indexedStack(
-      builder: (context, state, navigationShell) =>
-          MainScreen(navigationShell: navigationShell),
-      branches: [
-
-        /// HOME BRANCH
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: RoutesName.main,
-              pageBuilder: (context, state) =>
-                  _buildPage(const HomeScreen(), state),
+      routes: [
+        /// SHELL ROUTE (Bottom Navigation with Indexed Stack)
+        StatefulShellRoute.indexedStack(
+          builder: (context, state, navigationShell) =>
+              MainScreen(navigationShell: navigationShell),
+          branches: [
+            /// HOME BRANCH
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: RoutesName.main,
+                  pageBuilder: (context, state) =>
+                      _buildPage(const HomeScreen(), state),
+                ),
+              ],
             ),
-          ],
-        ),
 
-        /// SERVICES BRANCH
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: RoutesName.services,
-              pageBuilder: (context, state) =>
-                  _buildPage(const ServiceScreen(), state),
+            /// SERVICES BRANCH
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: RoutesName.services,
+                  pageBuilder: (context, state) =>
+                      _buildPage(const ServiceScreen(), state),
+                ),
+              ],
             ),
-          ],
-        ),
 
-        /// ORDERS BRANCH
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: RoutesName.orders,
-              pageBuilder: (context, state) =>
-                  _buildPage(const OrderScreen(), state),
+            /// ORDERS BRANCH
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: RoutesName.orders,
+                  pageBuilder: (context, state) =>
+                      _buildPage(const OrderScreen(), state),
+                ),
+              ],
             ),
-          ],
-        ),
 
-        /// ALERT / NOTIFICATION BRANCH
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: RoutesName.alerts,
-              pageBuilder: (context, state) =>
-                  _buildPage(const NotificationScreen(), state),
+            /// ALERT / NOTIFICATION BRANCH
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: RoutesName.alerts,
+                  pageBuilder: (context, state) =>
+                      _buildPage(const NotificationScreen(), state),
+                ),
+              ],
             ),
-          ],
-        ),
 
-        /// PROFILE BRANCH
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: RoutesName.profile,
-              pageBuilder: (context, state) =>
-                  _buildPage(const ProfileScreen(), state),
+            /// PROFILE BRANCH
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: RoutesName.profile,
+                  pageBuilder: (context, state) =>
+                      _buildPage(const ProfileScreen(), state),
+                ),
+              ],
             ),
           ],
         ),
       ],
+
+      /// Global Error Page
+      // errorPageBuilder: (context, state) =>
+      //     _buildPage(ErrorScreen(error: state.error), state),
     ),
   ],
-
-  /// Global Error Page
-  errorPageBuilder: (context, state) =>
-      _buildPage(ErrorScreen(error: state.error), state),
 );
-
 
 /// Global Custom Transition
 CustomTransitionPage _buildPage(Widget child, GoRouterState state) {
@@ -104,8 +103,10 @@ CustomTransitionPage _buildPage(Widget child, GoRouterState state) {
       const begin = Offset(1.0, 0.0);
       const end = Offset.zero;
 
-      final tween = Tween(begin: begin, end: end)
-          .chain(CurveTween(curve: Curves.easeInOut));
+      final tween = Tween(
+        begin: begin,
+        end: end,
+      ).chain(CurveTween(curve: Curves.easeInOut));
 
       return SlideTransition(position: animation.drive(tween), child: child);
     },
