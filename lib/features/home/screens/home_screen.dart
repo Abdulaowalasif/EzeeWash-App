@@ -1,8 +1,10 @@
+import 'dart:ffi';
+
 import 'package:ezeewash/routes/routes_name.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -189,19 +191,127 @@ class HomeScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                        Container(
-                          margin: EdgeInsetsGeometry.only(top: 10),
-                          padding: EdgeInsetsGeometry.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white10,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(Iconsax.activity),
+                        RecentOrderCard(
+                          id: '#EZ001',
+                          category: 'Wash & Fold',
+                          status: 'In Progress',
+                          date: 'Today, 10:00 AM',
+                          progress: 0.5,
+                        ),
+                        RecentOrderCard(
+                          id: '#EZ002',
+                          category: 'Wash & Fold',
+                          status: 'Completed',
+                          date: 'Today, 10:00 AM',
+                          progress: 1,
                         ),
                       ],
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class RecentOrderCard extends StatelessWidget {
+  final String id;
+  final String category;
+  final String status;
+  final String date;
+  final double progress;
+
+  const RecentOrderCard({
+    super.key,
+    required this.id,
+    required this.category,
+    required this.status,
+    required this.date,
+    required this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsetsGeometry.only(top: 10),
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: Colors.grey.withOpacity(0.2),
+        ),
+        padding: EdgeInsetsGeometry.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: 10,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsetsGeometry.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Iconsax.activity, color: Colors.white),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      id,
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      category,
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w400),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      status,
+                      style: GoogleFonts.poppins(
+                        color: status == "Completed"
+                            ? Colors.green
+                            : Colors.deepOrange,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      date,
+                      style: GoogleFonts.poppins(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            LinearProgressIndicator(
+              color: status == "Completed" ? Colors.green : Colors.blueAccent,
+              backgroundColor: Colors.grey.withOpacity(0.2),
+              value: progress,
+              borderRadius: BorderRadius.circular(10),
+              minHeight: 7,
+            ),
+            Text(
+              "${progress * 100}% Completed",
+              style: GoogleFonts.poppins(
+                color: Colors.black54,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ],
