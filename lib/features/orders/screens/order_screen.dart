@@ -122,7 +122,6 @@ class _OrdersToggleState extends State<OrdersToggle> {
           ),
         ],
       ),
-      body: Center(child: Text("This is order screen"),),
     );
   }
 }
