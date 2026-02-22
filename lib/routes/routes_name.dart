@@ -8,6 +8,8 @@ class RoutesName {
   static const onboarding = "/onboarding";
   static const services = "/services";
   static const orders = "/orders";
+  static const trackOrders = "/track-orders";
+  static const trackOrdersNavigate = "$orders$trackOrders";
   static const alerts = "/alerts";
   static const profile = "/profile";
 }

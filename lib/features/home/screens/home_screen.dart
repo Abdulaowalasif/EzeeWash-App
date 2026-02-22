@@ -136,7 +136,7 @@ class HomeScreen extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                                onPressed: () => context.go(RoutesName.orders),
+                                onPressed: () => context.push(RoutesName.trackOrdersNavigate),
                                 label: Text(
                                   "Track Order",
                                   style: GoogleFonts.poppins(
@@ -239,7 +239,7 @@ class RecentOrderCard extends StatelessWidget {
     return Container(
       margin: EdgeInsetsGeometry.only(top: 10),
       decoration: BoxDecoration(
-        color: Colors.white10,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Container(
@@ -376,7 +376,7 @@ class HomeAppbar extends StatelessWidget {
                           Container(
                             padding: EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: Colors.white10.withOpacity(0.2),
+                              color: Colors.grey.withOpacity(0.3),
                               borderRadius: BorderRadius.circular(15),
                             ),
                             child: Icon(
@@ -410,7 +410,7 @@ class HomeAppbar extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white10.withOpacity(0.2),
+              color: Colors.grey.withOpacity(0.3),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(

@@ -12,6 +12,8 @@ import 'package:ezeewash/features/error/screen/error_screen.dart';
 import 'package:ezeewash/main_screen.dart';
 import 'package:ezeewash/routes/routes_name.dart';
 
+import '../features/orders/screens/TrackOrderScreen.dart';
+
 /// Main App Router
 final GoRouter appRouter = GoRouter(
   initialLocation: RoutesName.login,
@@ -19,8 +21,7 @@ final GoRouter appRouter = GoRouter(
     /// LOGIN ROUTE
     GoRoute(
       path: RoutesName.login,
-      pageBuilder: (context, state) =>
-          _buildPage(const LoginScreen(), state),
+      pageBuilder: (context, state) => _buildPage(const LoginScreen(), state),
     ),
 
     /// SHELL ROUTE (Bottom Navigation with Indexed Stack)
@@ -28,7 +29,6 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state, navigationShell) =>
           MainScreen(navigationShell: navigationShell),
       branches: [
-
         /// HOME BRANCH
         StatefulShellBranch(
           routes: [
@@ -58,6 +58,13 @@ final GoRouter appRouter = GoRouter(
               path: RoutesName.orders,
               pageBuilder: (context, state) =>
                   _buildPage(const OrderScreen(), state),
+              routes: [
+                GoRoute(
+                  path: RoutesName.trackOrders,
+                  pageBuilder: (context, state) =>
+                      _buildPage(TrackOrderScreen(), state),
+                ),
+              ],
             ),
           ],
         ),

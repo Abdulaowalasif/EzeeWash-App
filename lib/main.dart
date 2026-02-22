@@ -16,7 +16,6 @@ class MyApp extends StatelessWidget {
     PermissionService.requestAllPermissions();
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      darkTheme: darkTheme(),
       themeMode: ThemeMode.system,
       theme: lightTheme(),
       routerConfig: appRouter,
