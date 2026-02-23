@@ -7,8 +7,10 @@ class BookingConfirmedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(),
       body: Center(
         child: Lottie.asset(
+          repeat: false,
           'assets/animation/confirmed.json',
         ),
       ),

@@ -31,3 +31,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/animation/
+    - assets/service_picture/
+    - assets/services/

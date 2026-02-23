@@ -14,6 +14,49 @@ class ServiceScreen extends StatefulWidget {
 class _ServiceScreenState extends State<ServiceScreen> {
   int selectedIndex = 0;
 
+  final images = [
+    'assets/service_picture/comfort_clean.jpg',
+    'assets/service_picture/delicate_care.jpg',
+    'assets/service_picture/dry_clean.jpg',
+    'assets/service_picture/express.png',
+    'assets/service_picture/iron_&_press.jpg',
+    'assets/service_picture/steam_clean.jpg',
+    'assets/service_picture/suit_wash.jpg',
+    'assets/service_picture/wash_&_fold.jpg',
+  ];
+
+  final services = [
+    {'icon': Iconsax.category, 'category': 'All Services'},
+    {'icon': Icons.water_drop_outlined, 'category': 'Wash & Fold'},
+    {'icon': Icons.dry_cleaning_outlined, 'category': 'Dry Clean'},
+    {'icon': Icons.local_fire_department_outlined, 'category': 'Iron & Press'},
+    {'icon': Icons.flash_on, 'category': 'Express'},
+  ];
+
+  // Filter images based on selected category
+  List<String> filteredImages() {
+    switch (selectedIndex) {
+      case 0: // All Services
+        return images;
+      case 1: // Wash & Fold
+        return [
+          'assets/service_picture/wash_&_fold.jpg',
+          'assets/service_picture/comfort_clean.jpg'
+        ];
+      case 2: // Dry Clean
+        return [
+          'assets/service_picture/dry_clean.jpg',
+          'assets/service_picture/delicate_care.jpg'
+        ];
+      case 3: // Iron & Press
+        return ['assets/service_picture/iron_&_press.jpg'];
+      case 4: // Express
+        return ['assets/service_picture/express.png'];
+      default:
+        return images;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -24,7 +67,6 @@ class _ServiceScreenState extends State<ServiceScreen> {
           "Our Services",
           style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
         ),
-        actions: [IconButton(onPressed: () {}, icon: const Icon(Icons.search))],
       ),
       body: Padding(
         padding: const EdgeInsets.all(10),
@@ -33,7 +75,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: List.generate(5, (index) {
+                children: List.generate(services.length, (index) {
                   return Padding(
                     padding: const EdgeInsets.only(right: 10),
                     child: GestureDetector(
@@ -44,6 +86,8 @@ class _ServiceScreenState extends State<ServiceScreen> {
                       },
                       child: ServiceCategoryCard(
                         isSelected: selectedIndex == index,
+                        category: services[index]['category']! as String,
+                        icon: services[index]['icon']! as IconData,
                       ),
                     ),
                   );
@@ -53,10 +97,11 @@ class _ServiceScreenState extends State<ServiceScreen> {
             const SizedBox(height: 20),
             Expanded(
               child: ListView.separated(
-                itemCount: 5,
-                itemBuilder: (context, index) => ServiceCard(),
+                itemCount: filteredImages().length,
+                itemBuilder: (context, index) =>
+                    ServiceCard(service: filteredImages()[index]),
                 separatorBuilder: (BuildContext context, int index) =>
-                    const SizedBox(height: 10),
+                const SizedBox(height: 10),
               ),
             ),
           ],
@@ -68,8 +113,15 @@ class _ServiceScreenState extends State<ServiceScreen> {
 
 class ServiceCategoryCard extends StatelessWidget {
   final bool isSelected;
+  final String category;
+  final IconData icon;
 
-  const ServiceCategoryCard({super.key, required this.isSelected});
+  const ServiceCategoryCard({
+    super.key,
+    required this.isSelected,
+    required this.category,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -82,14 +134,10 @@ class ServiceCategoryCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Iconsax.category,
-            size: 18,
-            color: isSelected ? Colors.white : Colors.grey,
-          ),
+          Icon(icon, size: 18, color: isSelected ? Colors.white : Colors.grey),
           const SizedBox(width: 10),
           Text(
-            "All Services",
+            category,
             style: GoogleFonts.poppins(
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -103,7 +151,19 @@ class ServiceCategoryCard extends StatelessWidget {
 }
 
 class ServiceCard extends StatelessWidget {
-  const ServiceCard({super.key});
+  final String service;
+
+  const ServiceCard({super.key, required this.service});
+
+  // Helper for tags
+  Widget tag(String text) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    decoration: BoxDecoration(
+      color: Colors.lightBlueAccent,
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(text, style: GoogleFonts.poppins(color: Colors.deepPurple)),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +176,7 @@ class ServiceCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.warehouse_sharp, size: 50, color: Colors.grey),
+          Image.asset(service),
           const SizedBox(height: 20),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,7 +211,7 @@ class ServiceCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    "\$12.99",
+                    "৳ 30",
                     style: GoogleFonts.poppins(
                       color: Colors.blueAccent,
                       fontWeight: FontWeight.bold,
@@ -191,53 +251,15 @@ class ServiceCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
+
+          /// TAGS
+          Wrap(
             spacing: 10,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.lightBlueAccent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  "Wash",
-                  style: GoogleFonts.poppins(color: Colors.deepPurple),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.lightBlueAccent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  "Dry",
-                  style: GoogleFonts.poppins(color: Colors.deepPurple),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.lightBlueAccent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  "Fold",
-                  style: GoogleFonts.poppins(color: Colors.deepPurple),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.lightBlueAccent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  "Fabric Softener",
-                  style: GoogleFonts.poppins(color: Colors.deepPurple),
-                ),
-              ),
+              tag("Wash"),
+              tag("Dry"),
+              tag("Fold"),
+              tag("Fabric Softener"),
             ],
           ),
           const SizedBox(height: 10),

@@ -221,7 +221,7 @@ class _OrderCardState extends State<OrderCard> {
                     ),
                     child: Text("Picked Up"),
                   ),
-                  Text("\$100"),
+                  Text("৳ 100"),
                 ],
               ),
             ],

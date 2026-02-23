@@ -11,6 +11,13 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final images = [
+      'assets/services/Washing machine.png',
+      'assets/services/Dry cleaning.png',
+      'assets/services/Ironing board.png',
+      'assets/services/Express delivery.png',
+    ];
+
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(
@@ -69,7 +76,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                     itemBuilder: (context, index) {
                       return ServiceCard(
-                        image: "",
+                        image: images[index],
                         title: "Wash & Fold",
                         subtitle: "Professional washing and folding",
                         price: "12",
@@ -136,7 +143,9 @@ class HomeScreen extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                                onPressed: () => context.push(RoutesName.trackOrdersNavigate),
+                                onPressed: () => context.push(
+                                  RoutesName.trackOrdersNavigate,
+                                ),
                                 label: Text(
                                   "Track Order",
                                   style: GoogleFonts.poppins(
@@ -506,16 +515,20 @@ class ServiceCard extends StatelessWidget {
         elevation: 1,
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: EdgeInsetsGeometry.all(10),
+          padding: EdgeInsetsGeometry.all(15),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
             spacing: 10,
             children: [
-              Icon(Icons.wash_sharp, color: Colors.blueAccent, size: 64),
+              Image.asset(image,
+              height: 80,
+                width: 80,
+              ),
               Text(
                 title,
                 style: GoogleFonts.poppins(
