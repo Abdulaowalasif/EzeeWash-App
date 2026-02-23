@@ -25,10 +25,7 @@ class _OrderScreenState extends State<OrderScreen> {
         shadowColor: Colors.transparent,
         title: Text(
           "My Orders",
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 20),
         ),
       ),
       body: Padding(
@@ -66,7 +63,7 @@ class _OrderScreenState extends State<OrderScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () => context.push(RoutesName.placeOrdersNavigate),
         shape: const StadiumBorder(),
         backgroundColor: Colors.blueAccent,
         child: const Icon(Iconsax.add, color: Colors.white, size: 30),
@@ -346,11 +343,15 @@ class _OrderCardState extends State<OrderCard> {
                 "Est. 4:00 PM",
                 style: TextStyle(color: Colors.grey),
               ),
-            ), ListTile(
+            ),
+            ListTile(
               minTileHeight: 50,
               contentPadding: EdgeInsets.all(0),
               leading: Icon(Icons.circle, color: Colors.grey),
-              title: Text('Ready for Delivery', style: TextStyle(color: Colors.grey)),
+              title: Text(
+                'Ready for Delivery',
+                style: TextStyle(color: Colors.grey),
+              ),
               subtitle: Text(
                 "Est. Tomorrow 10:00 AM",
                 style: TextStyle(color: Colors.grey),

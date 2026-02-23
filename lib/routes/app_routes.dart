@@ -1,3 +1,4 @@
+import 'package:ezeewash/features/orders/screens/place_order_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,7 +13,8 @@ import 'package:ezeewash/features/error/screen/error_screen.dart';
 import 'package:ezeewash/main_screen.dart';
 import 'package:ezeewash/routes/routes_name.dart';
 
-import '../features/orders/screens/TrackOrderScreen.dart';
+import '../features/orders/screens/booking_confirmed_screen.dart';
+import '../features/orders/screens/track_order_screen.dart';
 
 /// Main App Router
 final GoRouter appRouter = GoRouter(
@@ -63,6 +65,16 @@ final GoRouter appRouter = GoRouter(
                   path: RoutesName.trackOrders,
                   pageBuilder: (context, state) =>
                       _buildPage(TrackOrderScreen(), state),
+                ),
+                GoRoute(
+                  path: RoutesName.placeOrders,
+                  pageBuilder: (context, state) =>
+                      _buildPage(const PlaceOrderScreen(), state),
+                ),
+                GoRoute(
+                  path: RoutesName.confirmedOrders,
+                  pageBuilder: (context, state) =>
+                      _buildPage(const BookingConfirmedScreen(), state),
                 ),
               ],
             ),

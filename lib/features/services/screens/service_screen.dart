@@ -1,4 +1,6 @@
+import 'package:ezeewash/routes/routes_name.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 
@@ -156,10 +158,7 @@ class ServiceCard extends StatelessWidget {
                       fontSize: 18,
                     ),
                   ),
-                  Text(
-                    "24–48 hours",
-                    style: GoogleFonts.poppins(fontSize: 12),
-                  ),
+                  Text("24–48 hours", style: GoogleFonts.poppins(fontSize: 12)),
                 ],
               ),
             ],
@@ -167,17 +166,17 @@ class ServiceCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              Icon(Icons.star, color: Colors.amber),
-              Icon(Icons.star, color: Colors.amber),
-              Icon(Icons.star, color: Colors.amber),
-              Icon(Icons.star, color: Colors.amber),
-              Icon(Icons.star_border, color: Colors.amber),
+              Icon(Icons.star, color: Colors.amber, size: 18),
+              Icon(Icons.star, color: Colors.amber, size: 18),
+              Icon(Icons.star, color: Colors.amber, size: 18),
+              Icon(Icons.star, color: Colors.amber, size: 18),
+              Icon(Icons.star_border, color: Colors.amber, size: 18),
               const SizedBox(width: 10),
               Text(
                 "4.8",
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w600,
-                  fontSize: 16,
+                  fontSize: 14,
                 ),
               ),
               const SizedBox(width: 10),
@@ -196,10 +195,7 @@ class ServiceCard extends StatelessWidget {
             spacing: 10,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.lightBlueAccent,
                   borderRadius: BorderRadius.circular(20),
@@ -210,10 +206,7 @@ class ServiceCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.lightBlueAccent,
                   borderRadius: BorderRadius.circular(20),
@@ -224,10 +217,7 @@ class ServiceCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.lightBlueAccent,
                   borderRadius: BorderRadius.circular(20),
@@ -238,10 +228,7 @@ class ServiceCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.lightBlueAccent,
                   borderRadius: BorderRadius.circular(20),
@@ -292,7 +279,7 @@ class ServiceCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  onPressed: () {},
+                  onPressed: () => context.push(RoutesName.placeOrdersNavigate),
                   label: Text(
                     "Book Now",
                     style: GoogleFonts.poppins(
