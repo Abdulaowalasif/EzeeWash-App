@@ -17,4 +17,12 @@ class RoutesName {
 
   static const alerts = "/alerts";
   static const profile = "/profile";
+  static const address = "/address";
+  static const helpSupport = "/help-support";
+  static const termsPolicy = "/terms-policy";
+  static const chatBot = "/chat-bot";
+  static const addressNavigate = "$profile$address";
+  static const helpSupportNavigate = "$profile$helpSupport";
+  static const termsPolicyNavigate = "$profile$termsPolicy";
+  static const chatBotNavigate = "$profile$chatBot";
 }

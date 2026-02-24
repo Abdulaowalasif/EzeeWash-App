@@ -1,227 +1,323 @@
-import 'dart:ffi';
-
-import 'package:ezeewash/routes/routes_name.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../routes/routes_name.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String searchQuery = '';
+
+  final images = [
+    'assets/services/Washing machine.png',
+    'assets/services/Dry cleaning.png',
+    'assets/services/Ironing board.png',
+    'assets/services/Express delivery.png',
+  ];
+
+  final titles = ["Wash & Fold", "Dry Clean", "Iron & Press", "Express"];
+
+  final subtitles = [
+    "Professional washing and folding",
+    "Premium dry cleaning",
+    "Perfect ironing services",
+    "Fastest delivery",
+  ];
+
+  final prices = ["12", "25", "10", "40"];
+
+  @override
   Widget build(BuildContext context) {
-    final images = [
-      'assets/services/Washing machine.png',
-      'assets/services/Dry cleaning.png',
-      'assets/services/Ironing board.png',
-      'assets/services/Express delivery.png',
-    ];
+    // Filtered services based on search query
+    final filteredServices = List.generate(images.length, (index) => index)
+        .where(
+          (i) => titles[i].toLowerCase().contains(searchQuery.toLowerCase()),
+        )
+        .toList();
 
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            //appbar
-            const HomeAppbar(),
-            const SizedBox(height: 20),
-            //main content
-            Padding(
-              padding: const EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 10,
-                bottom: 20,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  //services and view all text button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Our Services",
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 18,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          context.go(RoutesName.services);
-                        },
-                        child: Text(
-                          "View All",
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blueAccent,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  //services card
-                  GridView.builder(
-                    padding: EdgeInsetsGeometry.only(top: 10),
-                    itemCount: 4,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.8,
-                          crossAxisSpacing: 20,
-                          mainAxisSpacing: 20,
-                        ),
-                    itemBuilder: (context, index) {
-                      return ServiceCard(
-                        image: images[index],
-                        title: "Wash & Fold",
-                        subtitle: "Professional washing and folding",
-                        price: "12",
-                        onPress: () {
-                          context.go(RoutesName.services);
-                        },
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  //quick actions
-                  Container(
-                    padding: EdgeInsetsGeometry.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Quick Actions",
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 18,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          spacing: 10,
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blueAccent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                onPressed: () {},
-                                label: Text(
-                                  "Book Now",
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                icon: Icon(
-                                  size: 24,
-                                  Iconsax.calendar_tick,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white54,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    side: BorderSide(
-                                      color: Colors.grey.withOpacity(0.2),
-                                    ),
-                                  ),
-                                ),
-                                onPressed: () => context.push(
-                                  RoutesName.trackOrdersNavigate,
-                                ),
-                                label: Text(
-                                  "Track Order",
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                icon: Icon(
-                                  size: 24,
-                                  Iconsax.truck,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+      backgroundColor: Colors.grey[100],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // AppBar
+              _buildAppBar(context),
 
-                  //recent orders
-                  Container(
-                    padding: EdgeInsetsGeometry.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+              const SizedBox(height: 20),
+
+              // Search Box
+              _buildSearchBox(),
+
+              const SizedBox(height: 25),
+
+              // Services Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Our Services",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 18,
                     ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "Recent Orders",
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 18,
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                context.go(RoutesName.orders);
-                              },
-                              child: Text(
-                                "View All",
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blueAccent,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        RecentOrderCard(
-                          id: '#EZ001',
-                          category: 'Wash & Fold',
-                          status: 'In Progress',
-                          date: 'Today, 10:00 AM',
-                          progress: 0.5,
-                        ),
-                        RecentOrderCard(
-                          id: '#EZ002',
-                          category: 'Wash & Fold',
-                          status: 'Completed',
-                          date: 'Today, 10:00 AM',
-                          progress: 1,
-                        ),
-                      ],
+                  ),
+                  GestureDetector(
+                    onTap: () => context.go(RoutesName.services),
+                    child: Text(
+                      "View All",
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blueAccent,
+                      ),
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 15),
+
+              GridView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: filteredServices.length,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 20,
+                  mainAxisSpacing: 20,
+                  childAspectRatio: 0.75,
+                ),
+                itemBuilder: (context, index) {
+                  final i = filteredServices[index];
+                  return ServiceCard(
+                    image: images[i],
+                    title: titles[i],
+                    subtitle: subtitles[i],
+                    price: prices[i],
+                    onPress: () => context.push(RoutesName.placeOrdersNavigate),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 30),
+
+              // Quick Actions
+              _buildQuickActions(context),
+
+              const SizedBox(height: 30),
+
+              // Recent Orders (example static)
+              _buildRecentOrders(context),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "EzeeWash",
+              style: GoogleFonts.pacifico(
+                fontSize: 28,
+                color: Colors.blueAccent,
+              ),
+            ),
+            Text(
+              "Clean clothes, happy you!",
+              style: GoogleFonts.poppins(color: Colors.grey[600]),
             ),
           ],
         ),
+        GestureDetector(
+          onTap: () => context.go(RoutesName.alerts),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blueAccent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(Iconsax.notification, color: Colors.blueAccent),
+              ),
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchBox() {
+    return TextField(
+      controller: _searchController,
+      onChanged: (val) => setState(() => searchQuery = val),
+      decoration: InputDecoration(
+        hintText: "Search services",
+        hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
+        prefixIcon: const Icon(Iconsax.search_normal, color: Colors.grey),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Quick Actions",
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 15),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => context.push(RoutesName.placeOrdersNavigate),
+                  icon: const Icon(Iconsax.calendar_tick, color: Colors.white),
+                  label: Text(
+                    "Book Now",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => context.push(RoutesName.trackOrdersNavigate),
+                  icon: const Icon(Iconsax.truck, color: Colors.blueAccent),
+                  label: Text(
+                    "Track Order",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blueAccent,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: Colors.blueAccent.withOpacity(0.3),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentOrders(BuildContext context) {
+    // Simplified for design purpose
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Recent Orders",
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+
+              GestureDetector(
+                onTap: () => context.push(RoutesName.orders),
+                child: Text(
+                  "View All",
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blueAccent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
+          RecentOrderCard(
+            id: '#EZ001',
+            category: 'Wash & Fold',
+            status: 'In Progress',
+            date: 'Today, 10:00 AM',
+            progress: 0.5,
+          ),
+          RecentOrderCard(
+            id: '#EZ002',
+            category: 'Dry Clean',
+            status: 'Completed',
+            date: 'Yesterday, 3:00 PM',
+            progress: 1,
+          ),
+        ],
       ),
     );
   }
@@ -246,243 +342,72 @@ class RecentOrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsetsGeometry.only(top: 10),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: Colors.grey.withOpacity(0.2),
-        ),
-        padding: EdgeInsetsGeometry.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          spacing: 10,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsetsGeometry.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.blueAccent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(Iconsax.activity, color: Colors.white),
-                ),
-                const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      id,
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      category,
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w400),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      status,
-                      style: GoogleFonts.poppins(
-                        color: status == "Completed"
-                            ? Colors.green
-                            : Colors.deepOrange,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      date,
-                      style: GoogleFonts.poppins(
-                        color: Colors.black54,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            LinearProgressIndicator(
-              color: status == "Completed" ? Colors.green : Colors.blueAccent,
-              backgroundColor: Colors.grey.withOpacity(0.2),
-              value: progress,
-              borderRadius: BorderRadius.circular(10),
-              minHeight: 7,
-            ),
-            Text(
-              "${progress * 100}% Completed",
-              style: GoogleFonts.poppins(
-                color: Colors.black54,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class HomeAppbar extends StatelessWidget {
-  const HomeAppbar({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 310,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.blueAccent,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
         children: [
-          //notification and logo
-          SafeArea(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "EzeeWash",
-                      style: GoogleFonts.pacifico(
-                        color: Colors.white,
-                        fontSize: 24,
-                      ),
-                    ),
-                    Text(
-                      "Clean clothes, happy you!",
-                      style: GoogleFonts.poppins(color: Colors.white),
-                    ),
-                  ],
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blueAccent,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                Material(
-                  color: Colors.transparent,
-                  child: GestureDetector(
-                    onTap: () {
-                      context.go(RoutesName.alerts);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0), // increases tap area
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: Icon(
-                              Iconsax.notification,
-                              color: Colors.white,
-                            ),
-                          ),
-
-                          Positioned(
-                            right: 6,
-                            top: 6,
-                            child: Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          //location
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              spacing: 10,
-              children: [
-                Container(
-                  margin: const EdgeInsets.all(8),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white10.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(Iconsax.location5, color: Colors.white),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Downtown Store",
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      "Delivery in 2-3 hours",
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.normal,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          //search box
-          Container(
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: TextField(
-              decoration: InputDecoration(
-                prefixIcon: Icon(Iconsax.search_normal, color: Colors.grey),
-                hint: Text(
-                  "Search services",
-                  style: GoogleFonts.poppins(
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide(color: Colors.blueAccent),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide(color: Colors.blueAccent),
-                ),
+                child: const Icon(Iconsax.activity, color: Colors.white),
               ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    id,
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    category,
+                    style: GoogleFonts.poppins(color: Colors.grey[700]),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    status,
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w500,
+                      color: status == "Completed"
+                          ? Colors.green
+                          : Colors.deepOrange,
+                    ),
+                  ),
+                  Text(
+                    date,
+                    style: GoogleFonts.poppins(color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            value: progress,
+            minHeight: 7,
+            backgroundColor: Colors.grey[300],
+            color: status == "Completed" ? Colors.green : Colors.blueAccent,
+          ),
+          const SizedBox(height: 5),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              "${(progress * 100).toInt()}% Completed",
+              style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 12),
             ),
           ),
         ],
@@ -511,39 +436,40 @@ class ServiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onPress,
-      child: Material(
-        elevation: 1,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: EdgeInsetsGeometry.all(15),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.center,
-            spacing: 10,
-            children: [
-              Image.asset(image,
-              height: 80,
-                width: 80,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(image, height: 80, width: 80),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
               ),
-              Text(
-                title,
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
-                ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              subtitle,
+              style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "From ৳$price",
+              style: GoogleFonts.poppins(
+                color: Colors.blueAccent,
+                fontWeight: FontWeight.w600,
               ),
-              Text(subtitle, style: GoogleFonts.poppins(color: Colors.grey)),
-              Text(
-                "From \$$price",
-                style: GoogleFonts.poppins(color: Colors.blueAccent),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

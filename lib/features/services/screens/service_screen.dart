@@ -150,19 +150,111 @@ class ServiceCategoryCard extends StatelessWidget {
   }
 }
 
+
 class ServiceCard extends StatelessWidget {
   final String service;
 
   const ServiceCard({super.key, required this.service});
 
+  // Sample reviews
+  final List<Map<String, dynamic>> reviews = const [
+    {"reviewer": "Alice", "comment": "Excellent service!", "rating": 5.0},
+    {"reviewer": "Bob", "comment": "Very quick and neat.", "rating": 4.5},
+    {"reviewer": "Charlie", "comment": "Satisfied with the fold quality.", "rating": 4.0},
+  ];
+
+  void _showReviewsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Reviews",
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: SizedBox(
+                  height: 250,
+                  child: ListView.separated(
+                    itemCount: reviews.length,
+                    separatorBuilder: (_, __) => const Divider(),
+                    itemBuilder: (context, index) {
+                      final r = reviews[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.blueAccent.withOpacity(0.2),
+                          child: Text(
+                            r["reviewer"][0],
+                            style: const TextStyle(color: Colors.blueAccent),
+                          ),
+                        ),
+                        title: Text(
+                          r["reviewer"],
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: List.generate(5, (i) {
+                                return Icon(
+                                  i < r["rating"].floor()
+                                      ? Iconsax.star1
+                                      : Iconsax.star,
+                                  size: 16,
+                                  color: Colors.amber,
+                                );
+                              }),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              r["comment"],
+                              style: GoogleFonts.poppins(fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // Helper for tags
   Widget tag(String text) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
-      color: Colors.lightBlueAccent,
+      color: Colors.blueAccent.withOpacity(0.1),
       borderRadius: BorderRadius.circular(20),
     ),
-    child: Text(text, style: GoogleFonts.poppins(color: Colors.deepPurple)),
+    child: Text(
+      text,
+      style: GoogleFonts.poppins(
+        color: Colors.blueAccent,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
   );
 
   @override
@@ -171,17 +263,35 @@ class ServiceCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
         color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Image.asset(service),
+          // Service Image
+          ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: Image.asset(
+              service,
+              fit: BoxFit.cover,
+              height: 140,
+              width: double.infinity,
+            ),
+          ),
           const SizedBox(height: 20),
+
+          // Title & Description + Price & Time
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// LEFT SIDE (title + description)
+              // LEFT: title + description
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,6 +301,7 @@ class ServiceCard extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
+                        color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -198,116 +309,92 @@ class ServiceCard extends StatelessWidget {
                       "Standard wash and fold service for everyday clothes",
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(fontSize: 13),
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                        height: 1.3,
+                      ),
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(width: 10),
-
-              /// RIGHT SIDE (price + time)
+              // RIGHT: Price + Time
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     "৳ 30",
                     style: GoogleFonts.poppins(
-                      color: Colors.blueAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
+                        color: Colors.blueAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18),
                   ),
-                  Text("24–48 hours", style: GoogleFonts.poppins(fontSize: 12)),
+                  Text(
+                    "24–48 hours",
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: Colors.grey[600]),
+                  ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(Icons.star, color: Colors.amber, size: 18),
-              Icon(Icons.star, color: Colors.amber, size: 18),
-              Icon(Icons.star, color: Colors.amber, size: 18),
-              Icon(Icons.star, color: Colors.amber, size: 18),
-              Icon(Icons.star_border, color: Colors.amber, size: 18),
-              const SizedBox(width: 10),
-              Text(
-                "4.8",
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                "(156 reviews)",
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w400,
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          /// TAGS
-          Wrap(
-            spacing: 10,
-            children: [
-              tag("Wash"),
-              tag("Dry"),
-              tag("Fold"),
-              tag("Fabric Softener"),
-            ],
+          // Tags
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                tag("Wash"),
+                tag("Dry"),
+                tag("Fold"),
+                tag("Fabric Softener"),
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
+
+          // Buttons
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  icon: Icon(Icons.star_border, color: Colors.blueAccent),
+                  icon:
+                  const Icon(Iconsax.star, color: Colors.blueAccent, size: 18),
+                  onPressed: () => _showReviewsSheet(context),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(
-                      color: Colors.blueAccent,
-                      width: 1.5,
-                    ),
+                    side: const BorderSide(color: Colors.blueAccent, width: 1.5),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  onPressed: () {},
                   label: Text(
                     "Review",
                     style: GoogleFonts.poppins(
-                      color: Colors.blueAccent,
-                      fontWeight: FontWeight.w500,
-                    ),
+                        color: Colors.blueAccent, fontWeight: FontWeight.w500),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: ElevatedButton.icon(
-                  icon: Icon(
-                    Icons.calendar_today_outlined,
-                    color: Colors.white,
-                  ),
+                  icon: const Icon(Iconsax.calendar, color: Colors.white, size: 18),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  onPressed: () => context.push(RoutesName.placeOrdersNavigate),
+                  onPressed: () {
+                    context.push(RoutesName.placeOrdersNavigate);
+                  },
                   label: Text(
                     "Book Now",
                     style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
+                        color: Colors.white, fontWeight: FontWeight.w500),
                   ),
                 ),
               ),

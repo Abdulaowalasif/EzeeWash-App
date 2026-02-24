@@ -164,7 +164,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                   return ServiceCard(
                     title: service["title"] as String,
                     subtitle: service["subtitle"] as String,
-                    price: "\$12.99",
+                    price: "৳12.99",
                     duration: "24-48 hours",
                     icon: service["icon"] as IconData,
                     isSelected: selectedServiceIndex == index,
@@ -1005,7 +1005,7 @@ class AddressDetails extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    "\$18.99",
+                    "৳18.99",
                     style: GoogleFonts.poppins(
                       color: Colors.blue,
                       fontWeight: FontWeight.bold,

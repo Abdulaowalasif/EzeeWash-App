@@ -1,4 +1,8 @@
 import 'package:ezeewash/features/orders/screens/place_order_screen.dart';
+import 'package:ezeewash/features/profile/screens/settings/address_screen.dart';
+import 'package:ezeewash/features/profile/screens/settings/chat_bot_screen.dart';
+import 'package:ezeewash/features/profile/screens/settings/help_support_screen.dart';
+import 'package:ezeewash/features/profile/screens/settings/terms_policy_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -99,6 +103,27 @@ final GoRouter appRouter = GoRouter(
               path: RoutesName.profile,
               pageBuilder: (context, state) =>
                   _buildPage(const ProfileScreen(), state),
+              routes: [
+                GoRoute(
+                  path: RoutesName.address,
+                  pageBuilder: (context, state) =>
+                      _buildPage(AddressScreen(), state),
+                ),
+                GoRoute(
+                  path: RoutesName.helpSupport,
+                  pageBuilder: (context, state) =>
+                      _buildPage(HelpSupportScreen(), state),
+                ),
+                GoRoute(
+                  path: RoutesName.termsPolicy,
+                  pageBuilder: (context, state) =>
+                      _buildPage(TermsPolicyScreen(), state),
+                ),
+                GoRoute(
+                  path: RoutesName.chatBot,
+                  pageBuilder: (context, state) => _buildPage(ChatBotScreen(), state),
+                ),
+              ],
             ),
           ],
         ),
