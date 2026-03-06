@@ -10,6 +10,8 @@ import 'package:ezeewash/features/auth/screens/login_screen.dart';
 import 'package:ezeewash/features/home/screens/home_screen.dart';
 import 'package:ezeewash/features/services/screens/service_screen.dart';
 import 'package:ezeewash/features/orders/screens/order_screen.dart';
+import 'package:ezeewash/features/orders/screens/place_order_screen.dart';
+import 'package:ezeewash/features/orders/screens/track_order_screen.dart';
 import 'package:ezeewash/features/notification/screens/notification_screen.dart';
 import 'package:ezeewash/features/profile/screens/profile_screen.dart';
 import 'package:ezeewash/features/error/screen/error_screen.dart';

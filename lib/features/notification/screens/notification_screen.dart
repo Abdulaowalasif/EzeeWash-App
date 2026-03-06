@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+const primaryColor = Color(0xFF1D4BC7);
+const primaryGradient = LinearGradient(
+  colors: [Color(0xFF1D4BC7), Color(0xFF2F2E98)],
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+);
+
 class AppNotification {
   final String title;
   final String description;
   final String time;
   final IconData icon;
-  final Color iconBgColor;
-  final Color iconColor;
+  final Color themeColor;
   bool isUnread;
 
   AppNotification({
@@ -15,13 +21,11 @@ class AppNotification {
     required this.description,
     required this.time,
     required this.icon,
-    required this.iconBgColor,
-    required this.iconColor,
+    required this.themeColor,
     this.isUnread = false,
   });
 }
 
-/// NOTIFICATION SCREEN
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
 
@@ -33,83 +37,51 @@ class _NotificationScreenState extends State<NotificationScreen> {
   final List<AppNotification> notifications = [
     AppNotification(
       title: "Order Ready for Pickup",
-      description:
-          "Your dry cleaning order #EZ002 is ready for pickup at Shopping Mall location.",
-      time: "2 minutes ago",
-      icon: Icons.check,
-      iconBgColor: const Color(0xffD1FAE5),
-      iconColor: const Color(0xff10B981),
+      description: "Your dry cleaning order #EZ011 is ready for pickup at Downtown Store.",
+      time: "2 min ago",
+      icon: Icons.check_circle_rounded,
+      themeColor: const Color(0xff10B981),
       isUnread: true,
     ),
     AppNotification(
       title: "Order Picked Up",
-      description:
-          "We have successfully picked up your laundry from 123 Main Street.",
-      time: "1 hour ago",
-      icon: Icons.local_shipping,
-      iconBgColor: const Color(0xffDBEAFE),
-      iconColor: const Color(0xff2563EB),
+      description: "Laundry picked up from Uptown Store successfully.",
+      time: "10 min ago",
+      icon: Icons.local_shipping_rounded,
+      themeColor: const Color(0xff2563EB),
       isUnread: true,
     ),
     AppNotification(
       title: "20% Off Your Next Order",
-      description:
-          "Use code SAVE20 on your next wash & fold service. Valid until Jan 31st.",
-      time: "3 hours ago",
-      icon: Icons.card_giftcard,
-      iconBgColor: const Color(0xffFEF3C7),
-      iconColor: const Color(0xffD97706),
+      description: "Use code SAVE20 on your next Wash & Fold service.",
+      time: "30 min ago",
+      icon: Icons.card_giftcard_rounded,
+      themeColor: const Color(0xffD97706),
     ),
     AppNotification(
       title: "Scheduled Pickup Reminder",
-      description:
-          "Don't forget! Your pickup is scheduled for tomorrow at 2:00 PM.",
-      time: "1 day ago",
-      icon: Icons.calendar_today,
-      iconBgColor: const Color(0xffEDE9FE),
-      iconColor: const Color(0xff7C3AED),
-    ),
-    AppNotification(
-      title: "Order Ready for Pickup",
-      description:
-          "Your dry cleaning order #EZ002 is ready for pickup at Shopping Mall location.",
-      time: "2 minutes ago",
-      icon: Icons.check,
-      iconBgColor: const Color(0xffD1FAE5),
-      iconColor: const Color(0xff10B981),
-      isUnread: true,
-    ),
-    AppNotification(
-      title: "Order Picked Up",
-      description:
-          "We have successfully picked up your laundry from 123 Main Street.",
+      description: "Your pickup is scheduled tomorrow at 3:00 PM.",
       time: "1 hour ago",
-      icon: Icons.local_shipping,
-      iconBgColor: const Color(0xffDBEAFE),
-      iconColor: const Color(0xff2563EB),
+      icon: Icons.calendar_today_rounded,
+      themeColor: const Color(0xff7C3AED),
+    ),
+    AppNotification(
+      title: "Order Completed",
+      description: "Your ironing order #EZ012 is completed at Midtown Store.",
+      time: "2 hours ago",
+      icon: Icons.done_all_rounded,
+      themeColor: const Color(0xff10B981),
       isUnread: true,
     ),
     AppNotification(
-      title: "20% Off Your Next Order",
-      description:
-          "Use code SAVE20 on your next wash & fold service. Valid until Jan 31st.",
+      title: "New Offer: Free Pickup",
+      description: "Avail free pickup on orders above ৳500 until Feb 28.",
       time: "3 hours ago",
-      icon: Icons.card_giftcard,
-      iconBgColor: const Color(0xffFEF3C7),
-      iconColor: const Color(0xffD97706),
-    ),
-    AppNotification(
-      title: "Scheduled Pickup Reminder",
-      description:
-          "Don't forget! Your pickup is scheduled for tomorrow at 2:00 PM.",
-      time: "1 day ago",
-      icon: Icons.calendar_today,
-      iconBgColor: const Color(0xffEDE9FE),
-      iconColor: const Color(0xff7C3AED),
+      icon: Icons.local_mall_rounded,
+      themeColor: const Color(0xff2563EB),
     ),
   ];
 
-  /// MARK AS READ
   void markAsRead(int index) {
     setState(() {
       notifications[index].isUnread = false;
@@ -118,13 +90,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   void markAllAsRead() {
     setState(() {
-      for (var notification in notifications) {
-        notification.isUnread = false;
+      for (var n in notifications) {
+        n.isUnread = false;
       }
     });
   }
 
-  /// REMOVE NOTIFICATION
   void removeNotification(int index) {
     setState(() {
       notifications.removeAt(index);
@@ -133,157 +104,269 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xffF3F4F6),
-      appBar: AppBar(
-        actions: [
-          GestureDetector(
-            onTap: markAllAsRead,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Text(
-                "Mark all as read",
-                style: GoogleFonts.alexandria(color: Colors.blue),
-              ),
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8FAFC),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(100),
+        child: SafeArea(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              gradient: primaryGradient,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: primaryColor.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Notifications",
+                  style: GoogleFonts.alexandria(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (notifications.isNotEmpty)
+                  GestureDetector(
+                    onTap: () => setState(() => notifications.clear()),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.delete_sweep_outlined, color: Colors.white, size: 20),
+                    ),
+                  ),
+              ],
             ),
           ),
-        ],
-        elevation: 0,
-        backgroundColor: Colors.white,
-        title: const Text(
-          "Notifications",
-          style: TextStyle(color: Colors.black),
         ),
       ),
-      body: notifications.isNotEmpty
-          ? ListView.builder(
-              padding: const EdgeInsets.all(16),
+      body: Column(
+        children: [
+          if (notifications.any((n) => n.isUnread))
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: InkWell(
+                  onTap: markAllAsRead,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: Text(
+                      "Mark all as read",
+                      style: GoogleFonts.alexandria(
+                        color: primaryColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Expanded(
+            child: notifications.isNotEmpty
+                ? ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              physics: const BouncingScrollPhysics(),
               itemCount: notifications.length,
               itemBuilder: (context, index) {
-                final notification = notifications[index];
-
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.only(bottom: 16),
                   child: NotificationCard(
-                    notification: notification,
+                    notification: notifications[index],
                     onMarkRead: () => markAsRead(index),
                     onRemove: () => removeNotification(index),
+                    isDark: isDark,
                   ),
                 );
               },
             )
-          : const Center(child: Text("No Notifications")),
+                : _buildEmptyState(isDark),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.notifications_off_outlined, size: 80, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text(
+            "No Notifications Yet",
+            style: GoogleFonts.alexandria(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.grey.shade500 : Colors.grey.shade400,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "We'll notify you when something pops up!",
+            style: GoogleFonts.alexandria(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-/// NOTIFICATION CARD
 class NotificationCard extends StatelessWidget {
   final AppNotification notification;
   final VoidCallback onMarkRead;
   final VoidCallback onRemove;
+  final bool isDark;
 
   const NotificationCard({
     super.key,
     required this.notification,
     required this.onMarkRead,
     required this.onRemove,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: notification.isUnread
-            ? Border.all(color: const Color(0xff93C5FD), width: 1.2)
-            : null,
-        boxShadow: [
+            ? Border.all(color: primaryColor.withOpacity(0.3), width: 1.5)
+            : Border.all(color: isDark ? Colors.white10 : Colors.grey.shade100),
+        boxShadow: isDark
+            ? []
+            : [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// TOP ROW
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                height: 44,
-                width: 44,
+                height: 48,
+                width: 48,
                 decoration: BoxDecoration(
-                  color: notification.iconBgColor,
-                  shape: BoxShape.circle,
+                  color: notification.themeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(notification.icon, color: notification.iconColor),
+                child: Icon(notification.icon, color: notification.themeColor, size: 24),
               ),
               const SizedBox(width: 14),
-
-              /// TITLE
               Expanded(
-                child: Text(
-                  notification.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      notification.title,
+                      style: GoogleFonts.alexandria(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      notification.description,
+                      style: GoogleFonts.alexandria(
+                        fontSize: 13,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-
-              /// UNREAD DOT
-              if (notification.isUnread)
-                Container(
-                  height: 8,
-                  width: 8,
-                  margin: const EdgeInsets.only(right: 8, top: 6),
-                  decoration: const BoxDecoration(
-                    color: Colors.blue,
-                    shape: BoxShape.circle,
+              Column(
+                children: [
+                  GestureDetector(
+                    onTap: onRemove,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white12 : Colors.grey.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, size: 14, color: Colors.grey),
+                    ),
                   ),
-                ),
-
-              /// CLOSE BUTTON
-              GestureDetector(
-                onTap: onRemove,
-                child: const Icon(Icons.close, size: 18, color: Colors.grey),
+                  if (notification.isUnread)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Container(
+                        height: 8,
+                        width: 8,
+                        decoration: const BoxDecoration(
+                          gradient: primaryGradient,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
-
-          const SizedBox(height: 12),
-
-          /// DESCRIPTION
-          Text(
-            notification.description,
-            style: const TextStyle(fontSize: 14, color: Colors.black54),
-          ),
-
-          const SizedBox(height: 12),
-
-          /// TIME + MARK READ
+          const SizedBox(height: 16),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                notification.time,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const Spacer(),
-              if (notification.isUnread)
-                GestureDetector(
-                  onTap: onMarkRead,
-                  child: const Text(
-                    "Mark as read",
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xff2563EB),
+              Row(
+                children: [
+                  Icon(Icons.access_time_rounded, size: 14, color: Colors.grey.shade400),
+                  const SizedBox(width: 4),
+                  Text(
+                    notification.time,
+                    style: GoogleFonts.alexandria(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
                       fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              if (notification.isUnread)
+                TextButton(
+                  onPressed: onMarkRead,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    "Mark as read",
+                    style: GoogleFonts.alexandria(
+                      fontSize: 12,
+                      color: primaryColor,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
