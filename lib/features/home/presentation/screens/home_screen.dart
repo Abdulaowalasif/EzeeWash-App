@@ -1,0 +1,717 @@
+// lib/features/home/screens/home_screen.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:iconsax/iconsax.dart';
+import '../../../../core/constants/app_color.dart';
+import '../../../../core/utils/revponsive.dart';
+import '../../../../routes/routes_name.dart';
+import '../../../notifications/presentation/bloc/notifications_bloc.dart';
+import '../../../notifications/presentation/bloc/notifications_state.dart';
+import '../../../orders/presentation/bloc/orders_bloc.dart';
+import '../../../orders/presentation/bloc/orders_state.dart';
+import '../../../profile/presentation/bloc/profile_bloc.dart';
+import '../../../profile/presentation/bloc/profile_state.dart';
+import '../../../services/presentation/bloc/service_bloc.dart';
+import '../../../services/presentation/bloc/service_event.dart';
+import '../../../services/presentation/bloc/service_state.dart';
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor:
+      isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _HomeAppBar(isDark: isDark),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.horizontalPadding(context),
+                      vertical: 15,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: Responsive.maxContentWidth(context),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 10),
+                            _SearchBox(isDark: isDark),
+                            const SizedBox(height: 25),
+                            _SectionHeader(
+                              title: 'Our Services',
+                              onViewAll: () => context.go(RoutesName.services),
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 15),
+                            _ServicesGrid(
+                              isDark: isDark,
+                              crossAxisCount: Responsive.gridCount(context),
+                            ),
+                            const SizedBox(height: 30),
+                            _QuickActions(isDark: isDark),
+                            const SizedBox(height: 30),
+                            _SectionHeader(
+                              title: 'Recent Orders',
+                              onViewAll: () => context.go(RoutesName.orders),
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 15),
+                            _RecentOrdersList(isDark: isDark),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ===== App Bar =====
+class _HomeAppBar extends StatelessWidget {
+  final bool isDark;
+  const _HomeAppBar({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.fromLTRB(
+        Responsive.horizontalPadding(context),
+        10,
+        Responsive.horizontalPadding(context),
+        5,
+      ),
+      decoration: BoxDecoration(
+        gradient: AppColors.gradient,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          BlocBuilder<ProfileBloc, ProfileState>(
+            builder: (context, state) {
+              final name = state is ProfileLoaded
+                  ? state.profile.fullName?.split(' ').last ?? 'User'
+                  : 'User';
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'EzeeWash',
+                    style: GoogleFonts.pacifico(
+                      color: Colors.white,
+                      fontSize: 26,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Hello, $name 👋',
+                    style: GoogleFonts.alexandria(
+                      color: Colors.white.withOpacity(0.85),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          GestureDetector(
+            onTap: () => context.go(RoutesName.alerts),
+            child: BlocBuilder<NotificationsBloc, NotificationsState>(
+              builder: (context, state) {
+                final unread = state is NotificationsLoaded
+                    ? state.unreadCount
+                    : 0;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(Iconsax.notification,
+                          color: Colors.white, size: 24),
+                    ),
+                    if (unread > 0)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: AppColors.secondary, width: 2),
+                          ),
+                          child: Center(
+                            child: Text(
+                              unread > 9 ? '9+' : '$unread',
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 9),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ===== Search Box =====
+class _SearchBox extends StatelessWidget {
+  final bool isDark;
+  const _SearchBox({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: isDark
+            ? []
+            : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          )
+        ],
+      ),
+      child: TextField(
+        onChanged: (val) =>
+            context.read<ServicesBloc>().add(ServicesSearchChanged(val)),
+        decoration: InputDecoration(
+          hintText: 'Search services...',
+          hintStyle: GoogleFonts.alexandria(
+            color: isDark ? Colors.grey[500] : Colors.grey[400],
+            fontSize: 14,
+          ),
+          prefixIcon: Icon(Iconsax.search_normal,
+              color: isDark ? Colors.grey[400] : Colors.grey[400]),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding:
+          const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        ),
+      ),
+    );
+  }
+}
+
+// ===== Section Header =====
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final VoidCallback onViewAll;
+  final bool isDark;
+
+  const _SectionHeader({
+    required this.title,
+    required this.onViewAll,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.alexandria(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            color: isDark ? Colors.white : AppColors.lightText,
+          ),
+        ),
+        GestureDetector(
+          onTap: onViewAll,
+          child: Text(
+            'View All',
+            style: GoogleFonts.alexandria(
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ===== Services Grid (BLoC-driven) =====
+class _ServicesGrid extends StatelessWidget {
+  final bool isDark;
+  final int crossAxisCount;
+
+  const _ServicesGrid({required this.isDark, required this.crossAxisCount});
+
+  static const _serviceIcons = [
+    Icons.water_drop_outlined,
+    Icons.dry_cleaning_outlined,
+    Icons.local_fire_department_outlined,
+    Icons.flash_on,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ServicesBloc, ServicesState>(
+      builder: (context, state) {
+        if (state is ServicesLoading) {
+          return _buildShimmerGrid();
+        }
+        if (state is ServicesLoaded) {
+          final services = state.filtered.take(4).toList();
+          return GridView.builder(
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: crossAxisCount > 2 ? 0.9 : 0.78,
+            ),
+            itemCount: services.length,
+            itemBuilder: (context, i) {
+              final s = services[i];
+              return _ServiceCard(
+                title: s.title,
+                subtitle: s.description ?? '',
+                price: s.price.toStringAsFixed(0),
+                icon: _serviceIcons[i % _serviceIcons.length],
+                isDark: isDark,
+                onTap: () => context.push(RoutesName.placeOrdersNavigate),
+              );
+            },
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  Widget _buildShimmerGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.78,
+      ),
+      itemCount: 4,
+      itemBuilder: (_, __) => Container(
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+    );
+  }
+}
+
+// ===== Service Card Widget =====
+class _ServiceCard extends StatefulWidget {
+  final String title, subtitle, price;
+  final IconData icon;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _ServiceCard({
+    required this.title,
+    required this.subtitle,
+    required this.price,
+    required this.icon,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  State<_ServiceCard> createState() => _ServiceCardState();
+}
+
+class _ServiceCardState extends State<_ServiceCard> {
+  double _scale = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _scale = 0.95),
+      onTapUp: (_) => setState(() => _scale = 1.0),
+      onTapCancel: () => setState(() => _scale = 1.0),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 120),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color:
+            widget.isDark ? AppColors.darkSurface : AppColors.lightSurface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color:
+              widget.isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            ),
+            boxShadow: widget.isDark
+                ? []
+                : [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 15,
+                offset: const Offset(0, 6),
+              )
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  gradient: AppColors.gradient,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(widget.icon, color: Colors.white, size: 26),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                widget.title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.alexandria(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: widget.isDark ? Colors.white : AppColors.lightText,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.subtitle,
+                style: GoogleFonts.alexandria(
+                  color: widget.isDark
+                      ? AppColors.darkSubtext
+                      : AppColors.lightSubtext,
+                  fontSize: 10,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'From ৳${widget.price}',
+                style: GoogleFonts.alexandria(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===== Quick Actions =====
+class _QuickActions extends StatelessWidget {
+  final bool isDark;
+  const _QuickActions({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ActionBtn(
+            label: 'Book Now',
+            icon: Iconsax.calendar_tick,
+            filled: true,
+            isDark: isDark,
+            onTap: () => context.push(RoutesName.placeOrdersNavigate),
+          ),
+        ),
+        const SizedBox(width: 15),
+        Expanded(
+          child: _ActionBtn(
+            label: 'Track Order',
+            icon: Iconsax.truck,
+            filled: false,
+            isDark: isDark,
+            onTap: () => context.push(RoutesName.trackOrdersNavigate),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool filled;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _ActionBtn({
+    required this.label,
+    required this.icon,
+    required this.filled,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          gradient: filled ? AppColors.gradient : null,
+          color: filled
+              ? null
+              : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+          borderRadius: BorderRadius.circular(14),
+          border: filled
+              ? null
+              : Border.all(
+              color: AppColors.primary.withOpacity(0.4), width: 1.5),
+          boxShadow: filled
+              ? [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            )
+          ]
+              : [],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon,
+                color: filled ? Colors.white : AppColors.primary, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.alexandria(
+                fontWeight: FontWeight.w600,
+                color: filled ? Colors.white : AppColors.primary,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ===== Recent Orders (BLoC-driven) =====
+class _RecentOrdersList extends StatelessWidget {
+  final bool isDark;
+  const _RecentOrdersList({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<OrdersBloc, OrdersState>(
+      builder: (context, state) {
+        // Only show spinner on the very first load (OrdersInitial → OrdersLoading)
+        if (state is OrdersInitial || state is OrdersLoading) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        if (state is OrdersLoaded) {
+          final recent = state.orders.take(2).toList();
+          if (recent.isEmpty) {
+            return Center(
+              child: Text(
+                'No orders yet. Book your first service!',
+                style: GoogleFonts.alexandria(
+                  color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                ),
+              ),
+            );
+          }
+          return Column(
+            children: recent
+                .map((order) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _RecentOrderCard(
+                id: '#${order.orderNumber}',
+                service: order.serviceName,
+                status: order.status,
+                progress: order.progress,
+                isDark: isDark,
+              ),
+            ))
+                .toList(),
+          );
+        }
+        // OrderPlacing / OrderPlaced / OrdersError — show nothing in home
+        return const SizedBox.shrink();
+      },
+    );
+  }
+}
+
+class _RecentOrderCard extends StatelessWidget {
+  final String id, service, status;
+  final double progress;
+  final bool isDark;
+
+  const _RecentOrderCard({
+    required this.id,
+    required this.service,
+    required this.status,
+    required this.progress,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompleted = status == 'delivered';
+    final statusColor =
+    isCompleted ? AppColors.success : AppColors.warning;
+    final statusLabel = status.replaceAll('_', ' ').toUpperCase();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
+        boxShadow: isDark
+            ? []
+            : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          )
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: AppColors.gradient,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Iconsax.activity,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(id,
+                        style: GoogleFonts.alexandria(
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : AppColors.lightText,
+                            fontSize: 14)),
+                    Text(service,
+                        style: GoogleFonts.alexandria(
+                            color: isDark
+                                ? AppColors.darkSubtext
+                                : AppColors.lightSubtext,
+                            fontSize: 12)),
+                  ],
+                ),
+              ),
+              Text(
+                statusLabel,
+                style: GoogleFonts.alexandria(
+                  fontWeight: FontWeight.w600,
+                  color: statusColor,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor:
+              isDark ? Colors.white12 : Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation(
+                  isCompleted ? statusColor : AppColors.primary),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '${(progress * 100).toInt()}% Complete',
+              style: GoogleFonts.alexandria(
+                color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
