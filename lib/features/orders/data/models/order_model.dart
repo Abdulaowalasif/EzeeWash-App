@@ -1,6 +1,5 @@
 // lib/features/orders/data/models/order_model.dart
 import '../../domain/entities/order_entity.dart';
-import '../../domain/entities/order_timeline_step.dart';
 
 class OrderTimelineStepModel extends OrderTimelineStep {
   const OrderTimelineStepModel({
@@ -38,6 +37,7 @@ class OrderModel extends OrderEntity {
     required super.userId,
     required super.serviceId,
     required super.serviceName,
+    super.serviceImageUrl,
     required super.storeId,
     required super.storeName,
     required super.status,
@@ -61,12 +61,15 @@ class OrderModel extends OrderEntity {
         .toList()
       ..sort((a, b) => a.stepOrder.compareTo(b.stepOrder));
 
+    final serviceMap = j['services'] as Map?;
+
     return OrderModel(
       id: j['id'] as String,
       orderNumber: j['order_number'] as String? ?? '',
       userId: j['user_id'] as String,
       serviceId: j['service_id'] as String,
-      serviceName: (j['services'] as Map?)?['title'] as String? ?? 'Unknown',
+      serviceName: serviceMap?['title'] as String? ?? 'Unknown',
+      serviceImageUrl: serviceMap?['image_url'] as String?,  // ← new
       storeId: j['store_id'] as String,
       storeName: (j['stores'] as Map?)?['name'] as String? ?? 'Unknown',
       status: j['status'] as String? ?? 'pending',

@@ -8,7 +8,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/constants/app_color.dart';
-import '../../../../core/utils/revponsive.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../domain/entities/profile_entity.dart';

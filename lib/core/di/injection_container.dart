@@ -116,17 +116,24 @@ Future<void> initDependencies() async {
   );
 
   // ─── NOTIFICATIONS ────────────────────────────────────────────────────────
-  // sl.registerLazySingleton<NotificationsRemoteDataSource>(
-  //   () => NotificationsRemoteDataSourceImpl(sl()),
-  // );
-  // sl.registerLazySingleton<NotificationsRepository>(
-  //   () => NotificationsRepositoryImpl(remoteDataSource: sl(), client: sl()),
-  // );
-  // sl.registerLazySingleton(() => GetNotificationsUseCase(sl()));
-  // sl.registerLazySingleton(() => MarkNotificationReadUseCase(sl()));
-  // sl.registerLazySingleton(() => MarkAllNotificationsReadUseCase(sl()));
+  sl.registerLazySingleton<NotificationsRemoteDataSource>(
+    () => NotificationsRemoteDataSourceImpl(sl()),
+  );
+  sl.registerLazySingleton<NotificationsRepository>(
+    () => NotificationsRepositoryImpl(remoteDataSource: sl(), client: sl()),
+  );
+  sl.registerLazySingleton(() => GetNotificationsUseCase(sl()));
+  sl.registerLazySingleton(() => MarkNotificationReadUseCase(sl()));
+  sl.registerLazySingleton(() => MarkAllNotificationsReadUseCase(sl()));
 
-  sl.registerFactory(() => NotificationsBloc(sl<SupabaseClient>()));
+  sl.registerFactory(
+    () => NotificationsBloc(
+      getNotificationsUseCase: sl(),
+      markReadUseCase: sl(),
+      markAllReadUseCase: sl(),
+      client: sl<SupabaseClient>(),
+    ),
+  );
 
   // ─── PROFILE ──────────────────────────────────────────────────────────────
   sl.registerLazySingleton<ProfileRemoteDataSource>(

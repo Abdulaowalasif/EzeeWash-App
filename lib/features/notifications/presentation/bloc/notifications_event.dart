@@ -1,31 +1,32 @@
-import 'package:equatable/equatable.dart';
+// lib/features/notifications/bloc/notifications_event.dart
+part of 'notifications_bloc.dart';
 
-abstract class NotificationsEvent extends Equatable {
+sealed class NotificationsEvent extends Equatable {
   const NotificationsEvent();
   @override
   List<Object?> get props => [];
 }
 
-class NotificationsLoadRequested extends NotificationsEvent {
+/// Fetch (or re-fetch) the current user's notifications.
+final class NotificationsLoadRequested extends NotificationsEvent {
   const NotificationsLoadRequested();
 }
 
-class NotificationMarkRead extends NotificationsEvent {
+/// Mark a single notification as read.
+final class NotificationMarkReadRequested extends NotificationsEvent {
   final String notificationId;
-  const NotificationMarkRead(this.notificationId);
-
+  const NotificationMarkReadRequested(this.notificationId);
   @override
   List<Object> get props => [notificationId];
 }
 
-class NotificationMarkAllRead extends NotificationsEvent {
-  const NotificationMarkAllRead();
+/// Mark all unread notifications as read.
+final class NotificationsMarkAllReadRequested extends NotificationsEvent {
+  const NotificationsMarkAllReadRequested();
 }
 
-class NotificationsRealtimeUpdated extends NotificationsEvent {
-  final List<Map<String, dynamic>> data;
-  const NotificationsRealtimeUpdated(this.data);
-
-  @override
-  List<Object> get props => [data];
+/// Internal — fired by the Supabase Realtime subscription.
+/// Screens cannot dispatch this directly.
+final class NotificationsRealtimeTick extends NotificationsEvent {
+  const NotificationsRealtimeTick();
 }

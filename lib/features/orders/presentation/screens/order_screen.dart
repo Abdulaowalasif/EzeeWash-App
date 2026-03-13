@@ -1,11 +1,12 @@
 // lib/features/orders/screens/order_screen.dart
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../../../core/constants/app_color.dart';
-import '../../../../core/utils/revponsive.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
 import '../../domain/entities/order_entity.dart';
 import '../bloc/order_event.dart';
@@ -444,10 +445,9 @@ class _OrderCardState extends State<_OrderCard> {
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.local_laundry_service,
-                  color: Colors.white,
-                  size: 28,
+                child:  _ServiceImage(
+                  imageUrl: o.serviceImageUrl,
+                  isDark: widget.isDark,
                 ),
               ),
               const SizedBox(width: 14),
@@ -751,5 +751,68 @@ class _OrderCardState extends State<_OrderCard> {
     final m = dt.minute.toString().padLeft(2, '0');
     final period = dt.hour >= 12 ? 'PM' : 'AM';
     return '${dt.day}/${dt.month}/${dt.year}  $h:$m $period';
+  }
+}
+
+class _ServiceImage extends StatelessWidget {
+  final String? imageUrl;
+  final bool isDark;
+
+  const _ServiceImage({this.imageUrl, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 54,
+      width: 54,
+      decoration: BoxDecoration(
+        gradient: imageUrl == null ? AppColors.gradient : null,
+        color: imageUrl != null
+            ? (isDark ? AppColors.darkSurface : Colors.grey.shade100)
+            : null,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: imageUrl != null
+            ? CachedNetworkImage(
+          imageUrl: imageUrl!,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary.withOpacity(0.5),
+              ),
+            ),
+          ),
+          errorWidget: (_, __, ___) => Container(
+            decoration: BoxDecoration(
+              gradient: AppColors.gradient,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.local_laundry_service,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+        )
+            : const Icon(
+          Icons.local_laundry_service,
+          color: Colors.white,
+          size: 28,
+        ),
+      ),
+    );
   }
 }

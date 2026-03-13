@@ -18,12 +18,19 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
   final SupabaseClient _client;
   OrdersRemoteDataSourceImpl(this._client);
 
+  // image_url added to services join so the order card shows the
+  // real service image instead of a generic laundry icon.
+  static const _select =
+      '*, services(title,category,image_url), stores(name), order_timelines(*)';
+  static const _selectNoTimeline =
+      '*, services(title,category,image_url), stores(name)';
+
   @override
   Future<List<OrderModel>> getOrders(String userId) async {
     try {
       final data = await _client
           .from(AppConstants.ordersTable)
-          .select('*, services(title,category), stores(name), order_timelines(*)')
+          .select(_select)
           .eq('user_id', userId)
           .order('created_at', ascending: false);
       return (data as List).map((e) => OrderModel.fromJson(e)).toList();
@@ -37,7 +44,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
     try {
       final data = await _client
           .from(AppConstants.ordersTable)
-          .select('*, services(title,category), stores(name), order_timelines(*)')
+          .select(_select)
           .eq('id', orderId)
           .single();
       return OrderModel.fromJson(data);
@@ -54,12 +61,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       }
 
-      // Guard: ensure the profile row exists before inserting the order.
-      // orders.user_id FK references profiles(id), so if the profile
-      // was not created yet this insert would fail with a FK violation.
-      await _client
-          .from('profiles')
-          .upsert({'id': userId}, onConflict: 'id');
+      await _client.from('profiles').upsert({'id': userId}, onConflict: 'id');
 
       final row = await _client
           .from(AppConstants.ordersTable)
@@ -79,7 +81,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         'status': AppConstants.orderPending,
         'progress': 0.0,
       })
-          .select('*, services(title,category), stores(name)')
+          .select(_selectNoTimeline)
           .single();
       return OrderModel.fromJson(row);
     } catch (e) {
@@ -102,18 +104,12 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
     }
   }
 
-  /// Sets the order status to 'cancelled' and progress to 0.
-  /// Only works while the order is still pending — confirmed/in-process
-  /// orders should be rejected by a Supabase RLS policy or DB check.
   @override
   Future<void> cancelOrder(String orderId) async {
     try {
       await _client
           .from(AppConstants.ordersTable)
-          .update({
-        'status': AppConstants.orderCancelled,
-        'progress': 0.0,
-      })
+          .update({'status': AppConstants.orderCancelled, 'progress': 0.0})
           .eq('id', orderId);
     } catch (e) {
       throw ServerException(e.toString());

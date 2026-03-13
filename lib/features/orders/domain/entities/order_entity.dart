@@ -1,6 +1,24 @@
 // lib/features/orders/domain/entities/order_entity.dart
 import 'package:equatable/equatable.dart';
-import 'order_timeline_step.dart';
+
+class OrderTimelineStep extends Equatable {
+  final String title;
+  final String? description;
+  final DateTime? eventTime;
+  final bool isDone;
+  final int stepOrder;
+
+  const OrderTimelineStep({
+    required this.title,
+    this.description,
+    this.eventTime,
+    required this.isDone,
+    required this.stepOrder,
+  });
+
+  @override
+  List<Object?> get props => [title, isDone, stepOrder];
+}
 
 class OrderEntity extends Equatable {
   final String id;
@@ -8,6 +26,7 @@ class OrderEntity extends Equatable {
   final String userId;
   final String serviceId;
   final String serviceName;
+  final String? serviceImageUrl; // ← service image from services.image_url
   final String storeId;
   final String storeName;
   final String status;
@@ -30,6 +49,7 @@ class OrderEntity extends Equatable {
     required this.userId,
     required this.serviceId,
     required this.serviceName,
+    this.serviceImageUrl,
     required this.storeId,
     required this.storeName,
     required this.status,

@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../core/constants/app_color.dart';
-import '../../core/utils/revponsive.dart';
+import '../../core/utils/responsive.dart';
 
 class ChatBotScreen extends StatelessWidget {
   const ChatBotScreen({super.key});
@@ -40,7 +40,7 @@ class ChatBotScreen extends StatelessWidget {
                     SizedBox(
                       height: 200,
                       child: Lottie.asset(
-                        'assets/animations/bot.json',
+                        'assets/animation/bot.json',
                         fit: BoxFit.contain,
                         frameRate: FrameRate.composition,
                         filterQuality: FilterQuality.medium,

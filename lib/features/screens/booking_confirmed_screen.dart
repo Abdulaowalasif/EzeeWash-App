@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import '../../../routes/routes_name.dart';
 import '../../core/constants/app_color.dart';
-import '../../core/utils/revponsive.dart';
+import '../../core/utils/responsive.dart';
 
 class BookingConfirmedScreen extends StatelessWidget {
   final String orderNumber;
@@ -28,7 +28,7 @@ class BookingConfirmedScreen extends StatelessWidget {
                 SizedBox(
                   height: 220,
                   child: Lottie.asset(
-                    'assets/animations/confirmed.json',
+                    'assets/animation/confirmed.json',
                     repeat: false,
                     errorBuilder: (_, __, ___) => Container(
                       width: 120, height: 120,

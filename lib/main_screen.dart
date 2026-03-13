@@ -8,7 +8,6 @@ import 'package:iconsax/iconsax.dart';
 import 'core/constants/app_color.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/notifications/presentation/bloc/notifications_bloc.dart';
-import 'features/notifications/presentation/bloc/notifications_state.dart';
 
 class MainScreen extends StatelessWidget {
   final StatefulNavigationShell navigationShell;

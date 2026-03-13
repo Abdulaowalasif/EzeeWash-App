@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/app_color.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/utils/revponsive.dart';
+import '../../core/utils/responsive.dart';
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 

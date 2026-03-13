@@ -7,7 +7,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/utils/revponsive.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
 import '../../domain/entities/place_orders_params.dart';
 import '../bloc/order_event.dart';

@@ -5,11 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_color.dart';
-import '../../../../core/utils/revponsive.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../domain/entities/notification_entity.dart';
 import '../bloc/notifications_bloc.dart';
-import '../bloc/notifications_event.dart';
-import '../bloc/notifications_state.dart';
 
 class NotificationScreen extends StatelessWidget {
   const NotificationScreen({super.key});
@@ -20,7 +18,7 @@ class NotificationScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor:
-          isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(100),
         child: SafeArea(
@@ -32,7 +30,7 @@ class NotificationScreen extends StatelessWidget {
               10,
             ),
             padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
               gradient: AppColors.gradient,
               borderRadius: BorderRadius.circular(20),
@@ -55,14 +53,14 @@ class NotificationScreen extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                // Mark All Read button — only shown when there are unread
                 BlocBuilder<NotificationsBloc, NotificationsState>(
                   builder: (context, state) {
-                    if (state is NotificationsLoaded &&
-                        state.unreadCount > 0) {
+                    if (state is NotificationsLoaded && state.hasUnread) {
                       return GestureDetector(
                         onTap: () => context
                             .read<NotificationsBloc>()
-                            .add(const NotificationMarkAllRead()),
+                            .add(const NotificationsMarkAllReadRequested()),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
@@ -91,9 +89,78 @@ class NotificationScreen extends StatelessWidget {
       ),
       body: BlocBuilder<NotificationsBloc, NotificationsState>(
         builder: (context, state) {
-          if (state is NotificationsLoading) {
-            return const Center(child: CircularProgressIndicator());
+          // ── Initial / Loading ────────────────────────────────────────────
+          if (state is NotificationsInitial || state is NotificationsLoading) {
+            return Center(
+              child: CircularProgressIndicator(
+                color: AppColors.primary,
+                strokeWidth: 2.5,
+              ),
+            );
           }
+
+          // ── Error ────────────────────────────────────────────────────────
+          if (state is NotificationsError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Iconsax.warning_2,
+                      size: 64,
+                      color: isDark
+                          ? AppColors.darkSubtext
+                          : AppColors.lightSubtext,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Could not load notifications',
+                      style: GoogleFonts.alexandria(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : AppColors.lightText,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      state.message,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.alexandria(
+                        fontSize: 13,
+                        color: isDark
+                            ? AppColors.darkSubtext
+                            : AppColors.lightSubtext,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: Text(
+                        'Try Again',
+                        style: GoogleFonts.alexandria(
+                            fontWeight: FontWeight.w600),
+                      ),
+                      onPressed: () => context
+                          .read<NotificationsBloc>()
+                          .add(const NotificationsLoadRequested()),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // ── Loaded ───────────────────────────────────────────────────────
           if (state is NotificationsLoaded) {
             if (state.notifications.isEmpty) {
               return Center(
@@ -117,11 +184,24 @@ class NotificationScreen extends StatelessWidget {
                             : AppColors.lightSubtext,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'You\'ll see order updates and promotions here.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.alexandria(
+                        fontSize: 13,
+                        color: isDark
+                            ? AppColors.darkSubtext
+                            : AppColors.lightSubtext,
+                      ),
+                    ),
                   ],
                 ),
               );
             }
+
             return ListView.separated(
+              physics: const BouncingScrollPhysics(),
               padding: EdgeInsets.symmetric(
                 horizontal: Responsive.horizontalPadding(context),
                 vertical: 10,
@@ -133,13 +213,16 @@ class NotificationScreen extends StatelessWidget {
                 return _NotificationCard(
                   notification: notif,
                   isDark: isDark,
-                  onTap: () => context
+                  onTap: notif.isRead
+                      ? null // already read — no action needed
+                      : () => context
                       .read<NotificationsBloc>()
-                      .add(NotificationMarkRead(notif.id)),
+                      .add(NotificationMarkReadRequested(notif.id)),
                 );
               },
             );
           }
+
           return const SizedBox.shrink();
         },
       ),
@@ -147,15 +230,17 @@ class NotificationScreen extends StatelessWidget {
   }
 }
 
+// ─── Notification card ────────────────────────────────────────────────────────
+
 class _NotificationCard extends StatelessWidget {
   final NotificationEntity notification;
   final bool isDark;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _NotificationCard({
     required this.notification,
     required this.isDark,
-    required this.onTap,
+    this.onTap,
   });
 
   IconData get _icon {
@@ -164,8 +249,19 @@ class _NotificationCard extends StatelessWidget {
         return Iconsax.truck_fast;
       case 'promo':
         return Iconsax.discount_circle;
+      case 'welcome':
+        return Iconsax.star;
       default:
         return Iconsax.notification;
+    }
+  }
+
+  Color get _iconColor {
+    switch (notification.type) {
+      case 'order_update': return AppColors.primary;
+      case 'promo':        return const Color(0xFF8B5CF6);
+      case 'welcome':      return AppColors.success;
+      default:             return AppColors.primary;
     }
   }
 
@@ -180,35 +276,44 @@ class _NotificationCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: isUnread
               ? (isDark
-                  ? AppColors.primary.withOpacity(0.12)
-                  : AppColors.primary.withOpacity(0.05))
+              ? AppColors.primary.withOpacity(0.12)
+              : AppColors.primary.withOpacity(0.05))
               : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isUnread
                 ? AppColors.primary.withOpacity(0.3)
-                : (isDark
-                    ? AppColors.darkBorder
-                    : AppColors.lightBorder),
+                : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
           ),
+          boxShadow: isDark
+              ? []
+              : [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 3))
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Icon
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                gradient: AppColors.gradient,
+                color: _iconColor.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(_icon, color: Colors.white, size: 20),
+              child: Icon(_icon, color: _iconColor, size: 20),
             ),
             const SizedBox(width: 14),
+            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: Text(
@@ -224,10 +329,13 @@ class _NotificationCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      // Unread dot
                       if (isUnread)
                         Container(
                           width: 8,
                           height: 8,
+                          margin: const EdgeInsets.only(top: 4),
                           decoration: const BoxDecoration(
                             color: AppColors.primary,
                             shape: BoxShape.circle,
@@ -252,8 +360,8 @@ class _NotificationCard extends StatelessWidget {
                     style: GoogleFonts.alexandria(
                       fontSize: 11,
                       color: isDark
-                          ? AppColors.darkSubtext
-                          : AppColors.lightSubtext,
+                          ? AppColors.darkSubtext.withOpacity(0.7)
+                          : AppColors.lightSubtext.withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -268,8 +376,10 @@ class _NotificationCard extends StatelessWidget {
   String _formatDate(DateTime dt) {
     final now = DateTime.now();
     final diff = now.difference(dt);
+    if (diff.inMinutes < 1)  return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inHours < 24)   return '${diff.inHours}h ago';
+    if (diff.inDays < 7)     return '${diff.inDays}d ago';
     return DateFormat('MMM d, y').format(dt);
   }
 }
