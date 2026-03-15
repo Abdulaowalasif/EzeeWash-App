@@ -804,7 +804,7 @@ class _TimelineView extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // close the dialog first
+              Navigator.of(context, rootNavigator: true).pop(); // close the dialog first
               // Dispatch the real cancel event to the bloc
               context
                   .read<OrdersBloc>()

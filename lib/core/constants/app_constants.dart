@@ -4,8 +4,8 @@ class AppConstants {
   AppConstants._();
 
   // Supabase
-  static const supabaseUrl = 'https://mhdjxaaplvykirmbuhmj.supabase.co';
-  static const supabaseAnonKey = 'sb_publishable_er7-ubskB9XdlDgJDXWcoQ_IFlleJ98';
+  static const supabaseUrl = 'https://xxvicmprwtbxinuluyqx.supabase.co';
+  static const supabaseAnonKey = 'sb_publishable_RGFSfrrMcY-uqQrFxNCNaw_Z6D6Jmo2';
 
   // App
   static const appName = 'EzeeWash';

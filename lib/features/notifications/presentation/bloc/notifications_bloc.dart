@@ -10,16 +10,6 @@ import '../../domain/usecases/notification_usecase.dart';
 part 'notifications_event.dart';
 part 'notifications_state.dart';
 
-/// Loads notifications, handles mark-read (single + bulk), and
-/// keeps the list live via Supabase Realtime.
-///
-/// Realtime strategy (mirrors OrdersBloc):
-///   - Subscribe ONCE after the first successful load (_subscribed guard).
-///   - Skip the immediate snapshot Supabase emits on subscribe (firstEvent flag).
-///   - Background ticks do a SILENT reload — never emit NotificationsLoading,
-///     so the list never flickers a spinner on realtime updates.
-///   - Mark-read is optimistic: state is updated immediately for a snappy UI,
-///     then the DB write fires in the background.
 class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   final GetNotificationsUseCase getNotificationsUseCase;
   final MarkNotificationReadUseCase markReadUseCase;

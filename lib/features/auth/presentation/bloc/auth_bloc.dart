@@ -108,13 +108,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       AuthGoogleSignInRequested event,
       Emitter<AuthState> emit,
       ) async {
-    _suppressStream = true;
     emit(const AuthLoading());
+
     final res = await authRepository.signInWithGoogle();
-    _suppressStream = false;
+
     res.fold(
           (f) => emit(AuthError(f.message)),
-          (user) => emit(AuthAuthenticated(user)),
+          (_) {
+        // Do nothing
+        // Supabase authStateChanges stream will emit the authenticated user
+      },
     );
   }
 

@@ -1,4 +1,5 @@
 // lib/features/auth/data/datasources/auth_remote_datasource.dart
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/exceptions.dart';
@@ -99,15 +100,23 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserModel> signInWithGoogle() async {
     try {
-      await _client.auth.signInWithOAuth(supa.OAuthProvider.google);
+      await _client.auth.signInWithOAuth(
+        supa.OAuthProvider.google,
+        redirectTo: 'io.supabase.flutter://login-callback',
+      );
+
       final user = _client.auth.currentUser;
-      if (user == null) throw AuthException('Google sign in failed.');
+
+      if (user == null) {
+        throw const AuthException('Google sign in failed.');
+      }
+
       return await _loadOrCreateProfile(user);
+
     } catch (e) {
       throw AuthException(e.toString());
     }
   }
-
   // ─── Sign out ──────────────────────────────────────────────────────────────
 
   @override
