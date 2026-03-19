@@ -15,11 +15,17 @@ import '../../../orders/presentation/bloc/orders_state.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
 import '../../../profile/presentation/bloc/profile_state.dart';
 import '../../../services/presentation/bloc/service_bloc.dart';
-import '../../../services/presentation/bloc/service_event.dart';
 import '../../../services/presentation/bloc/service_state.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _localQuery = '';
 
   @override
   Widget build(BuildContext context) {
@@ -34,51 +40,52 @@ class HomeScreen extends StatelessWidget {
           children: [
             _HomeAppBar(isDark: isDark),
             Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.horizontalPadding(context),
-                      vertical: 15,
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.horizontalPadding(context),
+                  vertical: 15,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: Responsive.maxContentWidth(context),
                     ),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: Responsive.maxContentWidth(context),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 10),
+                        _SearchBox(
+                          isDark: isDark,
+                          onChanged: (q) => setState(() => _localQuery = q),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 10),
-                            _SearchBox(isDark: isDark),
-                            const SizedBox(height: 25),
-                            _SectionHeader(
-                              title: 'Our Services',
-                              onViewAll: () => context.go(RoutesName.services),
-                              isDark: isDark,
-                            ),
-                            const SizedBox(height: 15),
-                            _ServicesGrid(
-                              isDark: isDark,
-                              crossAxisCount: Responsive.gridCount(context),
-                            ),
-                            const SizedBox(height: 30),
-                            _QuickActions(isDark: isDark),
-                            const SizedBox(height: 30),
-                            _SectionHeader(
-                              title: 'Recent Orders',
-                              onViewAll: () => context.go(RoutesName.orders),
-                              isDark: isDark,
-                            ),
-                            const SizedBox(height: 15),
-                            _RecentOrdersList(isDark: isDark),
-                            const SizedBox(height: 20),
-                          ],
+                        const SizedBox(height: 25),
+                        _SectionHeader(
+                          title: 'Our Services',
+                          onViewAll: () => context.go(RoutesName.services),
+                          isDark: isDark,
                         ),
-                      ),
+                        const SizedBox(height: 15),
+                        _ServicesGrid(
+                          isDark: isDark,
+                          crossAxisCount: Responsive.gridCount(context),
+                          localQuery: _localQuery,
+                        ),
+                        const SizedBox(height: 30),
+                        _QuickActions(isDark: isDark),
+                        const SizedBox(height: 30),
+                        _SectionHeader(
+                          title: 'Recent Orders',
+                          onViewAll: () => context.go(RoutesName.orders),
+                          isDark: isDark,
+                        ),
+                        const SizedBox(height: 15),
+                        _RecentOrdersList(isDark: isDark),
+                        const SizedBox(height: 20),
+                      ],
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
             ),
           ],
@@ -206,18 +213,32 @@ class _HomeAppBar extends StatelessWidget {
 }
 
 // ===== Search Box =====
-class _SearchBox extends StatelessWidget {
+class _SearchBox extends StatefulWidget {
   final bool isDark;
+  final ValueChanged<String> onChanged;
 
-  const _SearchBox({required this.isDark});
+  const _SearchBox({required this.isDark, required this.onChanged});
+
+  @override
+  State<_SearchBox> createState() => _SearchBoxState();
+}
+
+class _SearchBoxState extends State<_SearchBox> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : Colors.white,
+        color: widget.isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: isDark
+        boxShadow: widget.isDark
             ? []
             : [
                 BoxShadow(
@@ -228,17 +249,30 @@ class _SearchBox extends StatelessWidget {
               ],
       ),
       child: TextField(
-        onChanged: (val) =>
-            context.read<ServicesBloc>().add(ServicesSearchChanged(val)),
+        controller: _ctrl,
+        onChanged: widget.onChanged,
         decoration: InputDecoration(
           hintText: 'Search services...',
           hintStyle: GoogleFonts.alexandria(
-            color: isDark ? Colors.grey[500] : Colors.grey[400],
+            color: widget.isDark ? Colors.grey[500] : Colors.grey[400],
             fontSize: 14,
           ),
           prefixIcon: Icon(
             Iconsax.search_normal,
-            color: isDark ? Colors.grey[400] : Colors.grey[400],
+            color: widget.isDark ? Colors.grey[400] : Colors.grey[400],
+          ),
+          suffixIcon: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _ctrl,
+            builder: (_, value, __) => value.text.isEmpty
+                ? const SizedBox.shrink()
+                : IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    color: Colors.grey[400],
+                    onPressed: () {
+                      _ctrl.clear();
+                      widget.onChanged('');
+                    },
+                  ),
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
@@ -299,8 +333,13 @@ class _SectionHeader extends StatelessWidget {
 class _ServicesGrid extends StatelessWidget {
   final bool isDark;
   final int crossAxisCount;
+  final String localQuery;
 
-  const _ServicesGrid({required this.isDark, required this.crossAxisCount});
+  const _ServicesGrid({
+    required this.isDark,
+    required this.crossAxisCount,
+    required this.localQuery,
+  });
 
   static const _serviceIcons = [
     Icons.water_drop_outlined,
@@ -312,12 +351,51 @@ class _ServicesGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ServicesBloc, ServicesState>(
-      builder: (context, state) {
-        if (state is ServicesLoading) {
-          return _buildShimmerGrid();
+      // Only rebuild when the master services list changes — not on
+      // service screen filter/search changes which mutate state.filtered
+      buildWhen: (prev, curr) {
+        if (prev is ServicesLoaded && curr is ServicesLoaded) {
+          return prev.services != curr.services;
         }
+        return prev.runtimeType != curr.runtimeType;
+      },
+      builder: (context, state) {
+        if (state is ServicesLoading) return _buildShimmerGrid();
+
         if (state is ServicesLoaded) {
-          final services = state.filtered.take(4).toList();
+          // Always read from the unfiltered master list — never state.filtered
+          // which is owned by the service screen's search/category state.
+          final q = localQuery.toLowerCase().trim();
+          final all = state.services;
+          final services =
+              (q.isEmpty
+                      ? all
+                      : all.where((s) {
+                          return s.title.toLowerCase().contains(q) ||
+                              (s.description?.toLowerCase().contains(q) ??
+                                  false) ||
+                              s.tags.any((t) => t.toLowerCase().contains(q));
+                        }).toList())
+                  .take(4)
+                  .toList();
+
+          if (services.isEmpty && q.isNotEmpty) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: Text(
+                  'No services found for "$localQuery"',
+                  style: GoogleFonts.alexandria(
+                    fontSize: 13,
+                    color: isDark
+                        ? AppColors.darkSubtext
+                        : AppColors.lightSubtext,
+                  ),
+                ),
+              ),
+            );
+          }
+
           return GridView.builder(
             padding: EdgeInsets.zero,
             shrinkWrap: true,
@@ -660,12 +738,12 @@ class _RecentOrdersList extends StatelessWidget {
                   (order) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _RecentOrderCard(
-                      image: order.serviceImageUrl.toString(),
                       id: '#${order.orderNumber}',
                       service: order.serviceName,
                       status: order.status,
                       progress: order.progress,
                       isDark: isDark,
+                      image: order.serviceImageUrl.toString(),
                     ),
                   ),
                 )

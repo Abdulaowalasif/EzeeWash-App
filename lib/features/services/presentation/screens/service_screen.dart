@@ -14,9 +14,14 @@ import '../bloc/service_bloc.dart';
 import '../bloc/service_event.dart';
 import '../bloc/service_state.dart';
 
-class ServiceScreen extends StatelessWidget {
+class ServiceScreen extends StatefulWidget {
   const ServiceScreen({super.key});
 
+  @override
+  State<ServiceScreen> createState() => _ServiceScreenState();
+}
+
+class _ServiceScreenState extends State<ServiceScreen> {
   static const _categoryIcons = {
     'All Services': Iconsax.category,
     'Wash & Fold': Icons.water_drop_outlined,
@@ -28,13 +33,23 @@ class ServiceScreen extends StatelessWidget {
   };
 
   @override
+  void dispose() {
+    // Reset search & filter when leaving the service screen so returning
+    // to it starts fresh and home screen is never affected.
+    final bloc = context.read<ServicesBloc>();
+    if (bloc.state is ServicesLoaded) {
+      bloc.add(const ServicesFilterChanged('All Services'));
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor:
-      isDark ? AppColors.darkBackground :
-      AppColors.lightBackground,
+      isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: SafeArea(
         child: Column(
           children: [
