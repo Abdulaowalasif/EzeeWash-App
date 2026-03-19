@@ -7,13 +7,13 @@ import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/notifications/presentation/screens/notification_screen.dart';
 import '../features/orders/presentation/screens/order_screen.dart';
+import '../features/orders/presentation/screens/place_order_screen.dart';
 import '../features/profile/presentation/presentation/profile_screen.dart';
 import '../features/screens/address_screen.dart';
 import '../features/screens/booking_confirmed_screen.dart';
 import '../features/screens/chat_bot_screen.dart';
 import '../features/screens/error_screen.dart';
 import '../features/screens/help_support_screen.dart';
-import '../features/orders/presentation/screens/place_order_screen.dart';
 import '../features/screens/terms_policy_screen.dart';
 import '../features/screens/track_order_screens.dart';
 import '../features/services/presentation/screens/service_screen.dart';
@@ -27,10 +27,8 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
     final authState = authBloc.state;
     final isOnLogin = state.matchedLocation == RoutesName.login;
 
-    // Don't redirect while loading/initialising
     if (authState is AuthLoading || authState is AuthInitial) return null;
 
-    // AuthError is treated as unauthenticated — send to login
     if (authState is AuthUnauthenticated || authState is AuthError) {
       return isOnLogin ? null : RoutesName.login;
     }
@@ -42,15 +40,11 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
     return null;
   },
   routes: [
-    // ── Login ────────────────────────────────────────────────────
     GoRoute(
       path: RoutesName.login,
-      // Use fade (not slide) so there is no black frame when
-      // GoRouter redirects from the shell back to login on logout.
       pageBuilder: (c, s) => _fade(const LoginScreen(), s),
     ),
 
-    // ── Main Shell ───────────────────────────────────────────────
     StatefulShellRoute.indexedStack(
       builder: (c, s, shell) => MainScreen(navigationShell: shell),
       branches: [
@@ -76,7 +70,15 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
             routes: [
               GoRoute(
                 path: RoutesName.placeOrders,
-                pageBuilder: (c, s) => _slide(const PlaceOrderScreen(), s),
+                pageBuilder: (c, s) {
+                  // extra can be a serviceId String (pre-selects the service)
+                  // or null (no pre-selection — user picks from scratch)
+                  final preSelectedServiceId = s.extra as String?;
+                  return _slide(
+                    PlaceOrderScreen(preSelectedServiceId: preSelectedServiceId),
+                    s,
+                  );
+                },
               ),
               GoRoute(
                 path: RoutesName.trackOrders,
@@ -89,7 +91,8 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
                 path: RoutesName.confirmedOrders,
                 pageBuilder: (c, s) {
                   final orderNumber = s.extra as String? ?? 'EZ000001';
-                  return _slide(BookingConfirmedScreen(orderNumber: orderNumber), s);
+                  return _slide(
+                      BookingConfirmedScreen(orderNumber: orderNumber), s);
                 },
               ),
             ],
@@ -114,11 +117,13 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
               ),
               GoRoute(
                 path: RoutesName.helpSupport,
-                pageBuilder: (c, s) => _slide(const HelpSupportScreen(), s),
+                pageBuilder: (c, s) =>
+                    _slide(const HelpSupportScreen(), s),
               ),
               GoRoute(
                 path: RoutesName.termsPolicy,
-                pageBuilder: (c, s) => _slide(const TermsPolicyScreen(), s),
+                pageBuilder: (c, s) =>
+                    _slide(const TermsPolicyScreen(), s),
               ),
               GoRoute(
                 path: RoutesName.chatBot,

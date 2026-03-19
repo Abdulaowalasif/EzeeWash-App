@@ -1,12 +1,14 @@
 // lib/features/services/screens/service_screen.dart
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
-import '../../../../../../../routes/routes_name.dart';
+
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../routes/routes_name.dart';
 import '../../domain/entities/service_entity.dart';
 import '../bloc/service_bloc.dart';
 import '../bloc/service_event.dart';
@@ -30,9 +32,9 @@ class ServiceScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark
-          ? AppColors.darkBackground
-          : AppColors.lightBackground,
+      backgroundColor:
+      isDark ? AppColors.darkBackground :
+      AppColors.lightBackground,
       body: SafeArea(
         child: Column(
           children: [
@@ -57,17 +59,14 @@ class ServiceScreen extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
-                            Icons.error_outline,
-                            color: AppColors.error,
-                            size: 48,
-                          ),
+                          const Icon(Icons.error_outline,
+                              color: AppColors.error, size: 48),
                           const SizedBox(height: 12),
                           Text(state.message),
                           TextButton(
-                            onPressed: () => context.read<ServicesBloc>().add(
-                              const ServicesLoadRequested(),
-                            ),
+                            onPressed: () => context
+                                .read<ServicesBloc>()
+                                .add(const ServicesLoadRequested()),
                             child: const Text('Retry'),
                           ),
                         ],
@@ -94,7 +93,6 @@ class ServiceScreen extends StatelessWidget {
 
 class _ServicesAppBar extends StatelessWidget {
   final bool isDark;
-
   const _ServicesAppBar({required this.isDark});
 
   @override
@@ -129,7 +127,8 @@ class _ServicesAppBar extends StatelessWidget {
               color: Colors.white.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Iconsax.category, color: Colors.white, size: 20),
+            child: const Icon(Iconsax.category,
+                color: Colors.white, size: 20),
           ),
         ],
       ),
@@ -185,9 +184,9 @@ class _ServicesContent extends StatelessWidget {
                         icon: categoryIcons[cat] ?? Iconsax.category,
                         isSelected: isSelected,
                         isDark: isDark,
-                        onTap: () => context.read<ServicesBloc>().add(
-                          ServicesFilterChanged(cat),
-                        ),
+                        onTap: () => context
+                            .read<ServicesBloc>()
+                            .add(ServicesFilterChanged(cat)),
                       ),
                     );
                   }).toList(),
@@ -215,8 +214,10 @@ class _ServicesContent extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: state.filtered.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 16),
-                  itemBuilder: (context, i) =>
-                      _ServiceCard(service: state.filtered[i], isDark: isDark),
+                  itemBuilder: (context, i) => _ServiceCard(
+                    service: state.filtered[i],
+                    isDark: isDark,
+                  ),
                 ),
               const SizedBox(height: 20),
             ],
@@ -229,7 +230,6 @@ class _ServicesContent extends StatelessWidget {
 
 class _SearchBar extends StatelessWidget {
   final bool isDark;
-
   const _SearchBar({required this.isDark});
 
   @override
@@ -240,16 +240,12 @@ class _SearchBar extends StatelessWidget {
       decoration: InputDecoration(
         hintText: 'Search services...',
         hintStyle: GoogleFonts.alexandria(
-          color: Colors.grey.shade500,
-          fontSize: 14,
-        ),
-        prefixIcon: Icon(
-          Iconsax.search_normal,
-          color: Colors.grey.shade400,
-          size: 20,
-        ),
+            color: Colors.grey.shade500, fontSize: 14),
+        prefixIcon: Icon(Iconsax.search_normal,
+            color: Colors.grey.shade400, size: 20),
         filled: true,
-        fillColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        fillColor:
+        isDark ? AppColors.darkSurface : AppColors.lightSurface,
         contentPadding: const EdgeInsets.symmetric(vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -291,27 +287,32 @@ class _CategoryChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding:
+        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           gradient: isSelected ? AppColors.gradient : null,
           color: isSelected
               ? null
-              : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+              : (isDark
+              ? AppColors.darkSurface
+              : AppColors.lightSurface),
           borderRadius: BorderRadius.circular(20),
           border: isSelected
               ? null
               : Border.all(
-                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                  width: 1.2,
-                ),
+            color: isDark
+                ? AppColors.darkBorder
+                : AppColors.lightBorder,
+            width: 1.2,
+          ),
           boxShadow: isSelected
               ? [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.25),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.25),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            )
+          ]
               : [],
         ),
         child: Row(
@@ -322,14 +323,17 @@ class _CategoryChip extends StatelessWidget {
               size: 16,
               color: isSelected
                   ? Colors.white
-                  : (isDark ? AppColors.darkSubtext : AppColors.lightSubtext),
+                  : (isDark
+                  ? AppColors.darkSubtext
+                  : AppColors.lightSubtext),
             ),
             const SizedBox(width: 6),
             Text(
               label,
               style: GoogleFonts.alexandria(
                 fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontWeight:
+                isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected
                     ? Colors.white
                     : (isDark ? Colors.white70 : Colors.black87),
@@ -355,42 +359,47 @@ class _ServiceCard extends StatelessWidget {
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          color:
+          isDark ? AppColors.darkBorder : AppColors.lightBorder,
         ),
         boxShadow: isDark
             ? []
             : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 15,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image placeholder
+          // Service image
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            child: Container(
+            borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(24)),
+            child: SizedBox(
               height: 140,
-              color: isDark
-                  ? AppColors.primary.withOpacity(0.15)
-                  : AppColors.primary.withOpacity(0.08),
-              child: Center(
-                child: Image.network(
-                  service.imageUrl ?? '',
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const CircularProgressIndicator();
-                  },
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.image_not_supported_rounded),
+              width: double.infinity,
+              child: service.imageUrl != null
+                  ? CachedNetworkImage(
+                imageUrl: service.imageUrl!,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Container(
+                  color: isDark
+                      ? AppColors.primary.withOpacity(0.15)
+                      : AppColors.primary.withOpacity(0.08),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary.withOpacity(0.4),
+                    ),
+                  ),
                 ),
-              ),
+                errorWidget: (_, __, ___) => _ServiceImageFallback(isDark: isDark),
+              )
+                  : _ServiceImageFallback(isDark: isDark),
             ),
           ),
           Padding(
@@ -468,21 +477,16 @@ class _ServiceCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(
-                          Iconsax.star,
-                          size: 16,
-                          color: AppColors.primary,
-                        ),
+                        icon: const Icon(Iconsax.star,
+                            size: 16, color: AppColors.primary),
                         onPressed: () {},
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(
-                            color: AppColors.primary,
-                            width: 1.5,
-                          ),
+                              color: AppColors.primary, width: 1.5),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                              borderRadius: BorderRadius.circular(12)),
+                          padding:
+                          const EdgeInsets.symmetric(vertical: 12),
                         ),
                         label: Text(
                           'Reviews',
@@ -505,24 +509,22 @@ class _ServiceCard extends StatelessWidget {
                               color: AppColors.primary.withOpacity(0.25),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
-                            ),
+                            )
                           ],
                         ),
                         child: ElevatedButton.icon(
-                          icon: const Icon(
-                            Iconsax.calendar_tick,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          onPressed: () =>
-                              context.push(RoutesName.placeOrdersNavigate),
+                          icon: const Icon(Iconsax.calendar_tick,
+                              color: Colors.white, size: 16),
+                          onPressed: () => context
+                              .push(RoutesName.placeOrdersNavigate, extra: service.id),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                borderRadius:
+                                BorderRadius.circular(12)),
+                            padding:
+                            const EdgeInsets.symmetric(vertical: 12),
                           ),
                           label: Text(
                             'Book Now',
@@ -568,6 +570,29 @@ class _Tag extends StatelessWidget {
           color: isDark ? Colors.blue.shade300 : AppColors.primary,
           fontSize: 11,
           fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Fallback when imageUrl is null or fails to load ─────────────────────────
+
+class _ServiceImageFallback extends StatelessWidget {
+  final bool isDark;
+  const _ServiceImageFallback({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: isDark
+          ? AppColors.primary.withOpacity(0.15)
+          : AppColors.primary.withOpacity(0.08),
+      child: Center(
+        child: Icon(
+          Icons.local_laundry_service_rounded,
+          size: 56,
+          color: AppColors.primary.withOpacity(0.4),
         ),
       ),
     );

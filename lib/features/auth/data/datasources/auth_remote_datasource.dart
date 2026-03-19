@@ -1,5 +1,4 @@
 // lib/features/auth/data/datasources/auth_remote_datasource.dart
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/exceptions.dart';

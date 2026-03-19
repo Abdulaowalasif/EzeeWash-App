@@ -26,7 +26,7 @@ class OrderEntity extends Equatable {
   final String userId;
   final String serviceId;
   final String serviceName;
-  final String? serviceImageUrl; // ← service image from services.image_url
+  final String? serviceImageUrl;
   final String storeId;
   final String storeName;
   final String status;
@@ -42,6 +42,11 @@ class OrderEntity extends Equatable {
   final double progress;
   final List<OrderTimelineStep> timeline;
   final DateTime createdAt;
+
+  // ── Payment fields ────────────────────────────────────────────────────────
+  final String paymentMethod;   // 'cash_on_delivery' | 'stripe'
+  final String paymentStatus;   // 'pending' | 'paid' | 'failed' | 'refunded'
+  final String? stripePaymentIntentId;
 
   const OrderEntity({
     required this.id,
@@ -65,10 +70,15 @@ class OrderEntity extends Equatable {
     this.progress = 0.0,
     this.timeline = const [],
     required this.createdAt,
+    this.paymentMethod = 'cash_on_delivery',
+    this.paymentStatus = 'pending',
+    this.stripePaymentIntentId,
   });
 
   bool get isActive => status != 'delivered' && status != 'cancelled';
+  bool get isPaid => paymentStatus == 'paid';
+  bool get isCashOnDelivery => paymentMethod == 'cash_on_delivery';
 
   @override
-  List<Object?> get props => [id, orderNumber, status, progress];
+  List<Object?> get props => [id, orderNumber, status, progress, paymentStatus];
 }

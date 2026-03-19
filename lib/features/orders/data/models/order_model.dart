@@ -53,6 +53,9 @@ class OrderModel extends OrderEntity {
     super.progress,
     super.timeline,
     required super.createdAt,
+    super.paymentMethod,
+    super.paymentStatus,
+    super.stripePaymentIntentId,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> j) {
@@ -69,7 +72,7 @@ class OrderModel extends OrderEntity {
       userId: j['user_id'] as String,
       serviceId: j['service_id'] as String,
       serviceName: serviceMap?['title'] as String? ?? 'Unknown',
-      serviceImageUrl: serviceMap?['image_url'] as String?,  // ← new
+      serviceImageUrl: serviceMap?['image_url'] as String?,
       storeId: j['store_id'] as String,
       storeName: (j['stores'] as Map?)?['name'] as String? ?? 'Unknown',
       status: j['status'] as String? ?? 'pending',
@@ -91,6 +94,9 @@ class OrderModel extends OrderEntity {
       createdAt: j['created_at'] != null
           ? DateTime.parse(j['created_at'] as String)
           : DateTime.now(),
+      paymentMethod: j['payment_method'] as String? ?? 'cash_on_delivery',
+      paymentStatus: j['payment_status'] as String? ?? 'pending',
+      stripePaymentIntentId: j['stripe_payment_intent_id'] as String?,
     );
   }
 
@@ -115,5 +121,7 @@ class OrderModel extends OrderEntity {
     'delivery_time': deliveryTime,
     'special_instructions': specialInstructions,
     'progress': progress,
+    'payment_method': paymentMethod,
+    'payment_status': paymentStatus,
   };
 }

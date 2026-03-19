@@ -24,6 +24,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: isDark
           ? AppColors.darkBackground
@@ -33,48 +34,51 @@ class HomeScreen extends StatelessWidget {
           children: [
             _HomeAppBar(isDark: isDark),
             Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.symmetric(
-                  horizontal: Responsive.horizontalPadding(context),
-                  vertical: 15,
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: Responsive.maxContentWidth(context),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.horizontalPadding(context),
+                      vertical: 15,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 10),
-                        _SearchBox(isDark: isDark),
-                        const SizedBox(height: 25),
-                        _SectionHeader(
-                          title: 'Our Services',
-                          onViewAll: () => context.go(RoutesName.services),
-                          isDark: isDark,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: Responsive.maxContentWidth(context),
                         ),
-                        const SizedBox(height: 15),
-                        _ServicesGrid(
-                          isDark: isDark,
-                          crossAxisCount: Responsive.gridCount(context),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 10),
+                            _SearchBox(isDark: isDark),
+                            const SizedBox(height: 25),
+                            _SectionHeader(
+                              title: 'Our Services',
+                              onViewAll: () => context.go(RoutesName.services),
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 15),
+                            _ServicesGrid(
+                              isDark: isDark,
+                              crossAxisCount: Responsive.gridCount(context),
+                            ),
+                            const SizedBox(height: 30),
+                            _QuickActions(isDark: isDark),
+                            const SizedBox(height: 30),
+                            _SectionHeader(
+                              title: 'Recent Orders',
+                              onViewAll: () => context.go(RoutesName.orders),
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 15),
+                            _RecentOrdersList(isDark: isDark),
+                            const SizedBox(height: 20),
+                          ],
                         ),
-                        const SizedBox(height: 30),
-                        _QuickActions(isDark: isDark),
-                        const SizedBox(height: 30),
-                        _SectionHeader(
-                          title: 'Recent Orders',
-                          onViewAll: () => context.go(RoutesName.orders),
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 15),
-                        _RecentOrdersList(isDark: isDark),
-                        const SizedBox(height: 20),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ],
@@ -84,8 +88,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// ─── App Bar ──────────────────────────────────────────────────────────────────
-
+// ===== App Bar =====
 class _HomeAppBar extends StatelessWidget {
   final bool isDark;
 
@@ -202,8 +205,7 @@ class _HomeAppBar extends StatelessWidget {
   }
 }
 
-// ─── Search Box ───────────────────────────────────────────────────────────────
-
+// ===== Search Box =====
 class _SearchBox extends StatelessWidget {
   final bool isDark;
 
@@ -234,7 +236,10 @@ class _SearchBox extends StatelessWidget {
             color: isDark ? Colors.grey[500] : Colors.grey[400],
             fontSize: 14,
           ),
-          prefixIcon: Icon(Iconsax.search_normal, color: Colors.grey[400]),
+          prefixIcon: Icon(
+            Iconsax.search_normal,
+            color: isDark ? Colors.grey[400] : Colors.grey[400],
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide.none,
@@ -249,8 +254,7 @@ class _SearchBox extends StatelessWidget {
   }
 }
 
-// ─── Section Header ───────────────────────────────────────────────────────────
-
+// ===== Section Header =====
 class _SectionHeader extends StatelessWidget {
   final String title;
   final VoidCallback onViewAll;
@@ -291,16 +295,14 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ─── Services Grid ────────────────────────────────────────────────────────────
-
+// ===== Services Grid (BLoC-driven) =====
 class _ServicesGrid extends StatelessWidget {
   final bool isDark;
   final int crossAxisCount;
 
   const _ServicesGrid({required this.isDark, required this.crossAxisCount});
 
-  // Fallback icons — used only when imageUrl is null or fails to load
-  static const _fallbackIcons = [
+  static const _serviceIcons = [
     Icons.water_drop_outlined,
     Icons.dry_cleaning_outlined,
     Icons.local_fire_department_outlined,
@@ -311,7 +313,9 @@ class _ServicesGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ServicesBloc, ServicesState>(
       builder: (context, state) {
-        if (state is ServicesLoading) return _shimmer();
+        if (state is ServicesLoading) {
+          return _buildShimmerGrid();
+        }
         if (state is ServicesLoaded) {
           final services = state.filtered.take(4).toList();
           return GridView.builder(
@@ -332,9 +336,10 @@ class _ServicesGrid extends StatelessWidget {
                 subtitle: s.description ?? '',
                 price: s.price.toStringAsFixed(0),
                 imageUrl: s.imageUrl,
-                fallbackIcon: _fallbackIcons[i % _fallbackIcons.length],
+                fallbackIcon: _serviceIcons[i % _serviceIcons.length],
                 isDark: isDark,
-                onTap: () => context.push(RoutesName.placeOrdersNavigate),
+                onTap: () =>
+                    context.push(RoutesName.placeOrdersNavigate, extra: s.id),
               );
             },
           );
@@ -344,7 +349,7 @@ class _ServicesGrid extends StatelessWidget {
     );
   }
 
-  Widget _shimmer() {
+  Widget _buildShimmerGrid() {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -365,12 +370,11 @@ class _ServicesGrid extends StatelessWidget {
   }
 }
 
-// ─── Service Card ─────────────────────────────────────────────────────────────
-
+// ===== Service Card Widget =====
 class _ServiceCard extends StatefulWidget {
   final String title, subtitle, price;
-  final String? imageUrl; // from services.image_url in Supabase
-  final IconData fallbackIcon; // shown when imageUrl is null or fails
+  final String? imageUrl;
+  final IconData fallbackIcon;
   final bool isDark;
   final VoidCallback onTap;
 
@@ -426,8 +430,10 @@ class _ServiceCardState extends State<_ServiceCard> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // ── Image or fallback icon ─────────────────────────────
+              // Service image or fallback icon
               Container(
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
                   gradient: widget.imageUrl == null ? AppColors.gradient : null,
                   color: widget.imageUrl != null
@@ -514,8 +520,7 @@ class _ServiceCardState extends State<_ServiceCard> {
   }
 }
 
-// ─── Quick Actions ────────────────────────────────────────────────────────────
-
+// ===== Quick Actions =====
 class _QuickActions extends StatelessWidget {
   final bool isDark;
 
@@ -552,7 +557,8 @@ class _QuickActions extends StatelessWidget {
 class _ActionBtn extends StatelessWidget {
   final String label;
   final IconData icon;
-  final bool filled, isDark;
+  final bool filled;
+  final bool isDark;
   final VoidCallback onTap;
 
   const _ActionBtn({
@@ -615,8 +621,7 @@ class _ActionBtn extends StatelessWidget {
   }
 }
 
-// ─── Recent Orders ────────────────────────────────────────────────────────────
-
+// ===== Recent Orders (BLoC-driven) =====
 class _RecentOrdersList extends StatelessWidget {
   final bool isDark;
 
@@ -626,14 +631,12 @@ class _RecentOrdersList extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<OrdersBloc, OrdersState>(
       builder: (context, state) {
+        // Only show spinner on the very first load (OrdersInitial → OrdersLoading)
         if (state is OrdersInitial || state is OrdersLoading) {
           return const Center(
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-                strokeWidth: 2.5,
-              ),
+              child: CircularProgressIndicator(),
             ),
           );
         }
@@ -641,48 +644,35 @@ class _RecentOrdersList extends StatelessWidget {
           final recent = state.orders.take(2).toList();
           if (recent.isEmpty) {
             return Center(
-              child: Column(
-                children: [
-                  const SizedBox(height: 8),
-                  Icon(
-                    Iconsax.box_remove,
-                    size: 48,
-                    color: isDark
-                        ? AppColors.darkSubtext
-                        : AppColors.lightSubtext,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No orders yet. Book your first service!',
-                    style: GoogleFonts.alexandria(
-                      color: isDark
-                          ? AppColors.darkSubtext
-                          : AppColors.lightSubtext,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
+              child: Text(
+                'No orders yet. Book your first service!',
+                style: GoogleFonts.alexandria(
+                  color: isDark
+                      ? AppColors.darkSubtext
+                      : AppColors.lightSubtext,
+                ),
               ),
             );
           }
           return Column(
             children: recent
                 .map(
-                  (o) => Padding(
+                  (order) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _RecentOrderCard(
-                      id: '#${o.orderNumber}',
-                      service: o.serviceName,
-                      status: o.status,
-                      progress: o.progress,
+                      image: order.serviceImageUrl.toString(),
+                      id: '#${order.orderNumber}',
+                      service: order.serviceName,
+                      status: order.status,
+                      progress: order.progress,
                       isDark: isDark,
-                      image: o.serviceImageUrl,
                     ),
                   ),
                 )
                 .toList(),
           );
         }
+        // OrderPlacing / OrderPlaced / OrdersError — show nothing in home
         return const SizedBox.shrink();
       },
     );
@@ -690,8 +680,7 @@ class _RecentOrdersList extends StatelessWidget {
 }
 
 class _RecentOrderCard extends StatelessWidget {
-  final String id, service, status;
-  final String? image;
+  final String id, service, status, image;
   final double progress;
   final bool isDark;
 
@@ -701,29 +690,13 @@ class _RecentOrderCard extends StatelessWidget {
     required this.status,
     required this.progress,
     required this.isDark,
-    this.image,
+    required this.image,
   });
-
-  Color _statusColor(String s) {
-    switch (s) {
-      case 'delivered':
-        return AppColors.success;
-      case 'cancelled':
-        return AppColors.error;
-      case 'ready':
-      case 'out_for_delivery':
-        return AppColors.success;
-      case 'in_process':
-      case 'picked_up':
-        return AppColors.warning;
-      default:
-        return AppColors.primary;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _statusColor(status);
+    final isCompleted = status == 'delivered';
+    final statusColor = isCompleted ? AppColors.success : AppColors.warning;
     final statusLabel = status.replaceAll('_', ' ').toUpperCase();
 
     return Container(
@@ -749,54 +722,11 @@ class _RecentOrderCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: image == null ? EdgeInsets.all(10) : EdgeInsets.all(0),
                 decoration: BoxDecoration(
                   gradient: AppColors.gradient,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Container(
-                  width: 100,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: image == null ? AppColors.gradient : null,
-                    color: image != null
-                        ? (isDark
-                              ? AppColors.darkSurface
-                              : Colors.grey.shade100)
-                        : null,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: image != null
-                        ? CachedNetworkImage(
-                            imageUrl: image!,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Center(
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primary.withOpacity(0.5),
-                                ),
-                              ),
-                            ),
-                            errorWidget: (_, __, ___) => Container(
-                              decoration: BoxDecoration(
-                                gradient: AppColors.gradient,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Icon(
-                                Iconsax.icon,
-                                color: Colors.white,
-                                size: 26,
-                              ),
-                            ),
-                          )
-                        : Icon(Iconsax.icon, color: Colors.white, size: 26),
-                  ),
-                ),
+                child: _ServiceImage(isDark: isDark, imageUrl: image),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -823,19 +753,12 @@ class _RecentOrderCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  statusLabel,
-                  style: GoogleFonts.alexandria(
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                    fontSize: 10,
-                  ),
+              Text(
+                statusLabel,
+                style: GoogleFonts.alexandria(
+                  fontWeight: FontWeight.w600,
+                  color: statusColor,
+                  fontSize: 11,
                 ),
               ),
             ],
@@ -847,7 +770,9 @@ class _RecentOrderCard extends StatelessWidget {
               value: progress,
               minHeight: 6,
               backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation(statusColor),
+              valueColor: AlwaysStoppedAnimation(
+                isCompleted ? statusColor : AppColors.primary,
+              ),
             ),
           ),
           const SizedBox(height: 6),
@@ -863,6 +788,69 @@ class _RecentOrderCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ServiceImage extends StatelessWidget {
+  final String? imageUrl;
+  final bool isDark;
+
+  const _ServiceImage({this.imageUrl, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 54,
+      width: 54,
+      decoration: BoxDecoration(
+        gradient: imageUrl == null ? AppColors.gradient : null,
+        color: imageUrl != null
+            ? (isDark ? AppColors.darkSurface : Colors.grey.shade100)
+            : null,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: imageUrl != null
+            ? CachedNetworkImage(
+                imageUrl: imageUrl!,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary.withOpacity(0.5),
+                    ),
+                  ),
+                ),
+                errorWidget: (_, __, ___) => Container(
+                  decoration: BoxDecoration(
+                    gradient: AppColors.gradient,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.local_laundry_service,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+              )
+            : const Icon(
+                Icons.local_laundry_service,
+                color: Colors.white,
+                size: 28,
+              ),
       ),
     );
   }

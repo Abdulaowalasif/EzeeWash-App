@@ -18,8 +18,6 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
   final SupabaseClient _client;
   OrdersRemoteDataSourceImpl(this._client);
 
-  // image_url added to services join so the order card shows the
-  // real service image instead of a generic laundry icon.
   static const _select =
       '*, services(title,category,image_url), stores(name), order_timelines(*)';
   static const _selectNoTimeline =
@@ -61,6 +59,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       }
 
+      // Ensure profile exists (FK guard)
       await _client.from('profiles').upsert({'id': userId}, onConflict: 'id');
 
       final row = await _client
@@ -80,6 +79,12 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         'special_instructions': params.specialInstructions,
         'status': AppConstants.orderPending,
         'progress': 0.0,
+        'payment_method': params.paymentMethod.value,
+        // cash_on_delivery → payment is pending until delivery
+        // stripe → payment_status updated by webhook after Stripe confirms
+        'payment_status': params.paymentMethod == PaymentMethod.cashOnDelivery
+            ? 'pending'
+            : 'pending',
       })
           .select(_selectNoTimeline)
           .single();
