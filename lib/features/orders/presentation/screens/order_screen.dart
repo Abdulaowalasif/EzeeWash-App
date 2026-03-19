@@ -62,12 +62,35 @@ class OrderScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: BlocBuilder<OrdersBloc, OrdersState>(
+      // BlocConsumer so we can show a snackbar on cancel success/error
+      // while still building from state in the builder.
+      body: BlocConsumer<OrdersBloc, OrdersState>(
+        listenWhen: (_, s) => s is OrderCancelled || s is OrdersError,
+        listener: (context, state) {
+          if (state is OrderCancelled) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Order cancelled.',
+                  style: GoogleFonts.alexandria(fontSize: 13)),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              margin: const EdgeInsets.all(16),
+            ));
+          } else if (state is OrdersError) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(state.message,
+                  style: GoogleFonts.alexandria(fontSize: 13)),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              margin: const EdgeInsets.all(16),
+            ));
+          }
+        },
         builder: (context, state) {
           // ── First load only: full-screen spinner ───────────────────
-          // OrdersLoading is ONLY emitted on the initial fetch, never
-          // during silent background refreshes, so this spinner will
-          // not re-appear after orders are already on screen.
           if (state is OrdersInitial || state is OrdersLoading) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -80,11 +103,8 @@ class OrderScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.error_outline,
-                      color: AppColors.error,
-                      size: 52,
-                    ),
+                    const Icon(Icons.error_outline,
+                        color: AppColors.error, size: 52),
                     const SizedBox(height: 14),
                     Text(
                       state.message,
@@ -110,11 +130,9 @@ class OrderScreen extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
-                      label: Text(
-                        'Retry',
-                        style: GoogleFonts.alexandria(
-                            fontWeight: FontWeight.w600),
-                      ),
+                      label: Text('Retry',
+                          style: GoogleFonts.alexandria(
+                              fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -128,8 +146,6 @@ class OrderScreen extends StatelessWidget {
           }
 
           // ── OrderPlacing / OrderPlaced ────────────────────────────
-          // Navigation is handled by place_order_screen's BlocListener.
-          // Show nothing here so the order list doesn't flash blank.
           return const SizedBox.shrink();
         },
       ),
@@ -181,8 +197,9 @@ class _OrdersBody extends StatelessWidget {
               _OrdersToggle(
                 showActive: state.showActive,
                 isDark: isDark,
-                onChanged: (active) =>
-                    context.read<OrdersBloc>().add(OrdersFilterToggled(active)),
+                onChanged: (active) => context
+                    .read<OrdersBloc>()
+                    .add(OrdersFilterToggled(active)),
               ),
               const SizedBox(height: 20),
               Expanded(
@@ -194,11 +211,18 @@ class _OrdersBody extends StatelessWidget {
                   itemCount: state.displayedOrders.length,
                   separatorBuilder: (_, __) =>
                   const SizedBox(height: 16),
-                  itemBuilder: (context, i) => _OrderCard(
-                    order: state.displayedOrders[i],
-                    isHistory: !state.showActive,
-                    isDark: isDark,
-                  ),
+                  itemBuilder: (context, i) {
+                    final order = state.displayedOrders[i];
+                    return _OrderCard(
+                      order: order,
+                      isHistory: !state.showActive,
+                      isDark: isDark,
+                      onPress: () => context.push(
+                        RoutesName.trackOrdersNavigate,
+                        extra: order.id,
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -214,6 +238,7 @@ class _OrdersBody extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   final bool showActive;
   final bool isDark;
+
   const _EmptyState({required this.showActive, required this.isDark});
 
   @override
@@ -243,7 +268,8 @@ class _EmptyState extends StatelessWidget {
                 : 'Completed orders will appear here',
             style: GoogleFonts.alexandria(
               fontSize: 13,
-              color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+              color:
+              isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
             ),
             textAlign: TextAlign.center,
           ),
@@ -364,11 +390,13 @@ class _OrderCard extends StatefulWidget {
   final OrderEntity order;
   final bool isHistory;
   final bool isDark;
+  final VoidCallback onPress;
 
   const _OrderCard({
     required this.order,
     required this.isHistory,
     required this.isDark,
+    required this.onPress,
   });
 
   @override
@@ -378,7 +406,6 @@ class _OrderCard extends StatefulWidget {
 class _OrderCardState extends State<_OrderCard> {
   bool _expanded = false;
 
-  // Map status string to a display colour
   Color _statusColor(String status) {
     switch (status) {
       case 'confirmed':
@@ -393,9 +420,42 @@ class _OrderCardState extends State<_OrderCard> {
         return AppColors.success;
       case 'cancelled':
         return AppColors.error;
-      default: // pending
+      default:
         return AppColors.primary;
     }
+  }
+
+  // Show confirm dialog then dispatch OrderCancelRequested
+  void _confirmCancel(BuildContext ctx) {
+    showDialog(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Cancel Order?',
+            style: GoogleFonts.alexandria(fontWeight: FontWeight.bold)),
+        content: Text(
+          'Cancel order #${widget.order.orderNumber}? This cannot be undone.',
+          style: GoogleFonts.alexandria(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx), // ✅ use dialogCtx
+            child: Text('Keep Order',
+                style: GoogleFonts.alexandria(
+                    color: AppColors.primary, fontWeight: FontWeight.w600)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogCtx); // ✅ use dialogCtx
+              ctx.read<OrdersBloc>().add(OrderCancelRequested(widget.order.id));
+            },
+            child: Text('Yes, Cancel',
+                style: GoogleFonts.alexandria(
+                    color: AppColors.error, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -403,356 +463,434 @@ class _OrderCardState extends State<_OrderCard> {
     final o = widget.order;
     final statusColor = _statusColor(o.status);
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color:
-        widget.isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
+    return GestureDetector(
+      onTap: widget.onPress,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
           color:
-          widget.isDark ? AppColors.darkBorder : AppColors.lightBorder,
-        ),
-        boxShadow: widget.isDark
-            ? []
-            : [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 15,
-            offset: const Offset(0, 6),
+          widget.isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: widget.isDark
+                ? AppColors.darkBorder
+                : AppColors.lightBorder,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header row ────────────────────────────────────────────
-          Row(
-            children: [
-              Container(
-                height: 54,
-                width: 54,
-                decoration: BoxDecoration(
-                  gradient: AppColors.gradient,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
+          boxShadow: widget.isDark
+              ? []
+              : [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header row ────────────────────────────────────────────
+            Row(
+              children: [
+                Container(
+                  height: 54,
+                  width: 54,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.gradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: _ServiceImage(
+                    imageUrl: o.serviceImageUrl,
+                    isDark: widget.isDark,
+                  ),
                 ),
-                child:  _ServiceImage(
-                  imageUrl: o.serviceImageUrl,
-                  isDark: widget.isDark,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '#${o.orderNumber}',
+                        style: GoogleFonts.alexandria(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: widget.isDark
+                              ? Colors.white
+                              : AppColors.lightText,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        o.serviceName,
+                        style: GoogleFonts.alexandria(
+                          fontSize: 13,
+                          color: widget.isDark
+                              ? Colors.white70
+                              : Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        o.storeName,
+                        style: GoogleFonts.alexandria(
+                          fontSize: 11,
+                          color: widget.isDark
+                              ? AppColors.darkSubtext
+                              : AppColors.lightSubtext,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 5, horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: statusColor.withOpacity(0.4), width: 1),
+                      ),
+                      child: Text(
+                        o.status.replaceAll('_', ' ').toUpperCase(),
+                        style: GoogleFonts.alexandria(
+                          color: statusColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Text(
-                      '#${o.orderNumber}',
+                      '৳${o.totalPrice.toStringAsFixed(0)}',
                       style: GoogleFonts.alexandria(
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: widget.isDark
-                            ? Colors.white
-                            : AppColors.lightText,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      o.serviceName,
-                      style: GoogleFonts.alexandria(
-                        fontSize: 13,
-                        color: widget.isDark
-                            ? Colors.white70
-                            : Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      o.storeName,
-                      style: GoogleFonts.alexandria(
-                        fontSize: 11,
-                        color: widget.isDark
-                            ? AppColors.darkSubtext
-                            : AppColors.lightSubtext,
+                        fontSize: 16,
+                        color: AppColors.primary,
                       ),
                     ),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 5, horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: statusColor.withOpacity(0.4), width: 1),
-                    ),
-                    child: Text(
-                      o.status.replaceAll('_', ' ').toUpperCase(),
-                      style: GoogleFonts.alexandria(
-                        color: statusColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Progress bar ──────────────────────────────────────────
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                height: 6,
+                color: widget.isDark
+                    ? Colors.white12
+                    : Colors.grey.shade200,
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Align(
+                    alignment: Alignment.centerLeft,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.easeOut,
+                      width: constraints.maxWidth *
+                          o.progress.clamp(0.0, 1.0),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.gradient,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '৳${o.totalPrice.toStringAsFixed(0)}',
-                    style: GoogleFonts.alexandria(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // ── Progress bar ──────────────────────────────────────────
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              height: 6,
-              color:
-              widget.isDark ? Colors.white12 : Colors.grey.shade200,
-              child: LayoutBuilder(
-                builder: (context, constraints) => Align(
-                  alignment: Alignment.centerLeft,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 600),
-                    curve: Curves.easeOut,
-                    width: constraints.maxWidth *
-                        o.progress.clamp(0.0, 1.0),
-                    decoration: BoxDecoration(
-                      gradient: AppColors.gradient,
-                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // ── Action buttons ────────────────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: Icon(
-                    _expanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.remove_red_eye_outlined,
-                    color: AppColors.primary,
-                    size: 18,
-                  ),
-                  onPressed: () =>
-                      setState(() => _expanded = !_expanded),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(
-                        color: AppColors.primary, width: 1.5),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding:
-                    const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  label: Text(
-                    _expanded ? 'Hide' : 'Details',
-                    style: GoogleFonts.alexandria(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: AppColors.gradient,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton.icon(
+            // ── Action buttons ────────────────────────────────────────
+            Row(
+              children: [
+                // Details / expand toggle
+                Expanded(
+                  child: OutlinedButton.icon(
                     icon: Icon(
-                      widget.isHistory
-                          ? Icons.replay_outlined
-                          : Icons.location_on_outlined,
-                      color: Colors.white,
-                      size: 16,
+                      _expanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.remove_red_eye_outlined,
+                      color: AppColors.primary,
+                      size: 18,
                     ),
-                    onPressed: () {
-                      if (widget.isHistory) {
-                        context.push(RoutesName.placeOrdersNavigate);
-                      } else {
-                        context.push(
-                          RoutesName.trackOrdersNavigate,
-                          extra: o.id,
-                        );
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      padding:
-                      const EdgeInsets.symmetric(vertical: 12),
+                    onPressed: () =>
+                        setState(() => _expanded = !_expanded),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(
+                          color: AppColors.primary, width: 1.5),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
+                      padding:
+                      const EdgeInsets.symmetric(vertical: 12),
                     ),
                     label: Text(
-                      widget.isHistory ? 'Reorder' : 'Track',
+                      _expanded ? 'Hide' : 'Details',
                       style: GoogleFonts.alexandria(
-                        color: Colors.white,
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 12),
 
-          // ── Timeline expansion ────────────────────────────────────
-          if (_expanded) ...[
-            const SizedBox(height: 20),
-            Divider(
-              color: widget.isDark
-                  ? Colors.white12
-                  : Colors.grey.shade200,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Order Timeline',
-              style: GoogleFonts.alexandria(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: widget.isDark
-                    ? Colors.white
-                    : AppColors.lightText,
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (o.timeline.isEmpty)
-              Text(
-                'Timeline not available yet',
-                style: GoogleFonts.alexandria(
-                  fontSize: 13,
-                  color: widget.isDark
-                      ? AppColors.darkSubtext
-                      : AppColors.lightSubtext,
-                ),
-              )
-            else
-              ...o.timeline.map(
-                    (step) => Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        margin: const EdgeInsets.only(top: 2, right: 14),
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: step.isDone
-                              ? AppColors.primary.withOpacity(0.12)
-                              : (widget.isDark
-                              ? Colors.white12
-                              : Colors.grey.shade100),
+                // Right button: Reorder (history) OR Cancel (active)
+                Expanded(
+                  child: widget.isHistory
+                  // ── Reorder ──────────────────────────────────
+                      ? Container(
+                    decoration: BoxDecoration(
+                      gradient: AppColors.gradient,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                          AppColors.primary.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
                         ),
-                        child: Icon(
-                          step.isDone
-                              ? Icons.check_circle_rounded
-                              : Icons.circle_outlined,
-                          color: step.isDone
-                              ? AppColors.primary
-                              : Colors.grey.shade400,
-                          size: 16,
-                        ),
+                      ],
+                    ),
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.replay_outlined,
+                          color: Colors.white, size: 16),
+                      onPressed: () => context
+                          .push(RoutesName.placeOrdersNavigate),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius:
+                            BorderRadius.circular(12)),
                       ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              step.title,
+                      label: Text('Reorder',
+                          style: GoogleFonts.alexandria(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12)),
+                    ),
+                  )
+                  // ── Cancel (active orders only) ───────────────
+                  // GestureDetector with HitTestBehavior.opaque
+                  // so this button's tap does NOT bubble up to the
+                  // card's GestureDetector and trigger navigation.
+                      : BlocBuilder<OrdersBloc, OrdersState>(
+                    builder: (ctx, state) {
+                      final cancelling =
+                      state is OrderCancelling;
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: cancelling
+                            ? null
+                            : () => _confirmCancel(ctx),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            borderRadius:
+                            BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.error
+                                    .withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton.icon(
+                            icon: cancelling
+                                ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child:
+                              CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                                : const Icon(
+                              Icons.cancel_outlined,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            // onPressed is null so Flutter doesn't
+                            // add its own gesture — we use the
+                            // GestureDetector above instead.
+                            onPressed: null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              disabledBackgroundColor:
+                              Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                  BorderRadius.circular(12)),
+                            ),
+                            label: Text(
+                              cancelling
+                                  ? 'Cancelling…'
+                                  : 'Cancel',
                               style: GoogleFonts.alexandria(
-                                fontWeight: step.isDone
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                                color: step.isDone
-                                    ? (widget.isDark
-                                    ? Colors.white
-                                    : Colors.black87)
-                                    : Colors.grey.shade500,
-                                fontSize: 13,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
                               ),
                             ),
-                            if (step.description != null &&
-                                step.description!.isNotEmpty)
-                              Text(
-                                step.description!,
-                                style: GoogleFonts.alexandria(
-                                  fontSize: 11,
-                                  color: widget.isDark
-                                      ? AppColors.darkSubtext
-                                      : AppColors.lightSubtext,
-                                ),
-                              ),
-                            if (step.isDone && step.eventTime != null)
-                              Text(
-                                _formatTime(step.eventTime!),
-                                style: GoogleFonts.alexandria(
-                                  fontSize: 10,
-                                  color: AppColors.primary
-                                      .withOpacity(0.7),
-                                ),
-                              ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
+              ],
+            ),
+
+            // ── Timeline expansion ────────────────────────────────────
+            if (_expanded) ...[
+              const SizedBox(height: 20),
+              Divider(
+                color: widget.isDark
+                    ? Colors.white12
+                    : Colors.grey.shade200,
               ),
+              const SizedBox(height: 12),
+              Text(
+                'Order Timeline',
+                style: GoogleFonts.alexandria(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: widget.isDark
+                      ? Colors.white
+                      : AppColors.lightText,
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (o.timeline.isEmpty)
+                Text(
+                  'Timeline not available yet',
+                  style: GoogleFonts.alexandria(
+                    fontSize: 13,
+                    color: widget.isDark
+                        ? AppColors.darkSubtext
+                        : AppColors.lightSubtext,
+                  ),
+                )
+              else
+                ...o.timeline.map(
+                      (step) => Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          margin:
+                          const EdgeInsets.only(top: 2, right: 14),
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: step.isDone
+                                ? AppColors.primary.withOpacity(0.12)
+                                : (widget.isDark
+                                ? Colors.white12
+                                : Colors.grey.shade100),
+                          ),
+                          child: Icon(
+                            step.isDone
+                                ? Icons.check_circle_rounded
+                                : Icons.circle_outlined,
+                            color: step.isDone
+                                ? AppColors.primary
+                                : Colors.grey.shade400,
+                            size: 16,
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                step.title,
+                                style: GoogleFonts.alexandria(
+                                  fontWeight: step.isDone
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                  color: step.isDone
+                                      ? (widget.isDark
+                                      ? Colors.white
+                                      : Colors.black87)
+                                      : Colors.grey.shade500,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              if (step.description != null &&
+                                  step.description!.isNotEmpty)
+                                Text(
+                                  step.description!,
+                                  style: GoogleFonts.alexandria(
+                                    fontSize: 11,
+                                    color: widget.isDark
+                                        ? AppColors.darkSubtext
+                                        : AppColors.lightSubtext,
+                                  ),
+                                ),
+                              if (step.isDone &&
+                                  step.eventTime != null)
+                                Text(
+                                  _formatTime(step.eventTime!),
+                                  style: GoogleFonts.alexandria(
+                                    fontSize: 10,
+                                    color: AppColors.primary
+                                        .withOpacity(0.7),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
   String _formatTime(DateTime dt) {
-    final h = dt.hour > 12 ? dt.hour - 12 : dt.hour == 0 ? 12 : dt.hour;
+    final h = dt.hour > 12
+        ? dt.hour - 12
+        : dt.hour == 0
+        ? 12
+        : dt.hour;
     final m = dt.minute.toString().padLeft(2, '0');
     final period = dt.hour >= 12 ? 'PM' : 'AM';
     return '${dt.day}/${dt.month}/${dt.year}  $h:$m $period';
   }
 }
+
+// ─── Service image ────────────────────────────────────────────────────────────
 
 class _ServiceImage extends StatelessWidget {
   final String? imageUrl;

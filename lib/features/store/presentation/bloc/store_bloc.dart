@@ -1,9 +1,7 @@
 // lib/features/stores/bloc/stores_bloc.dart
 import 'package:bloc/bloc.dart';
-import 'package:equatable/equatable.dart';
-import 'package:ezeewash/features/store/presentation/bloc/store_state.dart';
-import 'package:ezeewash/features/store/presentation/bloc/stores_event.dart';
-
+import 'package:ezzewash/features/store/presentation/bloc/store_state.dart';
+import 'package:ezzewash/features/store/presentation/bloc/stores_event.dart';
 import '../../../../core/utils/usecase.dart';
 import '../../domain/usecases/stores_usecase.dart';
 

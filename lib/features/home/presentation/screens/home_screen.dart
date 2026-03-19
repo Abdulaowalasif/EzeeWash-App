@@ -738,6 +738,7 @@ class _RecentOrdersList extends StatelessWidget {
                   (order) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _RecentOrderCard(
+                      orderId: order.id,
                       id: '#${order.orderNumber}',
                       service: order.serviceName,
                       status: order.status,
@@ -758,11 +759,12 @@ class _RecentOrdersList extends StatelessWidget {
 }
 
 class _RecentOrderCard extends StatelessWidget {
-  final String id, service, status, image;
+  final String orderId, id, service, status, image;
   final double progress;
   final bool isDark;
 
   const _RecentOrderCard({
+    required this.orderId,
     required this.id,
     required this.service,
     required this.status,
@@ -777,97 +779,102 @@ class _RecentOrderCard extends StatelessWidget {
     final statusColor = isCompleted ? AppColors.success : AppColors.warning;
     final statusLabel = status.replaceAll('_', ' ').toUpperCase();
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+    return GestureDetector(
+      onTap: () => context.push(RoutesName.trackOrdersNavigate, extra: orderId),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          ),
+          boxShadow: isDark
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 15,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
         ),
-        boxShadow: isDark
-            ? []
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 15,
-                  offset: const Offset(0, 6),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: AppColors.gradient,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: _ServiceImage(isDark: isDark, imageUrl: image),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        id,
+                        style: GoogleFonts.alexandria(
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : AppColors.lightText,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        service,
+                        style: GoogleFonts.alexandria(
+                          color: isDark
+                              ? AppColors.darkSubtext
+                              : AppColors.lightSubtext,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  statusLabel,
+                  style: GoogleFonts.alexandria(
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                    fontSize: 11,
+                  ),
                 ),
               ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  gradient: AppColors.gradient,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: _ServiceImage(isDark: isDark, imageUrl: image),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      id,
-                      style: GoogleFonts.alexandria(
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : AppColors.lightText,
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(
-                      service,
-                      style: GoogleFonts.alexandria(
-                        color: isDark
-                            ? AppColors.darkSubtext
-                            : AppColors.lightSubtext,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+            ),
+            const SizedBox(height: 14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation(
+                  isCompleted ? statusColor : AppColors.primary,
                 ),
               ),
-              Text(
-                statusLabel,
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '${(progress * 100).toInt()}% Complete',
                 style: GoogleFonts.alexandria(
-                  fontWeight: FontWeight.w600,
-                  color: statusColor,
+                  color: isDark
+                      ? AppColors.darkSubtext
+                      : AppColors.lightSubtext,
                   fontSize: 11,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
-              backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation(
-                isCompleted ? statusColor : AppColors.primary,
-              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              '${(progress * 100).toInt()}% Complete',
-              style: GoogleFonts.alexandria(
-                color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      ), // Container
+    ); // GestureDetector
   }
 }
 

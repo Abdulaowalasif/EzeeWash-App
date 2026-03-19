@@ -1,8 +1,7 @@
 // lib/features/services/bloc/services_bloc.dart
 import 'package:bloc/bloc.dart';
-import 'package:equatable/equatable.dart';
-import 'package:ezeewash/features/services/presentation/bloc/service_event.dart';
-import 'package:ezeewash/features/services/presentation/bloc/service_state.dart';
+import 'package:ezzewash/features/services/presentation/bloc/service_event.dart';
+import 'package:ezzewash/features/services/presentation/bloc/service_state.dart';
 
 import '../../../../core/utils/usecase.dart';
 import '../../domain/entities/service_entity.dart';

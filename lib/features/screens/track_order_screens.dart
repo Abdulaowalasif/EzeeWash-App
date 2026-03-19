@@ -1,19 +1,19 @@
 // lib/features/orders/screens/track_order_screen.dart
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:iconsax/iconsax.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../core/constants/app_color.dart';
-import '../../core/utils/responsive.dart';
+import '../../../../core/constants/app_color.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/utils/responsive.dart';
 import '../orders/domain/entities/order_entity.dart';
-import '../orders/presentation/bloc/order_event.dart';
 import '../orders/presentation/bloc/orders_bloc.dart';
 import '../orders/presentation/bloc/orders_state.dart';
 
@@ -28,74 +28,49 @@ class TrackOrderScreen extends StatefulWidget {
 class _TrackOrderScreenState extends State<TrackOrderScreen> {
   bool _showTimeline = false;
 
-  void _snack(String msg, {bool error = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: GoogleFonts.alexandria(fontSize: 13)),
-      backgroundColor: error ? AppColors.error : AppColors.success,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.all(16),
-      duration: Duration(seconds: error ? 4 : 3),
-    ));
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return BlocListener<OrdersBloc, OrdersState>(
-      listener: (ctx, state) {
-        if (state is OrderCancelled) {
-          _snack('Order cancelled successfully.');
-          // Pop back to the orders list
-          if (context.canPop()) context.pop();
-        }
-        if (state is OrdersError) {
-          _snack(state.message, error: true);
-        }
-      },
-      child: Scaffold(
-        backgroundColor:
-        isDark ? AppColors.darkBackground : AppColors.lightBackground,
-        appBar: AppBar(
-          title: Text('Track Order',
-              style: GoogleFonts.alexandria(
-                  fontWeight: FontWeight.bold, fontSize: 18)),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: true,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-            onPressed: () => context.pop(),
-          ),
+    return Scaffold(
+      backgroundColor:
+      isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppBar(
+        title: Text('Track Order',
+            style: GoogleFonts.alexandria(
+                fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => context.pop(),
         ),
-        body: BlocBuilder<OrdersBloc, OrdersState>(
-          builder: (context, state) {
-            OrderEntity? order;
-            if (widget.orderId != null) {
-              final orders = state is OrdersLoaded ? state.orders : [];
-              try {
-                order = orders.firstWhere((o) => o.id == widget.orderId);
-              } catch (_) {}
-            }
-            if (order == null && state is OrdersLoaded && state.activeOrders.isNotEmpty) {
-              order = state.activeOrders.first;
-            }
-            if (order == null) return _EmptyState(isDark: isDark);
+      ),
+      body: BlocBuilder<OrdersBloc, OrdersState>(
+        builder: (context, state) {
+          OrderEntity? order;
+          if (state is OrdersLoaded && widget.orderId != null) {
+            try {
+              order = state.orders.firstWhere((o) => o.id == widget.orderId);
+            } catch (_) {}
+          }
 
-            final isCancelling = state is OrderCancelling;
+          if (order == null &&
+              state is OrdersLoaded &&
+              state.activeOrders.isNotEmpty) {
+            order = state.activeOrders.first;
+          }
 
-            return _TrackContent(
-              order: order,
-              showTimeline: _showTimeline,
-              isDark: isDark,
-              isCancelling: isCancelling,
-              onToggle: (v) => setState(() => _showTimeline = v),
-            );
-          },
-        ),
+          if (order == null) return _EmptyState(isDark: isDark);
+
+          return _TrackContent(
+            order: order,
+            showTimeline: _showTimeline,
+            isDark: isDark,
+            onToggle: (v) => setState(() => _showTimeline = v),
+          );
+        },
       ),
     );
   }
@@ -105,14 +80,13 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
 
 class _TrackContent extends StatelessWidget {
   final OrderEntity order;
-  final bool showTimeline, isDark, isCancelling;
+  final bool showTimeline, isDark;
   final ValueChanged<bool> onToggle;
 
   const _TrackContent({
     required this.order,
     required this.showTimeline,
     required this.isDark,
-    required this.isCancelling,
     required this.onToggle,
   });
 
@@ -126,7 +100,7 @@ class _TrackContent extends StatelessWidget {
       case AppConstants.orderOutForDelivery: return 'Out for Delivery';
       case AppConstants.orderDelivered:      return 'Delivered';
       case AppConstants.orderCancelled:      return 'Cancelled';
-      default:                               return order.status;
+      default: return order.status;
     }
   }
 
@@ -143,7 +117,7 @@ class _TrackContent extends StatelessWidget {
           constraints:
           BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
           child: Column(children: [
-            // ── Hero card ──────────────────────────────────────────
+            // ── Hero card ──────────────────────────────────────────────
             Container(
               padding: const EdgeInsets.all(22),
               width: double.infinity,
@@ -158,39 +132,45 @@ class _TrackContent extends StatelessWidget {
                 ],
               ),
               child: Column(children: [
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Order ID',
-                        style: GoogleFonts.alexandria(
-                            color: Colors.white60, fontSize: 12)),
-                    const SizedBox(height: 4),
-                    Text('#${order.orderNumber}',
-                        style: GoogleFonts.alexandria(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20)),
-                  ]),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(14)),
-                    child: const Icon(Iconsax.truck_fast,
-                        color: Colors.white, size: 26),
-                  ),
-                ]),
+                Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Order ID',
+                                style: GoogleFonts.alexandria(
+                                    color: Colors.white60, fontSize: 12)),
+                            const SizedBox(height: 4),
+                            Text('#${order.orderNumber}',
+                                style: GoogleFonts.alexandria(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20)),
+                          ]),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(14)),
+                        child: const Icon(Iconsax.truck_fast,
+                            color: Colors.white, size: 26),
+                      ),
+                    ]),
                 const SizedBox(height: 20),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Text('Progress',
-                        style: GoogleFonts.alexandria(
-                            color: Colors.white60, fontSize: 12)),
-                    Text('${(order.progress * 100).toInt()}%',
-                        style: GoogleFonts.alexandria(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold)),
-                  ]),
+                  Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Progress',
+                            style: GoogleFonts.alexandria(
+                                color: Colors.white60, fontSize: 12)),
+                        Text('${(order.progress * 100).toInt()}%',
+                            style: GoogleFonts.alexandria(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold)),
+                      ]),
                   const SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
@@ -213,7 +193,7 @@ class _TrackContent extends StatelessWidget {
 
             const SizedBox(height: 22),
 
-            // ── Toggle ─────────────────────────────────────────────
+            // ── Toggle: Map / Timeline ─────────────────────────────────
             Container(
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
@@ -239,16 +219,13 @@ class _TrackContent extends StatelessWidget {
 
             const SizedBox(height: 22),
 
+            // ── Map / Timeline ─────────────────────────────────────────
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 350),
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
               child: showTimeline
-                  ? _TimelineView(
-                order: order,
-                isDark: isDark,
-                isCancelling: isCancelling,
-              )
+                  ? _TimelineView(order: order, isDark: isDark)
                   : _MapView(order: order, isDark: isDark),
             ),
 
@@ -260,8 +237,7 @@ class _TrackContent extends StatelessWidget {
   }
 }
 
-// ─── Live Map view ────────────────────────────────────────────────────────────
-
+// ─── Map view ─────────────────────────────────────────────────────────────────
 class _MapView extends StatefulWidget {
   final OrderEntity order;
   final bool isDark;
@@ -582,6 +558,7 @@ class _MapViewState extends State<_MapView> {
         ),
       ],
     );
+
   }
 
   Widget _buildLoadingOverlay() => Container(
@@ -651,8 +628,6 @@ class _MapViewState extends State<_MapView> {
   );
 }
 
-// ─── Animated pulse dot ───────────────────────────────────────────────────────
-
 class _PulseDot extends StatefulWidget {
   @override
   State<_PulseDot> createState() => _PulseDotState();
@@ -690,37 +665,56 @@ class _PulseDotState extends State<_PulseDot>
   );
 }
 
+
+
 // ─── Timeline view ────────────────────────────────────────────────────────────
+// Cancel order is intentionally absent here.
+// Cancellation is done from the order card on the Orders screen.
 
 class _TimelineView extends StatelessWidget {
   final OrderEntity order;
   final bool isDark;
-  final bool isCancelling;
+  const _TimelineView({required this.order, required this.isDark});
 
-  const _TimelineView({
-    required this.order,
-    required this.isDark,
-    required this.isCancelling,
-  });
+  static const _stepIcons = [
+    Iconsax.tick_circle,
+    Iconsax.bag_2,
+    Iconsax.refresh,
+    Iconsax.box_1,
+    Iconsax.home_2,
+  ];
 
-  static List<Map<String, dynamic>> _defaultTimeline() => [
-    {'title': 'Order Placed',       'desc': 'Your order has been confirmed',    'icon': Iconsax.tick_circle, 'done': true},
-    {'title': 'Picked Up',          'desc': 'Items collected from your location','icon': Iconsax.bag_2,       'done': false},
-    {'title': 'In Process',         'desc': 'Being cleaned at the facility',    'icon': Iconsax.refresh,     'done': false},
-    {'title': 'Ready for Delivery', 'desc': 'Packed and ready to go',           'icon': Iconsax.box_1,       'done': false},
-    {'title': 'Delivered',          'desc': 'Order completed successfully',     'icon': Iconsax.home_2,      'done': false},
+  static List<Map<String, dynamic>> _defaults() => [
+    {'title': 'Order Placed',       'desc': 'Your order has been confirmed',    'done': false},
+    {'title': 'Picked Up',          'desc': 'Items collected from your location','done': false},
+    {'title': 'In Process',         'desc': 'Being cleaned at the facility',     'done': false},
+    {'title': 'Ready for Delivery', 'desc': 'Packed and ready to go',            'done': false},
+    {'title': 'Delivered',          'desc': 'Order completed successfully',       'done': false},
   ];
 
   @override
   Widget build(BuildContext context) {
     final steps = order.timeline.isNotEmpty
-        ? order.timeline.asMap().entries.map((e) => {
+        ? order.timeline.asMap().entries
+        .map((e) => {
       'title': e.value.title,
       'desc': e.value.description ?? '',
-      'icon': _iconForStep(e.key),
+      'icon': e.key < _stepIcons.length
+          ? _stepIcons[e.key]
+          : Iconsax.tick_circle,
       'done': e.value.isDone,
-    }).toList()
-        : _defaultTimeline();
+    })
+        .toList()
+        : _defaults()
+        .asMap()
+        .entries
+        .map((e) => {
+      ...e.value,
+      'icon': e.key < _stepIcons.length
+          ? _stepIcons[e.key]
+          : Iconsax.tick_circle,
+    })
+        .toList();
 
     return Column(
       key: const ValueKey('timeline'),
@@ -741,92 +735,25 @@ class _TimelineView extends StatelessWidget {
           isDark: isDark,
         )),
         const SizedBox(height: 20),
-
-        // Cancel button — only shown for active orders
-        if (order.isActive)
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              icon: isCancelling
-                  ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                      color: AppColors.error, strokeWidth: 2))
-                  : const Icon(Icons.cancel_outlined,
-                  color: AppColors.error, size: 20),
-              label: Text(
-                  isCancelling ? 'Cancelling…' : 'Cancel Order',
-                  style: GoogleFonts.alexandria(
-                      color: AppColors.error, fontWeight: FontWeight.bold)),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.error.withOpacity(0.5)),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              // Disable button while cancellation is in-flight
-              onPressed: isCancelling
-                  ? null
-                  : () => _showCancelDialog(context),
-            ),
-          ),
       ],
     );
   }
-
-  IconData _iconForStep(int i) {
-    const icons = [
-      Iconsax.tick_circle, Iconsax.bag_2, Iconsax.refresh,
-      Iconsax.box_1, Iconsax.home_2,
-    ];
-    return i < icons.length ? icons[i] : Iconsax.tick_circle;
-  }
-
-  void _showCancelDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape:
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Cancel Order?',
-            style: GoogleFonts.alexandria(fontWeight: FontWeight.bold)),
-        content: Text(
-          'Are you sure you want to cancel order #${order.orderNumber}? This action cannot be undone.',
-          style: GoogleFonts.alexandria(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Keep Order',
-                style: GoogleFonts.alexandria(
-                    color: AppColors.primary, fontWeight: FontWeight.w600)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context, rootNavigator: true).pop(); // close the dialog first
-              // Dispatch the real cancel event to the bloc
-              context
-                  .read<OrdersBloc>()
-                  .add(OrderCancelRequested(order.id));
-            },
-            child: Text('Yes, Cancel',
-                style: GoogleFonts.alexandria(
-                    color: AppColors.error, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
 }
+
+// ─── Timeline tile ────────────────────────────────────────────────────────────
 
 class _TimelineTile extends StatelessWidget {
   final String title, desc;
   final IconData icon;
   final bool isDone, isLast, isDark;
+
   const _TimelineTile({
-    required this.title, required this.desc, required this.icon,
-    required this.isDone, required this.isLast, required this.isDark,
+    required this.title,
+    required this.desc,
+    required this.icon,
+    required this.isDone,
+    required this.isLast,
+    required this.isDark,
   });
 
   @override
@@ -842,12 +769,16 @@ class _TimelineTile extends StatelessWidget {
                 gradient: isDone ? AppColors.gradient : null,
                 color: isDone
                     ? null
-                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                    : (isDark
+                    ? Colors.grey.shade800
+                    : Colors.grey.shade200),
                 shape: BoxShape.circle,
                 boxShadow: isDone
-                    ? [BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 8)]
+                    ? [
+                  BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 8)
+                ]
                     : [],
               ),
               child: Icon(icon,
@@ -856,13 +787,15 @@ class _TimelineTile extends StatelessWidget {
             ),
             if (!isLast)
               Expanded(
-                  child: Container(
-                      width: 2,
-                      color: isDone
-                          ? AppColors.primary
-                          : (isDark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade200))),
+                child: Container(
+                  width: 2,
+                  color: isDone
+                      ? AppColors.primary
+                      : (isDark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade200),
+                ),
+              ),
           ]),
         ),
         const SizedBox(width: 14),
@@ -871,45 +804,54 @@ class _TimelineTile extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 20),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+              color:
+              isDark ? AppColors.darkSurface : AppColors.lightSurface,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
                   color: isDone
                       ? AppColors.primary.withOpacity(0.2)
-                      : (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+                      : (isDark
+                      ? AppColors.darkBorder
+                      : AppColors.lightBorder)),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8)
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.02), blurRadius: 8)
               ],
             ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title,
-                  style: GoogleFonts.alexandria(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: isDark ? Colors.white : AppColors.lightText)),
-              if (desc.isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(desc,
-                    style: GoogleFonts.alexandria(
-                        fontSize: 12,
-                        color: isDark
-                            ? AppColors.darkSubtext
-                            : AppColors.lightSubtext)),
-              ],
-              if (isDone) ...[
-                const SizedBox(height: 8),
-                Row(children: [
-                  Icon(Icons.check_circle,
-                      size: 12, color: AppColors.success.withOpacity(0.8)),
-                  const SizedBox(width: 4),
-                  Text('Completed',
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
                       style: GoogleFonts.alexandria(
-                          fontSize: 11,
-                          color: AppColors.success,
-                          fontWeight: FontWeight.w500)),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: isDark
+                              ? Colors.white
+                              : AppColors.lightText)),
+                  if (desc.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(desc,
+                        style: GoogleFonts.alexandria(
+                            fontSize: 12,
+                            color: isDark
+                                ? AppColors.darkSubtext
+                                : AppColors.lightSubtext)),
+                  ],
+                  if (isDone) ...[
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      Icon(Icons.check_circle,
+                          size: 12,
+                          color: AppColors.success.withOpacity(0.8)),
+                      const SizedBox(width: 4),
+                      Text('Completed',
+                          style: GoogleFonts.alexandria(
+                              fontSize: 11,
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w500)),
+                    ]),
+                  ],
                 ]),
-              ],
-            ]),
           ),
         ),
       ]),
@@ -917,7 +859,7 @@ class _TimelineTile extends StatelessWidget {
   }
 }
 
-// ─── Shared helpers ───────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 class _HeaderInfo extends StatelessWidget {
   final String label, value;
@@ -930,7 +872,8 @@ class _HeaderInfo extends StatelessWidget {
       decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.1),
           borderRadius: BorderRadius.circular(14)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child:
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label,
             style: GoogleFonts.alexandria(
                 color: Colors.white60, fontSize: 11)),
@@ -950,9 +893,13 @@ class _ToggleBtn extends StatelessWidget {
   final IconData icon;
   final bool active, isDark;
   final VoidCallback onTap;
+
   const _ToggleBtn({
-    required this.label, required this.icon,
-    required this.active, required this.isDark, required this.onTap,
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.isDark,
+    required this.onTap,
   });
 
   @override
@@ -965,8 +912,10 @@ class _ToggleBtn extends StatelessWidget {
         decoration: BoxDecoration(
             gradient: active ? AppColors.gradient : null,
             borderRadius: BorderRadius.circular(12)),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, color: active ? Colors.white : Colors.grey, size: 16),
+        child:
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon,
+              color: active ? Colors.white : Colors.grey, size: 16),
           const SizedBox(width: 7),
           Text(label,
               style: GoogleFonts.alexandria(
@@ -984,9 +933,13 @@ class _InfoTile extends StatelessWidget {
   final Color color;
   final String title, sub;
   final bool isDark;
+
   const _InfoTile({
-    required this.icon, required this.color,
-    required this.title, required this.sub, required this.isDark,
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.sub,
+    required this.isDark,
   });
 
   @override
@@ -1001,17 +954,22 @@ class _InfoTile extends StatelessWidget {
           child: Icon(icon, color: color, size: 18)),
       const SizedBox(width: 14),
       Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title,
-                style: GoogleFonts.alexandria(
-                    fontSize: 11,
-                    color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
-            Text(sub,
-                style: GoogleFonts.alexandria(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : AppColors.lightText)),
-          ])),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: GoogleFonts.alexandria(
+                        fontSize: 11,
+                        color: isDark
+                            ? AppColors.darkSubtext
+                            : AppColors.lightSubtext)),
+                Text(sub,
+                    style: GoogleFonts.alexandria(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color:
+                        isDark ? Colors.white : AppColors.lightText)),
+              ])),
     ]),
   );
 }
@@ -1022,16 +980,44 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Iconsax.box_remove, size: 64, color: Colors.grey),
+    child:
+    Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Icon(Iconsax.box_remove,
+          size: 64,
+          color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext),
       const SizedBox(height: 16),
       Text('No active order found',
-          style: GoogleFonts.alexandria(fontSize: 16, color: Colors.grey)),
+          style: GoogleFonts.alexandria(
+              fontSize: 16,
+              color: isDark
+                  ? AppColors.darkSubtext
+                  : AppColors.lightSubtext)),
     ]),
   );
 }
 
-// ─── Google Maps dark style ───────────────────────────────────────────────────
+class _GridPainter extends CustomPainter {
+  final bool isDark;
+  const _GridPainter({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color =
+      (isDark ? Colors.white : AppColors.primary).withOpacity(0.05)
+      ..strokeWidth = 1;
+    const step = 30.0;
+    for (double x = 0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
+}
 
 const String _darkMapStyle = '''[
   {"elementType":"geometry","stylers":[{"color":"#212121"}]},

@@ -1,9 +1,8 @@
 // lib/features/profile/bloc/profile_bloc.dart
 import 'dart:io';
 import 'package:bloc/bloc.dart';
-import 'package:equatable/equatable.dart';
-import 'package:ezeewash/features/profile/presentation/bloc/profile_event.dart';
-import 'package:ezeewash/features/profile/presentation/bloc/profile_state.dart';
+import 'package:ezzewash/features/profile/presentation/bloc/profile_event.dart';
+import 'package:ezzewash/features/profile/presentation/bloc/profile_state.dart';
 import '../../../../core/utils/usecase.dart';
 import '../../domain/usecases/profile_usecase.dart';
 
