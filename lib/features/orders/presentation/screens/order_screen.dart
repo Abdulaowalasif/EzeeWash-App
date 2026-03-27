@@ -1,5 +1,6 @@
 // lib/features/orders/screens/order_screen.dart
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:ezzewash/features/screens/track_order_screens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -14,7 +15,6 @@ import '../bloc/orders_bloc.dart';
 import '../bloc/orders_state.dart';
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
-
 class OrderScreen extends StatelessWidget {
   const OrderScreen({super.key});
 
@@ -22,9 +22,15 @@ class OrderScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // ── Initial fetch ─────────────────────────────
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OrdersBloc>().add(const OrdersLoadRequested());
+    });
+
     return Scaffold(
-      backgroundColor:
-      isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(100),
         child: SafeArea(
@@ -62,40 +68,46 @@ class OrderScreen extends StatelessWidget {
           ),
         ),
       ),
-      // BlocConsumer so we can show a snackbar on cancel success/error
-      // while still building from state in the builder.
       body: BlocConsumer<OrdersBloc, OrdersState>(
         listenWhen: (_, s) => s is OrderCancelled || s is OrdersError,
         listener: (context, state) {
           if (state is OrderCancelled) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Order cancelled.',
-                  style: GoogleFonts.alexandria(fontSize: 13)),
-              backgroundColor: AppColors.success,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              margin: const EdgeInsets.all(16),
-            ));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Order cancelled.',
+                  style: GoogleFonts.alexandria(fontSize: 13),
+                ),
+                backgroundColor: AppColors.success,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                margin: const EdgeInsets.all(16),
+              ),
+            );
           } else if (state is OrdersError) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(state.message,
-                  style: GoogleFonts.alexandria(fontSize: 13)),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              margin: const EdgeInsets.all(16),
-            ));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  state.message,
+                  style: GoogleFonts.alexandria(fontSize: 13),
+                ),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                margin: const EdgeInsets.all(16),
+              ),
+            );
           }
         },
         builder: (context, state) {
-          // ── First load only: full-screen spinner ───────────────────
           if (state is OrdersInitial || state is OrdersLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // ── Error with retry ───────────────────────────────────────
           if (state is OrdersError) {
             return Center(
               child: Padding(
@@ -103,8 +115,11 @@ class OrderScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.error_outline,
-                        color: AppColors.error, size: 52),
+                    const Icon(
+                      Icons.error_outline,
+                      color: AppColors.error,
+                      size: 52,
+                    ),
                     const SizedBox(height: 14),
                     Text(
                       state.message,
@@ -119,20 +134,26 @@ class OrderScreen extends StatelessWidget {
                     const SizedBox(height: 20),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.refresh_rounded, size: 18),
-                      onPressed: () => context
-                          .read<OrdersBloc>()
-                          .add(const OrdersLoadRequested()),
+                      onPressed: () => context.read<OrdersBloc>().add(
+                        const OrdersLoadRequested(),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      label: Text('Retry',
-                          style: GoogleFonts.alexandria(
-                              fontWeight: FontWeight.w600)),
+                      label: Text(
+                        'Retry',
+                        style: GoogleFonts.alexandria(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -140,12 +161,10 @@ class OrderScreen extends StatelessWidget {
             );
           }
 
-          // ── Loaded ────────────────────────────────────────────────
           if (state is OrdersLoaded) {
             return _OrdersBody(state: state, isDark: isDark);
           }
 
-          // ── OrderPlacing / OrderPlaced ────────────────────────────
           return const SizedBox.shrink();
         },
       ),
@@ -173,7 +192,6 @@ class OrderScreen extends StatelessWidget {
 }
 
 // ─── Orders body ──────────────────────────────────────────────────────────────
-
 class _OrdersBody extends StatelessWidget {
   final OrdersLoaded state;
   final bool isDark;
@@ -182,6 +200,11 @@ class _OrdersBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activeOrders =
+    state.displayedOrders.where((o) => !o.isDeliveredOrCancelled).toList();
+    final historyOrders =
+    state.displayedOrders.where((o) => o.isDeliveredOrCancelled).toList();
+
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: Responsive.horizontalPadding(context),
@@ -197,22 +220,21 @@ class _OrdersBody extends StatelessWidget {
               _OrdersToggle(
                 showActive: state.showActive,
                 isDark: isDark,
-                onChanged: (active) => context
-                    .read<OrdersBloc>()
-                    .add(OrdersFilterToggled(active)),
+                onChanged: (active) =>
+                    context.read<OrdersBloc>().add(OrdersFilterToggled(active)),
               ),
               const SizedBox(height: 20),
               Expanded(
-                child: state.displayedOrders.isEmpty
-                    ? _EmptyState(
-                    showActive: state.showActive, isDark: isDark)
+                child: (state.showActive ? activeOrders : historyOrders).isEmpty
+                    ? _EmptyState(showActive: state.showActive, isDark: isDark)
                     : ListView.separated(
                   physics: const BouncingScrollPhysics(),
-                  itemCount: state.displayedOrders.length,
-                  separatorBuilder: (_, __) =>
-                  const SizedBox(height: 16),
+                  itemCount: (state.showActive ? activeOrders : historyOrders)
+                      .length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 16),
                   itemBuilder: (context, i) {
-                    final order = state.displayedOrders[i];
+                    final order =
+                    state.showActive ? activeOrders[i] : historyOrders[i];
                     return _OrderCard(
                       order: order,
                       isHistory: !state.showActive,
@@ -234,7 +256,6 @@ class _OrdersBody extends StatelessWidget {
 }
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
-
 class _EmptyState extends StatelessWidget {
   final bool showActive;
   final bool isDark;
@@ -268,8 +289,7 @@ class _EmptyState extends StatelessWidget {
                 : 'Completed orders will appear here',
             style: GoogleFonts.alexandria(
               fontSize: 13,
-              color:
-              isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+              color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
             ),
             textAlign: TextAlign.center,
           ),
@@ -280,7 +300,6 @@ class _EmptyState extends StatelessWidget {
 }
 
 // ─── Tab toggle ───────────────────────────────────────────────────────────────
-
 class _OrdersToggle extends StatelessWidget {
   final bool showActive;
   final bool isDark;
@@ -372,9 +391,7 @@ class _ToggleItem extends StatelessWidget {
                 fontSize: 13,
                 color: isActive
                     ? Colors.white
-                    : (isDark
-                    ? AppColors.darkSubtext
-                    : Colors.grey.shade600),
+                    : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
               ),
             ),
           ),
@@ -382,6 +399,11 @@ class _ToggleItem extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Order entity helper ──────────────────────────────────────────────────────
+extension OrderStatusHelpers on OrderEntity {
+  bool get isDeliveredOrCancelled => status == 'delivered' || status == 'cancelled';
 }
 
 // ─── Order card ───────────────────────────────────────────────────────────────
@@ -405,6 +427,55 @@ class _OrderCard extends StatefulWidget {
 
 class _OrderCardState extends State<_OrderCard> {
   bool _expanded = false;
+  late List<bool> _stepsDone;
+
+  @override
+  void initState() {
+    super.initState();
+    _initSteps();
+  }
+
+  void _initSteps() {
+    final totalSteps = widget.order.timeline.length;
+    _stepsDone = List.generate(
+        totalSteps, (i) => widget.order.timeline[i].isDone ?? false);
+  }
+
+  @override
+  void didUpdateWidget(covariant _OrderCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.order.status != widget.order.status) {
+      // Update steps done based on new order status
+      setState(() {
+        for (int i = 0; i < widget.order.timeline.length; i++) {
+          if (_statusToIndex(widget.order.status) >= i) {
+            _stepsDone[i] = true;
+          }
+        }
+      });
+    }
+  }
+
+  int _statusToIndex(String status) {
+    switch (status) {
+      case 'confirmed':
+        return 0;
+      case 'picked_up':
+        return 1;
+      case 'in_process':
+        return 2;
+      case 'ready':
+        return 3;
+      case 'out_for_delivery':
+        return 3; // treat same as ready
+      case 'delivered':
+        return 4;
+      case 'cancelled':
+        return 0;
+      default:
+        return 0;
+    }
+  }
 
   Color _statusColor(String status) {
     switch (status) {
@@ -415,7 +486,6 @@ class _OrderCardState extends State<_OrderCard> {
         return AppColors.warning;
       case 'ready':
       case 'out_for_delivery':
-        return AppColors.success;
       case 'delivered':
         return AppColors.success;
       case 'cancelled':
@@ -425,37 +495,57 @@ class _OrderCardState extends State<_OrderCard> {
     }
   }
 
-  // Show confirm dialog then dispatch OrderCancelRequested
   void _confirmCancel(BuildContext ctx) {
     showDialog(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Cancel Order?',
-            style: GoogleFonts.alexandria(fontWeight: FontWeight.bold)),
+        title: Text(
+          'Cancel Order?',
+          style: GoogleFonts.alexandria(fontWeight: FontWeight.bold),
+        ),
         content: Text(
           'Cancel order #${widget.order.orderNumber}? This cannot be undone.',
           style: GoogleFonts.alexandria(fontSize: 14),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogCtx), // ✅ use dialogCtx
-            child: Text('Keep Order',
-                style: GoogleFonts.alexandria(
-                    color: AppColors.primary, fontWeight: FontWeight.w600)),
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(
+              'Keep Order',
+              style: GoogleFonts.alexandria(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(dialogCtx); // ✅ use dialogCtx
+              Navigator.pop(dialogCtx);
               ctx.read<OrdersBloc>().add(OrderCancelRequested(widget.order.id));
             },
-            child: Text('Yes, Cancel',
-                style: GoogleFonts.alexandria(
-                    color: AppColors.error, fontWeight: FontWeight.w600)),
+            child: Text(
+              'Yes, Cancel',
+              style: GoogleFonts.alexandria(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour > 12
+        ? dt.hour - 12
+        : dt.hour == 0
+        ? 12
+        : dt.hour;
+    final m = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    return '${dt.day}/${dt.month}/${dt.year}  $h:$m $period';
   }
 
   @override
@@ -470,13 +560,10 @@ class _OrderCardState extends State<_OrderCard> {
         curve: Curves.easeInOut,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color:
-          widget.isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          color: widget.isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: widget.isDark
-                ? AppColors.darkBorder
-                : AppColors.lightBorder,
+            color: widget.isDark ? AppColors.darkBorder : AppColors.lightBorder,
           ),
           boxShadow: widget.isDark
               ? []
@@ -491,7 +578,7 @@ class _OrderCardState extends State<_OrderCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header row ────────────────────────────────────────────
+            // ── Header Row ─────────────────────────────
             Row(
               children: [
                 Container(
@@ -523,9 +610,8 @@ class _OrderCardState extends State<_OrderCard> {
                         style: GoogleFonts.alexandria(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
-                          color: widget.isDark
-                              ? Colors.white
-                              : AppColors.lightText,
+                          color:
+                          widget.isDark ? Colors.white : AppColors.lightText,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -533,18 +619,15 @@ class _OrderCardState extends State<_OrderCard> {
                         o.serviceName,
                         style: GoogleFonts.alexandria(
                           fontSize: 13,
-                          color: widget.isDark
-                              ? Colors.white70
-                              : Colors.black87,
+                          color: widget.isDark ? Colors.white70 : Colors.black87,
                         ),
                       ),
                       Text(
                         o.storeName,
                         style: GoogleFonts.alexandria(
                           fontSize: 11,
-                          color: widget.isDark
-                              ? AppColors.darkSubtext
-                              : AppColors.lightSubtext,
+                          color:
+                          widget.isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
                         ),
                       ),
                     ],
@@ -554,13 +637,14 @@ class _OrderCardState extends State<_OrderCard> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 5, horizontal: 10),
+                      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
                       decoration: BoxDecoration(
                         color: statusColor.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: statusColor.withOpacity(0.4), width: 1),
+                          color: statusColor.withOpacity(0.4),
+                          width: 1,
+                        ),
                       ),
                       child: Text(
                         o.status.replaceAll('_', ' ').toUpperCase(),
@@ -587,14 +671,12 @@ class _OrderCardState extends State<_OrderCard> {
 
             const SizedBox(height: 16),
 
-            // ── Progress bar ──────────────────────────────────────────
+            // ── Progress Bar ─────────────────────────────
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Container(
                 height: 6,
-                color: widget.isDark
-                    ? Colors.white12
-                    : Colors.grey.shade200,
+                color: widget.isDark ? Colors.white12 : Colors.grey.shade200,
                 child: LayoutBuilder(
                   builder: (context, constraints) => Align(
                     alignment: Alignment.centerLeft,
@@ -602,7 +684,10 @@ class _OrderCardState extends State<_OrderCard> {
                       duration: const Duration(milliseconds: 600),
                       curve: Curves.easeOut,
                       width: constraints.maxWidth *
-                          o.progress.clamp(0.0, 1.0),
+                          TrackContent.effectiveProgress(
+                            status: o.status,
+                            dbProgress: o.progress,
+                          ).clamp(0.0, 1.0),
                       decoration: BoxDecoration(
                         gradient: AppColors.gradient,
                         borderRadius: BorderRadius.circular(10),
@@ -615,10 +700,9 @@ class _OrderCardState extends State<_OrderCard> {
 
             const SizedBox(height: 16),
 
-            // ── Action buttons ────────────────────────────────────────
+            // ── Action Buttons ───────────────────────────
             Row(
               children: [
-                // Details / expand toggle
                 Expanded(
                   child: OutlinedButton.icon(
                     icon: Icon(
@@ -628,15 +712,13 @@ class _OrderCardState extends State<_OrderCard> {
                       color: AppColors.primary,
                       size: 18,
                     ),
-                    onPressed: () =>
-                        setState(() => _expanded = !_expanded),
+                    onPressed: () => setState(() => _expanded = !_expanded),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(
-                          color: AppColors.primary, width: 1.5),
+                      side: const BorderSide(color: AppColors.primary, width: 1.5),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      padding:
-                      const EdgeInsets.symmetric(vertical: 12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     label: Text(
                       _expanded ? 'Hide' : 'Details',
@@ -649,112 +731,59 @@ class _OrderCardState extends State<_OrderCard> {
                   ),
                 ),
                 const SizedBox(width: 12),
-
-                // Right button: Reorder (history) OR Cancel (active)
+                // Right button: Reorder or Cancel
                 Expanded(
                   child: widget.isHistory
-                  // ── Reorder ──────────────────────────────────
-                      ? Container(
-                    decoration: BoxDecoration(
-                      gradient: AppColors.gradient,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                          AppColors.primary.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.replay_outlined,
-                          color: Colors.white, size: 16),
-                      onPressed: () => context
-                          .push(RoutesName.placeOrdersNavigate),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius:
-                            BorderRadius.circular(12)),
+                      ? ElevatedButton.icon(
+                    onPressed: () =>
+                        context.push(RoutesName.placeOrdersNavigate),
+                    icon: const Icon(Icons.replay_outlined, color: Colors.white),
+                    label: const Text('Reorder'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      label: Text('Reorder',
-                          style: GoogleFonts.alexandria(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   )
-                  // ── Cancel (active orders only) ───────────────
-                  // GestureDetector with HitTestBehavior.opaque
-                  // so this button's tap does NOT bubble up to the
-                  // card's GestureDetector and trigger navigation.
                       : BlocBuilder<OrdersBloc, OrdersState>(
                     builder: (ctx, state) {
-                      final cancelling =
-                      state is OrderCancelling;
+                      final cancelling = state is OrderCancelling;
                       return GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTap: cancelling
-                            ? null
-                            : () => _confirmCancel(ctx),
+                        onTap: cancelling ? null : () => _confirmCancel(ctx),
                         child: Container(
                           decoration: BoxDecoration(
                             color: AppColors.error,
-                            borderRadius:
-                            BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.error
-                                    .withOpacity(0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: ElevatedButton.icon(
+                            onPressed: null,
                             icon: cancelling
                                 ? const SizedBox(
                               width: 14,
                               height: 14,
-                              child:
-                              CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2),
                             )
-                                : const Icon(
-                              Icons.cancel_outlined,
-                              color: Colors.white,
-                              size: 16,
+                                : const Icon(Icons.cancel_outlined,
+                                color: Colors.white, size: 16),
+                            label: Text(
+                              cancelling ? 'Cancelling…' : 'Cancel',
+                              style: GoogleFonts.alexandria(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12),
                             ),
-                            // onPressed is null so Flutter doesn't
-                            // add its own gesture — we use the
-                            // GestureDetector above instead.
-                            onPressed: null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
-                              disabledBackgroundColor:
-                              Colors.transparent,
+                              disabledBackgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12),
+                              padding:
+                              const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                  BorderRadius.circular(12)),
-                            ),
-                            label: Text(
-                              cancelling
-                                  ? 'Cancelling…'
-                                  : 'Cancel',
-                              style: GoogleFonts.alexandria(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
+                                  borderRadius: BorderRadius.circular(12)),
                             ),
                           ),
                         ),
@@ -765,13 +794,11 @@ class _OrderCardState extends State<_OrderCard> {
               ],
             ),
 
-            // ── Timeline expansion ────────────────────────────────────
+            // ── Timeline ─────────────────────────────
             if (_expanded) ...[
               const SizedBox(height: 20),
               Divider(
-                color: widget.isDark
-                    ? Colors.white12
-                    : Colors.grey.shade200,
+                color: widget.isDark ? Colors.white12 : Colors.grey.shade200,
               ),
               const SizedBox(height: 12),
               Text(
@@ -779,9 +806,7 @@ class _OrderCardState extends State<_OrderCard> {
                 style: GoogleFonts.alexandria(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
-                  color: widget.isDark
-                      ? Colors.white
-                      : AppColors.lightText,
+                  color: widget.isDark ? Colors.white : AppColors.lightText,
                 ),
               ),
               const SizedBox(height: 12),
@@ -790,55 +815,57 @@ class _OrderCardState extends State<_OrderCard> {
                   'Timeline not available yet',
                   style: GoogleFonts.alexandria(
                     fontSize: 13,
-                    color: widget.isDark
-                        ? AppColors.darkSubtext
-                        : AppColors.lightSubtext,
+                    color: widget.isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
                   ),
                 )
               else
-                ...o.timeline.map(
-                      (step) => Padding(
+                ...o.timeline.asMap().entries.map((e) {
+                  final step = e.value;
+                  final isDone = _stepsDone[e.key];
+                  return Padding(
                     padding: const EdgeInsets.only(bottom: 14),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          margin:
-                          const EdgeInsets.only(top: 2, right: 14),
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: step.isDone
-                                ? AppColors.primary.withOpacity(0.12)
-                                : (widget.isDark
-                                ? Colors.white12
-                                : Colors.grey.shade100),
-                          ),
-                          child: Icon(
-                            step.isDone
-                                ? Icons.check_circle_rounded
-                                : Icons.circle_outlined,
-                            color: step.isDone
-                                ? AppColors.primary
-                                : Colors.grey.shade400,
-                            size: 16,
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _stepsDone[e.key] = !_stepsDone[e.key];
+                            });
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(top: 2, right: 14),
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isDone
+                                  ? AppColors.primary.withOpacity(0.12)
+                                  : (widget.isDark
+                                  ? Colors.white12
+                                  : Colors.grey.shade100),
+                            ),
+                            child: Icon(
+                              isDone
+                                  ? Icons.check_circle_rounded
+                                  : Icons.circle_outlined,
+                              color: isDone
+                                  ? AppColors.primary
+                                  : Colors.grey.shade400,
+                              size: 16,
+                            ),
                           ),
                         ),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 step.title,
                                 style: GoogleFonts.alexandria(
-                                  fontWeight: step.isDone
-                                      ? FontWeight.bold
-                                      : FontWeight.w500,
-                                  color: step.isDone
-                                      ? (widget.isDark
-                                      ? Colors.white
-                                      : Colors.black87)
+                                  fontWeight:
+                                  isDone ? FontWeight.bold : FontWeight.w500,
+                                  color: isDone
+                                      ? (widget.isDark ? Colors.white : Colors.black87)
                                       : Colors.grey.shade500,
                                   fontSize: 13,
                                 ),
@@ -854,14 +881,12 @@ class _OrderCardState extends State<_OrderCard> {
                                         : AppColors.lightSubtext,
                                   ),
                                 ),
-                              if (step.isDone &&
-                                  step.eventTime != null)
+                              if (isDone && step.eventTime != null)
                                 Text(
                                   _formatTime(step.eventTime!),
                                   style: GoogleFonts.alexandria(
                                     fontSize: 10,
-                                    color: AppColors.primary
-                                        .withOpacity(0.7),
+                                    color: AppColors.primary.withOpacity(0.7),
                                   ),
                                 ),
                             ],
@@ -869,24 +894,13 @@ class _OrderCardState extends State<_OrderCard> {
                         ),
                       ],
                     ),
-                  ),
-                ),
+                  );
+                }),
             ],
           ],
         ),
       ),
     );
-  }
-
-  String _formatTime(DateTime dt) {
-    final h = dt.hour > 12
-        ? dt.hour - 12
-        : dt.hour == 0
-        ? 12
-        : dt.hour;
-    final m = dt.minute.toString().padLeft(2, '0');
-    final period = dt.hour >= 12 ? 'PM' : 'AM';
-    return '${dt.day}/${dt.month}/${dt.year}  $h:$m $period';
   }
 }
 
@@ -921,35 +935,35 @@ class _ServiceImage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: imageUrl != null
             ? CachedNetworkImage(
-          imageUrl: imageUrl!,
-          fit: BoxFit.cover,
-          placeholder: (_, __) => Center(
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.primary.withOpacity(0.5),
-              ),
-            ),
-          ),
-          errorWidget: (_, __, ___) => Container(
-            decoration: BoxDecoration(
-              gradient: AppColors.gradient,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.local_laundry_service,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-        )
+                imageUrl: imageUrl!,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary.withOpacity(0.5),
+                    ),
+                  ),
+                ),
+                errorWidget: (_, __, ___) => Container(
+                  decoration: BoxDecoration(
+                    gradient: AppColors.gradient,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.local_laundry_service,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+              )
             : const Icon(
-          Icons.local_laundry_service,
-          color: Colors.white,
-          size: 28,
-        ),
+                Icons.local_laundry_service,
+                color: Colors.white,
+                size: 28,
+              ),
       ),
     );
   }

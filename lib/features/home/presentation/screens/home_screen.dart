@@ -1,5 +1,6 @@
 // lib/features/home/screens/home_screen.dart
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:ezzewash/features/screens/track_order_screens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -849,7 +850,10 @@ class _RecentOrderCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: LinearProgressIndicator(
-                value: progress,
+                value: TrackContent.effectiveProgress(
+                  status: status,
+                  dbProgress: progress,
+                ),
                 minHeight: 6,
                 backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
                 valueColor: AlwaysStoppedAnimation(
@@ -861,7 +865,7 @@ class _RecentOrderCard extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: Text(
-                '${(progress * 100).toInt()}% Complete',
+                '${(TrackContent.effectiveProgress(status: status, dbProgress: progress) * 100).toInt()}% Complete',
                 style: GoogleFonts.alexandria(
                   color: isDark
                       ? AppColors.darkSubtext
