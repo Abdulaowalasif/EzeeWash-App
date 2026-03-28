@@ -18,12 +18,17 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
   final SupabaseClient _client;
   OrdersRemoteDataSourceImpl(this._client);
 
+  static const _select =
+      '*, services(title,category,image_url), stores(name), order_timelines(*)';
+  static const _selectNoTimeline =
+      '*, services(title,category,image_url), stores(name)';
+
   @override
   Future<List<OrderModel>> getOrders(String userId) async {
     try {
       final data = await _client
           .from(AppConstants.ordersTable)
-          .select('*, services(title,category,image_url), stores(name), order_timelines(*)')
+          .select(_select)
           .eq('user_id', userId)
           .order('created_at', ascending: false);
       return (data as List).map((e) => OrderModel.fromJson(e)).toList();
@@ -37,7 +42,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
     try {
       final data = await _client
           .from(AppConstants.ordersTable)
-          .select('*, services(title,category,image_url), stores(name), order_timelines(*)')
+          .select(_select)
           .eq('id', orderId)
           .single();
       return OrderModel.fromJson(data);
@@ -54,12 +59,8 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       }
 
-      // Guard: ensure the profile row exists before inserting the order.
-      // The orders.user_id FK references profiles(id), so if the profile
-      // was not created yet (e.g. email-confirmation race), the insert fails.
-      await _client
-          .from('profiles')
-          .upsert({'id': userId}, onConflict: 'id');
+      // Ensure profile exists (FK guard)
+      await _client.from('profiles').upsert({'id': userId}, onConflict: 'id');
 
       final row = await _client
           .from(AppConstants.ordersTable)
@@ -78,14 +79,14 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         'special_instructions': params.specialInstructions,
         'status': AppConstants.orderPending,
         'progress': 0.0,
-        'payment_method': params.paymentMethod == PaymentMethod.card
-            ? 'card'
-            : 'cash_on_delivery',
-        'payment_status': params.paymentMethod == PaymentMethod.card
-            ? 'paid'
+        'payment_method': params.paymentMethod.value,
+        // cash_on_delivery → payment is pending until delivery
+        // stripe → payment_status updated by webhook after Stripe confirms
+        'payment_status': params.paymentMethod == PaymentMethod.cashOnDelivery
+            ? 'pending'
             : 'pending',
       })
-          .select('*, services(title,category,image_url), stores(name)')
+          .select(_selectNoTimeline)
           .single();
       return OrderModel.fromJson(row);
     } catch (e) {
@@ -97,23 +98,15 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
   Future<void> insertTimelines(String orderId) async {
     try {
       await _client.from(AppConstants.orderTimelinesTable).insert([
-        {'order_id': orderId, 'title': 'Order Placed',       'description': 'Your order has been received',    'is_done': true,  'step_order': 1},
-        {'order_id': orderId, 'title': 'Picked Up',          'description': 'Rider collected your laundry',    'is_done': false, 'step_order': 2},
-        {'order_id': orderId, 'title': 'In Process',         'description': 'Being cleaned at the facility',   'is_done': false, 'step_order': 3},
-        {'order_id': orderId, 'title': 'Ready for Delivery', 'description': 'Packed and ready to deliver',     'is_done': false, 'step_order': 4},
-        {'order_id': orderId, 'title': 'Delivered',          'description': 'Order completed successfully',    'is_done': false, 'step_order': 5},
+        {'order_id': orderId, 'title': 'Order Placed',       'description': 'Your order has been received',  'is_done': true,  'step_order': 1},
+        {'order_id': orderId, 'title': 'Picked Up',          'description': 'Rider collected your laundry',  'is_done': false, 'step_order': 2},
+        {'order_id': orderId, 'title': 'In Process',         'description': 'Being cleaned at the facility', 'is_done': false, 'step_order': 3},
+        {'order_id': orderId, 'title': 'Ready for Delivery', 'description': 'Packed and ready to deliver',   'is_done': false, 'step_order': 4},
+        {'order_id': orderId, 'title': 'Delivered',          'description': 'Order completed successfully',  'is_done': false, 'step_order': 5},
       ]);
     } catch (e) {
       throw ServerException(e.toString());
     }
-  }
-
-  @override
-  Stream<List<Map<String, dynamic>>> watchOrders(String userId) {
-    return _client
-        .from(AppConstants.ordersTable)
-        .stream(primaryKey: ['id'])
-        .eq('user_id', userId);
   }
 
   @override
@@ -126,5 +119,13 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
     } catch (e) {
       throw ServerException(e.toString());
     }
+  }
+
+  @override
+  Stream<List<Map<String, dynamic>>> watchOrders(String userId) {
+    return _client
+        .from(AppConstants.ordersTable)
+        .stream(primaryKey: ['id'])
+        .eq('user_id', userId);
   }
 }

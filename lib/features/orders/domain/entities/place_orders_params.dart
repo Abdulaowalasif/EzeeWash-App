@@ -1,7 +1,14 @@
 // lib/features/orders/domain/entities/place_order_params.dart
 import 'package:equatable/equatable.dart';
 
-enum PaymentMethod { cashOnDelivery, card }
+enum PaymentMethod { cashOnDelivery, stripe }
+
+extension PaymentMethodX on PaymentMethod {
+  String get value =>
+      this == PaymentMethod.cashOnDelivery ? 'cash_on_delivery' : 'stripe';
+  String get label =>
+      this == PaymentMethod.cashOnDelivery ? 'Cash on Delivery' : 'Stripe';
+}
 
 /// Value object that carries all data needed to place an order.
 class PlaceOrderParams extends Equatable {
@@ -35,7 +42,13 @@ class PlaceOrderParams extends Equatable {
 
   @override
   List<Object?> get props => [
-    serviceId, storeId, itemCount, totalPrice,
-    pickupAddress, pickupDate, deliveryDate, paymentMethod,
+    serviceId,
+    storeId,
+    itemCount,
+    totalPrice,
+    pickupAddress,
+    pickupDate,
+    deliveryDate,
+    paymentMethod,
   ];
 }

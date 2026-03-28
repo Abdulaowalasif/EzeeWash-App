@@ -1091,15 +1091,15 @@ class _PaymentStep extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         _PaymentOption(
-          method: PaymentMethod.card,
-          selected: selectedMethod == PaymentMethod.card,
+          method: PaymentMethod.stripe,
+          selected: selectedMethod == PaymentMethod.stripe,
           isDark: isDark,
           icon: Iconsax.card,
           title: 'Pay with Card',
           subtitle: 'Secure payment via Stripe',
           badge: 'Recommended',
           color: const Color(0xFF6772E5),
-          onTap: () => onMethodChanged(PaymentMethod.card),
+          onTap: () => onMethodChanged(PaymentMethod.stripe),
         ),
         if (stripeError != null) ...[
           const SizedBox(height: 14),
@@ -1142,7 +1142,7 @@ class _PaymentStep extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  selectedMethod == PaymentMethod.card
+                  selectedMethod == PaymentMethod.stripe
                       ? 'Your card details are processed securely by Stripe. EzeeWash never stores your card information.'
                       : 'Pay cash to the rider when your clean laundry is delivered to your door.',
                   style: GoogleFonts.alexandria(
@@ -1772,7 +1772,7 @@ class _BottomNav extends StatelessWidget {
 
   String get _nextLabel {
     if (step < totalSteps) return 'Next';
-    return paymentMethod == PaymentMethod.card ? 'Pay Now' : 'Confirm Booking';
+    return paymentMethod == PaymentMethod.stripe ? 'Pay Now' : 'Confirm Booking';
   }
 
   @override
