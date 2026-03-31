@@ -1,4 +1,3 @@
-// lib/features/orders/domain/entities/order_entity.dart
 import 'package:equatable/equatable.dart';
 
 class OrderTimelineStep extends Equatable {
@@ -48,6 +47,10 @@ class OrderEntity extends Equatable {
   final String paymentStatus;   // 'pending' | 'paid' | 'failed' | 'refunded'
   final String? stripePaymentIntentId;
 
+  // ─── NEW: Rider Initial Coordinates ───
+  final double? riderLat;
+  final double? riderLng;
+
   const OrderEntity({
     required this.id,
     required this.orderNumber,
@@ -73,6 +76,8 @@ class OrderEntity extends Equatable {
     this.paymentMethod = 'cash_on_delivery',
     this.paymentStatus = 'pending',
     this.stripePaymentIntentId,
+    this.riderLat, // Added to constructor
+    this.riderLng, // Added to constructor
   });
 
   bool get isActive => status != 'delivered' && status != 'cancelled';
@@ -80,5 +85,13 @@ class OrderEntity extends Equatable {
   bool get isCashOnDelivery => paymentMethod == 'cash_on_delivery';
 
   @override
-  List<Object?> get props => [id, orderNumber, status, progress, paymentStatus];
+  List<Object?> get props => [
+    id,
+    orderNumber,
+    status,
+    progress,
+    paymentStatus,
+    riderLat, // Added to props
+    riderLng  // Added to props
+  ];
 }

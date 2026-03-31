@@ -56,6 +56,8 @@ class OrderModel extends OrderEntity {
     super.paymentMethod,
     super.paymentStatus,
     super.stripePaymentIntentId,
+    super.riderLat, // Added to constructor
+    super.riderLng, // Added to constructor
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> j) {
@@ -65,6 +67,10 @@ class OrderModel extends OrderEntity {
       ..sort((a, b) => a.stepOrder.compareTo(b.stepOrder));
 
     final serviceMap = j['services'] as Map?;
+
+    // ─── NEW: Extract Rider Location from Joined List ───
+    final riderLocs = j['rider_locations'] as List?;
+    final locData = (riderLocs != null && riderLocs.isNotEmpty) ? riderLocs.first : null;
 
     return OrderModel(
       id: j['id'] as String,
@@ -97,6 +103,10 @@ class OrderModel extends OrderEntity {
       paymentMethod: j['payment_method'] as String? ?? 'cash_on_delivery',
       paymentStatus: j['payment_status'] as String? ?? 'pending',
       stripePaymentIntentId: j['stripe_payment_intent_id'] as String?,
+
+      // ─── NEW: Map coordinates from relational data ───
+      riderLat: locData != null ? (locData['latitude'] as num).toDouble() : null,
+      riderLng: locData != null ? (locData['longitude'] as num).toDouble() : null,
     );
   }
 
@@ -123,5 +133,7 @@ class OrderModel extends OrderEntity {
     'progress': progress,
     'payment_method': paymentMethod,
     'payment_status': paymentStatus,
+    'rider_latitude': riderLat, // Optionally include coordinates in JSON exports
+    'rider_longitude': riderLng,
   };
 }

@@ -1,12 +1,15 @@
-// lib/features/orders/screens/place_order_screen.dart
+// lib/features/orders/presentation/screens/place_order_screen.dart
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' hide PaymentMethod;
+import 'package:geocoding/geocoding.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/responsive.dart';
@@ -68,7 +71,6 @@ class _StoreItem {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 class PlaceOrderScreen extends StatefulWidget {
-  /// When non-null, the service with this ID is pre-selected and step 1 is skipped.
   final String? preSelectedServiceId;
 
   const PlaceOrderScreen({super.key, this.preSelectedServiceId});
@@ -132,7 +134,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         final stores =
         (strs as List).map((e) => _StoreItem.fromJson(e)).toList();
 
-        // Auto-select the pre-selected service if one was passed
         int? preIdx;
         if (widget.preSelectedServiceId != null) {
           final idx =
@@ -145,16 +146,16 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           _stores = stores;
           _serviceIdx = preIdx;
           _dataLoading = false;
-          // Skip step 1 entirely when a service is pre-selected
           if (preIdx != null) _step = 2;
         });
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _dataError = e.toString();
           _dataLoading = false;
         });
+      }
     }
   }
 
@@ -238,7 +239,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               : ThemeMode.light,
           appearance: PaymentSheetAppearance(
             colors: PaymentSheetAppearanceColors(primary: AppColors.primary),
-            shapes: PaymentSheetShape(borderRadius: 12),
+            shapes: const PaymentSheetShape(borderRadius: 12),
           ),
         ),
       );
@@ -259,19 +260,21 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           isError: false,
         );
       } else {
-        if (mounted)
+        if (mounted) {
           setState(() {
             _stripeLoading = false;
             _stripeError = e.error.localizedMessage;
           });
+        }
         _showSnack(e.error.localizedMessage ?? 'Payment failed', isError: true);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _stripeLoading = false;
           _stripeError = e.toString();
         });
+      }
       _showSnack(e.toString(), isError: true);
     }
   }
@@ -446,17 +449,17 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                         context.pop();
                       } else if (_step == 2 &&
                           widget.preSelectedServiceId != null) {
-                        // Pre-selected from outside — back exits the screen
                         context.pop();
                       } else {
                         setState(() => _step--);
                       }
                     },
                     onNext: () {
-                      if (_step < 5)
+                      if (_step < 5) {
                         setState(() => _step++);
-                      else
+                      } else {
                         _placeOrder();
+                      }
                     },
                   ),
                 ],
@@ -526,8 +529,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           onDeliveryTime: (t) => setState(() => _deliveryTime = t),
         );
       case 4:
-        if (_serviceIdx == null || _storeIdx == null)
+        if (_serviceIdx == null || _storeIdx == null) {
           return const SizedBox.shrink();
+        }
         return _AddressStep(
           key: const ValueKey(4),
           addrCtrl: _addrCtrl,
@@ -1303,7 +1307,7 @@ class _PaymentOption extends StatelessWidget {
   );
 }
 
-// ─── Address step ─────────────────────────────────────────────────────────────
+// ─── Address step (UPDATED WITH MAP BUTTON) ───────────────────────────────────
 
 class _AddressStep extends StatelessWidget {
   final TextEditingController addrCtrl, noteCtrl;
@@ -1390,12 +1394,41 @@ class _AddressStep extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.map_rounded, color: Colors.white),
+                label: Text(
+                  'Set Location on Map',
+                  style: GoogleFonts.alexandria(
+                      color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: () async {
+                  final selectedAddress = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => MapAddressPickerScreen(isDark: isDark)),
+                  );
+                  if (selectedAddress != null) {
+                    addrCtrl.text = selectedAddress;
+                    onChanged();
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: addrCtrl,
               maxLines: 2,
               onChanged: (_) => onChanged(),
               decoration: _deco(
-                'Enter your complete address',
+                'Or type your complete address here',
                 Icons.location_on_outlined,
               ),
             ),
@@ -1857,4 +1890,223 @@ class _BottomNav extends StatelessWidget {
       ],
     ),
   );
+}
+
+// ─── Map Picker Screen ────────────────────────────────────────────────────────
+
+class MapAddressPickerScreen extends StatefulWidget {
+  final bool isDark;
+  const MapAddressPickerScreen({super.key, required this.isDark});
+
+  @override
+  State<MapAddressPickerScreen> createState() => _MapAddressPickerScreenState();
+}
+
+class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
+  GoogleMapController? _mapController;
+
+  LatLng _centerPosition = const LatLng(23.8103, 90.4125);
+
+  String _currentAddress = 'Move map to select location';
+  bool _isDragging = false;
+  bool _isLoadingAddress = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _getUserCurrentLocation();
+  }
+
+  Future<void> _getUserCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+
+    Position position = await Geolocator.getCurrentPosition();
+    setState(() {
+      _centerPosition = LatLng(position.latitude, position.longitude);
+    });
+
+    _mapController?.animateCamera(CameraUpdate.newLatLngZoom(_centerPosition, 16));
+    _getAddressFromLatLng(_centerPosition);
+  }
+
+  Future<void> _getAddressFromLatLng(LatLng position) async {
+    setState(() => _isLoadingAddress = true);
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        setState(() {
+          _currentAddress = '${place.street}, ${place.subLocality}, ${place.locality}';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _currentAddress = 'Address not found. Please type manually later.';
+      });
+    } finally {
+      setState(() => _isLoadingAddress = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: widget.isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppBar(
+        title: Text('Select Location',
+            style: GoogleFonts.alexandria(fontSize: 16, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Stack(
+        children: [
+          // 1. The Map
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: _centerPosition,
+              zoom: 14.0,
+            ),
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            onMapCreated: (controller) => _mapController = controller,
+            onCameraMoveStarted: () {
+              setState(() {
+                _isDragging = true;
+                _currentAddress = 'Searching...';
+              });
+            },
+            onCameraMove: (position) {
+              _centerPosition = position.target;
+            },
+            onCameraIdle: () {
+              setState(() => _isDragging = false);
+              _getAddressFromLatLng(_centerPosition);
+            },
+          ),
+
+          // 2. The Uber-style floating center pin
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 40),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                transform: Matrix4.translationValues(0, _isDragging ? -15 : 0, 0),
+                child: const Icon(
+                  Icons.location_on,
+                  size: 50,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+
+          // 3. Floating Action Button for current location
+          Positioned(
+            right: 16,
+            bottom: 180,
+            child: FloatingActionButton(
+              backgroundColor: widget.isDark ? AppColors.darkSurface : Colors.white,
+              onPressed: _getUserCurrentLocation,
+              child: const Icon(Icons.my_location, color: AppColors.primary),
+            ),
+          ),
+
+          // 4. Bottom Address Confirmation Sheet
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: widget.isDark ? AppColors.darkSurface : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  )
+                ],
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Selected Address',
+                      style: GoogleFonts.alexandria(
+                        fontSize: 12,
+                        color: widget.isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        if (_isLoadingAddress)
+                          const SizedBox(
+                            width: 20, height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          )
+                        else
+                          const Icon(Icons.location_city_rounded, color: AppColors.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _currentAddress,
+                            style: GoogleFonts.alexandria(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: widget.isDark ? Colors.white : AppColors.lightText,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: _isLoadingAddress || _isDragging
+                            ? null
+                            : () => Navigator.pop(context, _currentAddress),
+                        child: Text(
+                          'Confirm Location',
+                          style: GoogleFonts.alexandria(
+                              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

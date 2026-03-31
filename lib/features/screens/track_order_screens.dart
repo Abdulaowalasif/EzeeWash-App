@@ -1,15 +1,17 @@
-// lib/features/orders/screens/track_order_screen.dart
+// lib/features/screens/track_order_screens.dart
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geocoding/geocoding.dart'; // <-- Added for address geocoding
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../core/constants/app_color.dart';
@@ -99,10 +101,6 @@ class TrackContent extends StatelessWidget {
     required this.onToggle,
   });
 
-  // Derive progress from status as a fallback.
-  // This ensures the bar always shows the correct position even if
-  // the DB `progress` column hasn't been updated yet.
-  // ✅ already good
   static double progressForStatus(String status) {
     switch (status) {
       case 'pending':
@@ -126,7 +124,6 @@ class TrackContent extends StatelessWidget {
     }
   }
 
-  // ✅ MAKE THIS STATIC
   static double effectiveProgress({
     required String status,
     required double dbProgress,
@@ -135,12 +132,8 @@ class TrackContent extends StatelessWidget {
     return dbProgress > fromStatus ? dbProgress : fromStatus;
   }
 
-  // ✅ keep this for current screen usage
   double get progress =>
-      effectiveProgress(
-        status: order.status,
-        dbProgress: order.progress,
-      );
+      effectiveProgress(status: order.status, dbProgress: order.progress);
 
   String get _statusLabel {
     switch (order.status) {
@@ -385,12 +378,12 @@ class _MapView extends StatelessWidget {
             boxShadow: isDark
                 ? []
                 : [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -441,9 +434,8 @@ class TimelineView extends StatefulWidget {
   final bool isDark;
 
   const TimelineView({required this.order, required this.isDark, Key? key})
-      : super(key: key);
+    : super(key: key);
 
-  /// Default timeline steps
   static List<Map<String, dynamic>> _defaultTimeline() => [
     {
       'title': 'Order Placed',
@@ -526,10 +518,7 @@ class _TimelineViewState extends State<TimelineView> {
     return timelineSteps
         .asMap()
         .entries
-        .map((e) => {
-      ...e.value,
-      'done': _stepsDone[e.key],
-    })
+        .map((e) => {...e.value, 'done': _stepsDone[e.key]})
         .toList();
   }
 
@@ -551,7 +540,7 @@ class _TimelineViewState extends State<TimelineView> {
         ),
         const SizedBox(height: 20),
         ...steps.asMap().entries.map(
-              (e) => _TimelineTile(
+          (e) => _TimelineTile(
             title: e.value['title'] as String,
             desc: e.value['desc'] as String,
             icon: e.value['icon'] as IconData,
@@ -607,15 +596,17 @@ class _TimelineTile extends StatelessWidget {
                       gradient: isDone ? AppColors.gradient : null,
                       color: isDone
                           ? null
-                          : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                          : (isDark
+                                ? Colors.grey.shade800
+                                : Colors.grey.shade200),
                       shape: BoxShape.circle,
                       boxShadow: isDone
                           ? [
-                        BoxShadow(
-                          color: AppColors.primary.withOpacity(0.3),
-                          blurRadius: 8,
-                        ),
-                      ]
+                              BoxShadow(
+                                color: AppColors.primary.withOpacity(0.3),
+                                blurRadius: 8,
+                              ),
+                            ]
                           : [],
                     ),
                     child: Icon(
@@ -631,7 +622,9 @@ class _TimelineTile extends StatelessWidget {
                         width: 2,
                         color: isDone
                             ? AppColors.primary
-                            : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                            : (isDark
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade200),
                       ),
                     ),
                 ],
@@ -644,12 +637,16 @@ class _TimelineTile extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 20),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                  color: isDark
+                      ? AppColors.darkSurface
+                      : AppColors.lightSurface,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
                     color: isDone
                         ? AppColors.primary.withOpacity(0.2)
-                        : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                        : (isDark
+                              ? AppColors.darkBorder
+                              : AppColors.lightBorder),
                   ),
                   boxShadow: [
                     BoxShadow(
@@ -675,7 +672,9 @@ class _TimelineTile extends StatelessWidget {
                         desc,
                         style: GoogleFonts.alexandria(
                           fontSize: 12,
-                          color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                          color: isDark
+                              ? AppColors.darkSubtext
+                              : AppColors.lightSubtext,
                         ),
                       ),
                     ],
@@ -871,31 +870,12 @@ class _EmptyState extends StatelessWidget {
   );
 }
 
-
-const String _darkMapStyle = '''[
-  {"elementType":"geometry","stylers":[{"color":"#212121"}]},
-  {"elementType":"labels.icon","stylers":[{"visibility":"off"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#757575"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#212121"}]},
-  {"featureType":"administrative","elementType":"geometry","stylers":[{"color":"#757575"}]},
-  {"featureType":"administrative.country","elementType":"labels.text.fill","stylers":[{"color":"#9e9e9e"}]},
-  {"featureType":"administrative.locality","elementType":"labels.text.fill","stylers":[{"color":"#bdbdbd"}]},
-  {"featureType":"poi","elementType":"labels.text.fill","stylers":[{"color":"#757575"}]},
-  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#181818"}]},
-  {"featureType":"poi.park","elementType":"labels.text.fill","stylers":[{"color":"#616161"}]},
-  {"featureType":"road","elementType":"geometry.fill","stylers":[{"color":"#2c2c2c"}]},
-  {"featureType":"road","elementType":"labels.text.fill","stylers":[{"color":"#8a8a8a"}]},
-  {"featureType":"road.arterial","elementType":"geometry","stylers":[{"color":"#373737"}]},
-  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#3c3c3c"}]},
-  {"featureType":"road.local","elementType":"labels.text.fill","stylers":[{"color":"#616161"}]},
-  {"featureType":"transit","elementType":"labels.text.fill","stylers":[{"color":"#757575"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#000000"}]},
-  {"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#3d3d3d"}]}
-]''';
+// ─── Map Implementation ───────────────────────────────────────────────────────
 
 class MapView extends StatefulWidget {
   final OrderEntity order;
   final bool isDark;
+
   const MapView({required this.order, required this.isDark});
 
   @override
@@ -905,116 +885,140 @@ class MapView extends StatefulWidget {
 class _MapViewState extends State<MapView> {
   final Completer<GoogleMapController> _controllerCompleter = Completer();
   GoogleMapController? _mapController;
-  LatLng? _userLocation;
+
+  LatLng? _pickupLocation;
+  LatLng? _riderPosition; // Now nullable, populated by DB/Stream
   bool _locationLoading = true;
   bool _locationDenied = false;
-  StreamSubscription<Position>? _positionSub;
+
+  StreamSubscription? _riderLocSub;
 
   static const LatLng _dhaka = LatLng(23.8103, 90.4125);
-
-  LatLng get _riderPosition => LatLng(
-    (_userLocation?.latitude  ?? _dhaka.latitude)  + 0.005,
-    (_userLocation?.longitude ?? _dhaka.longitude) + 0.005,
-  );
 
   @override
   void initState() {
     super.initState();
-    _initLocation();
+    _initMap();
   }
 
   @override
   void dispose() {
-    _positionSub?.cancel();
+    _riderLocSub?.cancel(); // Cancel stream to prevent memory leaks
     _mapController?.dispose();
     super.dispose();
   }
 
-  Future<void> _initLocation() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      if (mounted) setState(() { _locationLoading = false; _locationDenied = true; });
-      return;
+  Future<void> _initMap() async {
+    // 1. Instantly use rider coordinates if they were fetched with the OrderEntity
+    if (widget.order.riderLat != null && widget.order.riderLng != null) {
+      _riderPosition = LatLng(widget.order.riderLat!, widget.order.riderLng!);
     }
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      if (mounted) setState(() { _locationLoading = false; _locationDenied = true; });
-      return;
-    }
-
+    // 2. Try to Geocode the pickup address string
     try {
-      final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
-      if (mounted) {
-        setState(() {
-          _userLocation = LatLng(pos.latitude, pos.longitude);
-          _locationLoading = false;
-        });
-        _animateCameraToFit();
+      if (widget.order.pickupAddress.isNotEmpty) {
+        List<Location> locations = await locationFromAddress(widget.order.pickupAddress);
+        if (locations.isNotEmpty) {
+          _pickupLocation = LatLng(locations.first.latitude, locations.first.longitude);
+        }
       }
-    } catch (_) {
-      if (mounted) setState(() => _locationLoading = false);
+    } catch (_) {}
+
+    // 3. Fallback to device location if geocoding fails
+    if (_pickupLocation == null) {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (serviceEnabled) {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission != LocationPermission.denied && permission != LocationPermission.deniedForever) {
+          try {
+            final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+            _pickupLocation = LatLng(pos.latitude, pos.longitude);
+          } catch (_) {}
+        }
+      }
     }
 
-    _positionSub = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-      ),
-    ).listen((pos) {
-      if (!mounted) return;
-      setState(() => _userLocation = LatLng(pos.latitude, pos.longitude));
+    // 4. Start listening for real-time updates from the rider_locations table
+    _listenToRiderLocation();
+
+    if (mounted) {
+      setState(() {
+        _locationLoading = false;
+        _locationDenied = _pickupLocation == null;
+      });
+      _animateCameraToFit();
+    }
+  }
+
+  void _listenToRiderLocation() {
+    _riderLocSub = Supabase.instance.client
+        .from('rider_locations')
+        .stream(primaryKey: ['id'])
+        .eq('order_id', widget.order.id)
+        .listen((data) {
+      if (data.isNotEmpty) {
+        final lat = (data.first['latitude'] as num).toDouble();
+        final lng = (data.first['longitude'] as num).toDouble();
+
+        if (mounted) {
+          setState(() {
+            _riderPosition = LatLng(lat, lng);
+          });
+          _animateCameraToFit();
+        }
+      }
     });
   }
 
   Future<void> _animateCameraToFit() async {
+    if (_pickupLocation == null || _riderPosition == null) return;
     final ctrl = await _controllerCompleter.future;
-    if (_userLocation == null) return;
 
     final sw = LatLng(
-      _userLocation!.latitude  < _riderPosition.latitude  ? _userLocation!.latitude  : _riderPosition.latitude,
-      _userLocation!.longitude < _riderPosition.longitude ? _userLocation!.longitude : _riderPosition.longitude,
+      _pickupLocation!.latitude < _riderPosition!.latitude ? _pickupLocation!.latitude : _riderPosition!.latitude,
+      _pickupLocation!.longitude < _riderPosition!.longitude ? _pickupLocation!.longitude : _riderPosition!.longitude,
     );
     final ne = LatLng(
-      _userLocation!.latitude  > _riderPosition.latitude  ? _userLocation!.latitude  : _riderPosition.latitude,
-      _userLocation!.longitude > _riderPosition.longitude ? _userLocation!.longitude : _riderPosition.longitude,
+      _pickupLocation!.latitude > _riderPosition!.latitude ? _pickupLocation!.latitude : _riderPosition!.latitude,
+      _pickupLocation!.longitude > _riderPosition!.longitude ? _pickupLocation!.longitude : _riderPosition!.longitude,
     );
 
     await ctrl.animateCamera(
-      CameraUpdate.newLatLngBounds(LatLngBounds(southwest: sw, northeast: ne), 80),
+      CameraUpdate.newLatLngBounds(LatLngBounds(southwest: sw, northeast: ne), 70),
     );
   }
 
   Set<Marker> get _markers {
     final markers = <Marker>{};
-    if (_userLocation != null) {
+    if (_pickupLocation != null) {
       markers.add(Marker(
-        markerId: const MarkerId('user'),
-        position: _userLocation!,
-        infoWindow: const InfoWindow(title: 'Your Location'),
+        markerId: const MarkerId('pickup'),
+        position: _pickupLocation!,
+        infoWindow: const InfoWindow(title: 'Pickup Location'),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
       ));
     }
-    markers.add(Marker(
-      markerId: const MarkerId('rider'),
-      position: _riderPosition,
-      infoWindow: InfoWindow(title: 'Rider • ${widget.order.storeName}'),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
-    ));
+
+    if (_riderPosition != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('rider'),
+        position: _riderPosition!,
+        infoWindow: InfoWindow(title: 'Rider • ${widget.order.storeName}'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+      ));
+    }
     return markers;
   }
 
   Set<Polyline> get _polylines {
-    if (_userLocation == null) return {};
+    if (_pickupLocation == null || _riderPosition == null) return {};
     return {
       Polyline(
         polylineId: const PolylineId('route'),
-        points: [_userLocation!, _riderPosition],
+        points: [_pickupLocation!, _riderPosition!],
         color: AppColors.primary,
         width: 4,
         patterns: [PatternItem.dash(20), PatternItem.gap(10)],
@@ -1024,6 +1028,8 @@ class _MapViewState extends State<MapView> {
 
   @override
   Widget build(BuildContext context) {
+    // Note: The build method remains exactly the same as your provided code
+    // It will automatically use the updated _markers and _polylines
     return Column(
       key: const ValueKey('map'),
       children: [
@@ -1056,7 +1062,7 @@ class _MapViewState extends State<MapView> {
                       ? _buildDeniedOverlay()
                       : GoogleMap(
                     initialCameraPosition: CameraPosition(
-                      target: _userLocation ?? _dhaka,
+                      target: _pickupLocation ?? _dhaka,
                       zoom: 14,
                     ),
                     onMapCreated: (controller) {
@@ -1065,13 +1071,13 @@ class _MapViewState extends State<MapView> {
                       }
                       _mapController = controller;
                       if (widget.isDark) {
-                        controller.setMapStyle(_darkMapStyle);
+                        controller.setMapStyle(AppConstants.darkMapStyle);
                       }
                       _animateCameraToFit();
                     },
                     markers: _markers,
                     polylines: _polylines,
-                    myLocationEnabled: _userLocation != null,
+                    myLocationEnabled: false,
                     myLocationButtonEnabled: false,
                     zoomControlsEnabled: false,
                     mapToolbarEnabled: false,
@@ -1091,26 +1097,20 @@ class _MapViewState extends State<MapView> {
     );
   }
 
+  // Overlays remain the same...
   Widget _buildLoadingOverlay() => Container(
-    color: widget.isDark
-        ? const Color(0xFF1A2540)
-        : const Color(0xFFE8F0FE),
+    color: widget.isDark ? const Color(0xFF1A2540) : const Color(0xFFE8F0FE),
     child: Center(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const CircularProgressIndicator(
-            color: AppColors.primary, strokeWidth: 2.5),
+        const CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2.5),
         const SizedBox(height: 14),
-        Text('Getting your location…'),
+        Text('Locating pickup address…'),
       ]),
     ),
   );
 
   Widget _buildDeniedOverlay() => Container(
-    color: widget.isDark
-        ? const Color(0xFF1A2540)
-        : const Color(0xFFE8F0FE),
-    child: const Center(
-      child: Text('Location access needed'),
-    ),
+    color: widget.isDark ? const Color(0xFF1A2540) : const Color(0xFFE8F0FE),
+    child: const Center(child: Text('Could not find pickup address')),
   );
 }

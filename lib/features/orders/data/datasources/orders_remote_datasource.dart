@@ -18,10 +18,12 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
   final SupabaseClient _client;
   OrdersRemoteDataSourceImpl(this._client);
 
+  // ─── UPDATED: Added rider_locations(latitude, longitude) ───
   static const _select =
-      '*, services(title,category,image_url), stores(name), order_timelines(*)';
+      '*, services(title,category,image_url), stores(name), order_timelines(*), rider_locations(latitude, longitude)';
+
   static const _selectNoTimeline =
-      '*, services(title,category,image_url), stores(name)';
+      '*, services(title,category,image_url), stores(name), rider_locations(latitude, longitude)';
 
   @override
   Future<List<OrderModel>> getOrders(String userId) async {
@@ -31,6 +33,9 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
           .select(_select)
           .eq('user_id', userId)
           .order('created_at', ascending: false);
+
+      // The OrderModel.fromJson we updated earlier will now find
+      // the coordinates in this list of maps.
       return (data as List).map((e) => OrderModel.fromJson(e)).toList();
     } catch (e) {
       throw ServerException(e.toString());
@@ -80,11 +85,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         'status': AppConstants.orderPending,
         'progress': 0.0,
         'payment_method': params.paymentMethod.value,
-        // cash_on_delivery → payment is pending until delivery
-        // stripe → payment_status updated by webhook after Stripe confirms
-        'payment_status': params.paymentMethod == PaymentMethod.cashOnDelivery
-            ? 'pending'
-            : 'pending',
+        'payment_status': 'pending',
       })
           .select(_selectNoTimeline)
           .single();
