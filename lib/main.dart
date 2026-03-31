@@ -1,6 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -22,12 +23,15 @@ import 'routes/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Stripe.publishableKey =
-      'pk_test_51TCZIZ8ooX2x0XoJxfgZtnVAL7lD6ofVPBRZ51NWWtwLtyb7xXwaDtBPaOM1UnL5FirEmU0PLV4xkCO1Hyx0ivO000OI3xtmhn';
+  // ✅ Load .env FIRST
+  await dotenv.load(fileName: ".env");
+
+  Stripe.publishableKey = AppConstants.stripePubKey ?? '';
+
   // await Stripe.instance.applySettings();
   await Supabase.initialize(
-    url: AppConstants.supabaseUrl,
-    anonKey: AppConstants.supabaseAnonKey,
+    url: AppConstants.supabaseUrl ?? '',
+    anonKey: AppConstants.supabaseAnonKey ?? '',
   );
   await initDependencies();
   runApp(const EzeeWashApp());

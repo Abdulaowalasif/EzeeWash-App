@@ -1,10 +1,15 @@
 // lib/core/constants/app_constants.dart
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConstants {
   AppConstants._();
   // Supabase
-  static const supabaseUrl = 'https://xxvicmprwtbxinuluyqx.supabase.co';
-  static const supabaseAnonKey = 'sb_publishable_RGFSfrrMcY-uqQrFxNCNaw_Z6D6Jmo2';
+  static final supabaseUrl =  dotenv.env['SUPABASE_URL'];
+  static final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+
+  //Stripe
+  static final stripePubKey= dotenv.env['STRIPE_PUBLISHABLE_KEY'];
 
   // App
   static const appName = 'EzeeWash';
