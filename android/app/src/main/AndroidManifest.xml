@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Required for Android 13+ push permission dialog -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Required for scheduled local notifications after reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <!-- INTERNET -->
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -26,6 +33,15 @@
         android:label="EzeeWash"
         android:name="${applicationName}"
         android:icon="@mipmap/logo">
+
+        <!-- Required for FCM background delivery -->
+        <service
+            android:name="com.google.firebase.messaging.FirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <activity
             android:name=".MainActivity"
@@ -63,6 +79,23 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDeGb1bmvp8cOZdV7uh_lAOB1fpYXt86D0"/>
+
+        <!-- FIX: Removed com.onesignal.NotificationServiceExtension meta-data.
+             The value was pointing to com.onesignal.example — a class that does
+             not exist in this app. This caused OneSignal to silently fail
+             background notification delivery. Only add this back if you create
+             a real NotificationServiceExtension class under your own package. -->
+
+        <!-- Required for flutter_local_notifications -->
+        <receiver android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

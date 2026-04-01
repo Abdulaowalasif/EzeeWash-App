@@ -4,12 +4,16 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConstants {
   AppConstants._();
+
   // Supabase
-  static final supabaseUrl =  dotenv.env['SUPABASE_URL'];
-  static final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+  static final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
+  static final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   //Stripe
-  static final stripePubKey= dotenv.env['STRIPE_PUBLISHABLE_KEY'];
+  static final stripePubKey = dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
+
+  // ── OneSignal ──────────────────────────────────────────────────────────────
+  static final oneSignalAppId = dotenv.env['ONESIGNAL_APP_ID'] ?? '';
 
   // App
   static const appName = 'EzeeWash';
@@ -66,5 +70,4 @@ class AppConstants {
   {"featureType":"water","elementType":"geometry","stylers":[{"color":"#000000"}]},
   {"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#3d3d3d"}]}
 ]''';
-
 }

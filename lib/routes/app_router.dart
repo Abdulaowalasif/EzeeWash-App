@@ -1,7 +1,9 @@
 // lib/routes/app_router.dart
+
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+
+import '../core/service/notification_service.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
@@ -20,123 +22,137 @@ import '../features/services/presentation/screens/service_screen.dart';
 import '../main_screen.dart';
 import 'routes_name.dart';
 
-GoRouter createRouter(AuthBloc authBloc) => GoRouter(
-  initialLocation: RoutesName.login,
-  refreshListenable: _AuthNotifier(authBloc),
-  redirect: (context, state) {
-    final authState = authBloc.state;
-    final isOnLogin = state.matchedLocation == RoutesName.login;
+GoRouter createRouter(AuthBloc authBloc) {
+  final router = GoRouter(
+    initialLocation: RoutesName.login,
+    refreshListenable: _AuthNotifier(authBloc),
 
-    if (authState is AuthLoading || authState is AuthInitial) return null;
+    redirect: (context, state) {
+      final authState = authBloc.state;
+      final isOnLogin = state.matchedLocation == RoutesName.login;
 
-    if (authState is AuthUnauthenticated || authState is AuthError) {
-      return isOnLogin ? null : RoutesName.login;
-    }
+      if (authState is AuthLoading || authState is AuthInitial) return null;
 
-    if (authState is AuthAuthenticated) {
-      return isOnLogin ? RoutesName.main : null;
-    }
+      if (authState is AuthUnauthenticated || authState is AuthError) {
+        return isOnLogin ? null : RoutesName.login;
+      }
 
-    return null;
-  },
-  routes: [
-    GoRoute(
-      path: RoutesName.login,
-      pageBuilder: (c, s) => _fade(const LoginScreen(), s),
-    ),
+      if (authState is AuthAuthenticated) {
+        return isOnLogin ? RoutesName.main : null;
+      }
 
-    StatefulShellRoute.indexedStack(
-      builder: (c, s, shell) => MainScreen(navigationShell: shell),
-      branches: [
-        // HOME
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: RoutesName.main,
-            pageBuilder: (c, s) => _slide(const HomeScreen(), s),
-          ),
-        ]),
-        // SERVICES
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: RoutesName.services,
-            pageBuilder: (c, s) => _slide(const ServiceScreen(), s),
-          ),
-        ]),
-        // ORDERS
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: RoutesName.orders,
-            pageBuilder: (c, s) => _slide(const OrderScreen(), s),
-            routes: [
-              GoRoute(
-                path: RoutesName.placeOrders,
-                pageBuilder: (c, s) {
-                  // extra can be a serviceId String (pre-selects the service)
-                  // or null (no pre-selection — user picks from scratch)
-                  final preSelectedServiceId = s.extra as String?;
-                  return _slide(
-                    PlaceOrderScreen(preSelectedServiceId: preSelectedServiceId),
-                    s,
-                  );
-                },
-              ),
-              GoRoute(
-                path: RoutesName.trackOrders,
-                pageBuilder: (c, s) {
-                  final orderId = s.extra as String?;
-                  return _slide(TrackOrderScreen(orderId: orderId), s);
-                },
-              ),
-              GoRoute(
-                path: RoutesName.confirmedOrders,
-                pageBuilder: (c, s) {
-                  final orderNumber = s.extra as String? ?? 'EZ000001';
-                  return _slide(
-                      BookingConfirmedScreen(orderNumber: orderNumber), s);
-                },
-              ),
-            ],
-          ),
-        ]),
-        // NOTIFICATIONS
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: RoutesName.alerts,
-            pageBuilder: (c, s) => _slide(const NotificationScreen(), s),
-          ),
-        ]),
-        // PROFILE
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: RoutesName.profile,
-            pageBuilder: (c, s) => _slide(const ProfileScreen(), s),
-            routes: [
-              GoRoute(
-                path: RoutesName.address,
-                pageBuilder: (c, s) => _slide(const AddressScreen(), s),
-              ),
-              GoRoute(
-                path: RoutesName.helpSupport,
-                pageBuilder: (c, s) =>
-                    _slide(const HelpSupportScreen(), s),
-              ),
-              GoRoute(
-                path: RoutesName.termsPolicy,
-                pageBuilder: (c, s) =>
-                    _slide(const TermsPolicyScreen(), s),
-              ),
-              GoRoute(
-                path: RoutesName.chatBot,
-                pageBuilder: (c, s) => _slide(const ChatBotScreen(), s),
-              ),
-            ],
-          ),
-        ]),
-      ],
-    ),
-  ],
-  errorPageBuilder: (c, s) => _fade(ErrorScreen(error: s.error), s),
-);
+      return null;
+    },
+
+    routes: [
+      GoRoute(
+        path: RoutesName.login,
+        pageBuilder: (c, s) => _fade(const LoginScreen(), s),
+      ),
+
+      StatefulShellRoute.indexedStack(
+        builder: (c, s, shell) => MainScreen(navigationShell: shell),
+        branches: [
+          // HOME
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: RoutesName.main,
+              pageBuilder: (c, s) => _slide(const HomeScreen(), s),
+            ),
+          ]),
+
+          // SERVICES
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: RoutesName.services,
+              pageBuilder: (c, s) => _slide(const ServiceScreen(), s),
+            ),
+          ]),
+
+          // ORDERS
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: RoutesName.orders,
+              pageBuilder: (c, s) => _slide(const OrderScreen(), s),
+              routes: [
+                GoRoute(
+                  path: RoutesName.placeOrders,
+                  pageBuilder: (c, s) {
+                    final preSelectedServiceId = s.extra as String?;
+                    return _slide(
+                      PlaceOrderScreen(preSelectedServiceId: preSelectedServiceId),
+                      s,
+                    );
+                  },
+                ),
+                GoRoute(
+                  path: RoutesName.trackOrders,
+                  pageBuilder: (c, s) {
+                    final orderId = s.extra as String?;
+                    return _slide(TrackOrderScreen(orderId: orderId), s);
+                  },
+                ),
+                GoRoute(
+                  path: RoutesName.confirmedOrders,
+                  pageBuilder: (c, s) {
+                    final orderNumber = s.extra as String? ?? 'EZ000001';
+                    return _slide(
+                      BookingConfirmedScreen(orderNumber: orderNumber),
+                      s,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ]),
+
+          // NOTIFICATIONS / ALERTS
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: RoutesName.alerts,
+              pageBuilder: (c, s) => _slide(const NotificationScreen(), s),
+            ),
+          ]),
+
+          // PROFILE
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: RoutesName.profile,
+              pageBuilder: (c, s) => _slide(const ProfileScreen(), s),
+              routes: [
+                GoRoute(
+                  path: RoutesName.address,
+                  pageBuilder: (c, s) => _slide(const AddressScreen(), s),
+                ),
+                GoRoute(
+                  path: RoutesName.helpSupport,
+                  pageBuilder: (c, s) => _slide(const HelpSupportScreen(), s),
+                ),
+                GoRoute(
+                  path: RoutesName.termsPolicy,
+                  pageBuilder: (c, s) => _slide(const TermsPolicyScreen(), s),
+                ),
+                GoRoute(
+                  path: RoutesName.chatBot,
+                  pageBuilder: (c, s) => _slide(const ChatBotScreen(), s),
+                ),
+              ],
+            ),
+          ]),
+        ],
+      ),
+    ],
+
+    errorPageBuilder: (c, s) => _fade(ErrorScreen(error: s.error), s),
+  );
+
+  // Give NotificationService a reference to GoRouter so it can navigate
+  // when a notification tap deep-links to an order screen.
+  // This is safe: GoRouter is fully constructed before any tap can arrive.
+  NotificationService.setRouter(router);
+
+  return router;
+}
 
 CustomTransitionPage<void> _slide(Widget child, GoRouterState state) =>
     CustomTransitionPage(

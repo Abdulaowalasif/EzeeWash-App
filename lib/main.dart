@@ -1,39 +1,78 @@
 // lib/main.dart
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/constants/app_constants.dart';
 import 'core/di/injection_container.dart';
+import 'core/service/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/notifications/presentation/bloc/notifications_bloc.dart';
 import 'features/orders/presentation/bloc/order_event.dart';
 import 'features/orders/presentation/bloc/orders_bloc.dart';
+import 'features/orders/presentation/bloc/orders_state.dart';
 import 'features/profile/presentation/bloc/profile_bloc.dart';
 import 'features/profile/presentation/bloc/profile_event.dart';
 import 'features/services/presentation/bloc/service_bloc.dart';
 import 'features/services/presentation/bloc/service_event.dart';
 import 'features/store/presentation/bloc/store_bloc.dart';
 import 'features/store/presentation/bloc/stores_event.dart';
+import 'firebase_options.dart';
 import 'routes/app_router.dart';
+
+// ─── FCM background handler ────────────────────────────────────────────────
+// Must be top-level. Registers the background isolate so FCM can wake the app
+// in killed state. OneSignal handles display — no action needed here.
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  debugPrint('[FCM] background message: ${message.messageId}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // ✅ Load .env FIRST
-  await dotenv.load(fileName: ".env");
 
-  Stripe.publishableKey = AppConstants.stripePubKey ?? '';
+  // 1. Environment variables
+  await dotenv.load(fileName: '.env');
 
+  // 2. Stripe
+  Stripe.publishableKey = AppConstants.stripePubKey;
   // await Stripe.instance.applySettings();
+
+  // 3. Firebase — must come before FCM handler registration
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // 4. Register FCM background handler immediately after Firebase.initializeApp()
+  //    and before any other async gaps. Required for killed-state push delivery.
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // 5. Bootstrap the FCM token pipeline. Without getToken(), the device never
+  //    registers with FCM and OneSignal has no delivery channel for background
+  //    / killed-state pushes.
+  await FirebaseMessaging.instance.setAutoInitEnabled(true);
+  final fcmToken = await FirebaseMessaging.instance.getToken();
+  debugPrint('[FCM] token: $fcmToken');
+
+  // 6. Supabase
   await Supabase.initialize(
-    url: AppConstants.supabaseUrl ?? '',
-    anonKey: AppConstants.supabaseAnonKey ?? '',
+    url: AppConstants.supabaseUrl,
+    anonKey: AppConstants.supabaseAnonKey,
   );
+
+  // 7. Notification Service — creates Android channel + initialises OneSignal.
+  //    Permission is NOT requested here; it happens inside
+  //    loginAndWaitForSubscription() after the user signs in.
+  await NotificationService.init(AppConstants.oneSignalAppId);
+
+  // 8. Dependency injection
   await initDependencies();
+
   runApp(const EzeeWashApp());
 }
 
@@ -52,6 +91,7 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
   void initState() {
     super.initState();
     _authBloc = sl<AuthBloc>()..add(const AuthCheckRequested());
+    // createRouter() also calls NotificationService.setRouter() internally.
     _router = createRouter(_authBloc);
   }
 
@@ -66,14 +106,12 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
     return MultiBlocProvider(
       providers: [
         BlocProvider.value(value: _authBloc),
-        // Public data — load immediately
         BlocProvider(
           create: (_) => sl<ServicesBloc>()..add(const ServicesLoadRequested()),
         ),
         BlocProvider(
           create: (_) => sl<StoresBloc>()..add(const StoresLoadRequested()),
         ),
-        // Auth-gated — loaded reactively after login
         BlocProvider(create: (_) => sl<OrdersBloc>()),
         BlocProvider(create: (_) => sl<NotificationsBloc>()),
         BlocProvider(create: (_) => sl<ProfileBloc>()),
@@ -92,11 +130,10 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
   }
 }
 
-/// Fires auth-gated bloc loads exactly once after login,
-/// and resets the loaded flag on logout.
+// ─── Auth-Reactive Loader ──────────────────────────────────────────────────
+
 class _AuthReactiveLoader extends StatefulWidget {
   final Widget child;
-
   const _AuthReactiveLoader({required this.child});
 
   @override
@@ -105,20 +142,67 @@ class _AuthReactiveLoader extends StatefulWidget {
 
 class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
   bool _loaded = false;
+  final Map<String, String> _prevStatuses = {};
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (ctx, state) {
-        if (state is AuthAuthenticated && !_loaded) {
-          _loaded = true;
-          ctx.read<OrdersBloc>().add(const OrdersLoadRequested());
-          ctx.read<NotificationsBloc>().add(const NotificationsLoadRequested());
-          ctx.read<ProfileBloc>().add(const ProfileLoadRequested());
-        } else if (state is AuthUnauthenticated || state is AuthError) {
-          _loaded = false;
-        }
-      },
+    return MultiBlocListener(
+      listeners: [
+
+        // ── Auth state ─────────────────────────────────────────────────────
+        BlocListener<AuthBloc, AuthState>(
+          listener: (ctx, state) async {
+            if (state is AuthAuthenticated) {
+              final userId = state.user.id;
+
+              // loginAndWaitForSubscription() does these steps in order:
+              //   1. Request OS notification permission  ← MUST be first
+              //   2. Call OneSignal.login(userId)
+              //   3. Poll until optedIn == true (up to 10 s)
+              //
+              // We await the whole thing so the subscription is confirmed
+              // active before we load orders/notifications. Any Supabase
+              // DB insert after this point will find a valid subscription.
+              await NotificationService.loginAndWaitForSubscription(userId);
+
+              // Load user data — runs once per session.
+              if (!_loaded) {
+                _loaded = true;
+                ctx.read<OrdersBloc>().add(const OrdersLoadRequested());
+                ctx.read<NotificationsBloc>()
+                    .add(const NotificationsLoadRequested());
+                ctx.read<ProfileBloc>().add(const ProfileLoadRequested());
+              }
+            } else if (state is AuthUnauthenticated || state is AuthError) {
+              // Always unlink — unconditional so logout before data loads
+              // doesn't leave the device linked to the old user's external_id.
+              _loaded = false;
+              NotificationService.clearUserId();
+            }
+          },
+        ),
+
+        // ── Orders realtime (foreground status-change local notifications) ─
+        // Background/killed-state pushes arrive through OneSignal natively.
+        BlocListener<OrdersBloc, OrdersState>(
+          listener: (ctx, state) {
+            if (state is! OrdersLoaded) return;
+            for (final order in state.orders) {
+              final prev = _prevStatuses[order.id];
+              final curr = order.status;
+              if (prev != null && prev != curr) {
+                NotificationService.showOrderUpdate(
+                  orderNumber: order.orderNumber,
+                  status: curr,
+                  orderId: order.id,
+                );
+              }
+              _prevStatuses[order.id] = curr;
+            }
+          },
+        ),
+
+      ],
       child: widget.child,
     );
   }
