@@ -24,7 +24,7 @@ import '../bloc/orders_state.dart';
 class _ServiceItem {
   final String id, title, subtitle, duration, category;
   final double price;
-  final String? imageUrl; // from services.image_url
+  final String? imageUrl;
 
   const _ServiceItem({
     required this.id,
@@ -49,7 +49,7 @@ class _ServiceItem {
 
 class _StoreItem {
   final String id, name, address, distance;
-  final String? logoUrl; // from stores.logo_url
+  final String? logoUrl;
 
   const _StoreItem({
     required this.id,
@@ -79,6 +79,9 @@ class PlaceOrderScreen extends StatefulWidget {
   State<PlaceOrderScreen> createState() => _PlaceOrderScreenState();
 }
 
+const double _kServiceCharge   = 50.0;
+const double _kStripeMinAmount = 100.0;
+
 class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   bool _dataLoading = true;
   String? _dataError;
@@ -88,6 +91,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   int _step = 1;
   int? _serviceIdx;
   int? _storeIdx;
+  int _quantity = 1;
   DateTime? _pickupDate;
   String _pickupTime = 'Select time';
   DateTime? _deliveryDate;
@@ -99,6 +103,12 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   bool _stripeLoading = false;
   String? _stripeError;
   String? _placedOrderNumber;
+
+  double get _perPcsPrice =>
+      _serviceIdx != null ? _services[_serviceIdx!].price : 0.0;
+  double get _subtotal    => _perPcsPrice * _quantity;
+  double get _totalPrice  => _subtotal + _kServiceCharge;
+  bool   get _cardAvailable => _totalPrice >= _kStripeMinAmount;
 
   @override
   void initState() {
@@ -188,8 +198,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         PlaceOrderParams(
           serviceId: svc.id,
           storeId: store.id,
-          itemCount: 1,
-          totalPrice: svc.price,
+          itemCount: _quantity,
+          totalPrice: _totalPrice,
           pickupAddress: _addrCtrl.text.trim(),
           deliveryAddress: _addrCtrl.text.trim(),
           pickupDate: _pickupDate,
@@ -204,6 +214,11 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     );
   }
 
+  // ─── FIX: Two bugs resolved here ─────────────────────────────────────────
+  // Bug 1: payment_status was never updated to 'paid' after successful payment.
+  // Bug 2: order was left as 'pending' in Supabase when user cancelled the
+  //        Stripe sheet — now it is cancelled immediately in the DB.
+  // ─────────────────────────────────────────────────────────────────────────
   Future<void> _handleStripePayment(String orderNumber) async {
     if (!mounted) return;
     setState(() {
@@ -217,10 +232,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       final response = await client.functions.invoke(
         'create-payment-intent',
         body: {
-          'amount': svc.price,
+          'amount': _totalPrice,
           'currency': 'bdt',
           'orderId': orderNumber,
-          'description': 'EzeeWash - ${svc.title}',
+          'description': 'EzeeWash - ${svc.title} ($_quantity pcs)',
         },
       );
 
@@ -246,6 +261,13 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
 
       await Stripe.instance.presentPaymentSheet();
 
+      // ✅ FIX 1: Update payment_status to 'paid' in Supabase after
+      // the payment sheet completes successfully.
+      await Supabase.instance.client
+          .from(AppConstants.ordersTable)
+          .update({'payment_status': 'paid'})
+          .eq('order_number', orderNumber);
+
       if (mounted) {
         context.go(
           '${RoutesName.orders}/${RoutesName.confirmedOrders}',
@@ -254,12 +276,41 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       }
     } on StripeException catch (e) {
       if (e.error.code == FailureCode.Canceled) {
+        // ✅ FIX 2: User dismissed the Stripe sheet without paying.
+        // Cancel the order in Supabase so it doesn't sit as a ghost
+        // 'pending' order. The order was already inserted by _placeOrder()
+        // so we update it to 'cancelled' here.
+        try {
+          await Supabase.instance.client
+              .from(AppConstants.ordersTable)
+              .update({
+            'status': AppConstants.orderCancelled,
+            'payment_status': 'cancelled',
+          })
+              .eq('order_number', orderNumber);
+        } catch (_) {
+          // If the cancellation update fails, the order stays pending.
+          // Not critical — admin can clean up, but we still inform the user.
+        }
+
         if (mounted) setState(() => _stripeLoading = false);
         _showSnack(
-          'Payment cancelled. Order saved — pay later from Orders.',
+          'Payment cancelled. No order was placed.',
           isError: false,
         );
       } else {
+        // Payment failed for a reason other than user cancellation.
+        // Cancel the order in Supabase as well since payment didn't go through.
+        try {
+          await Supabase.instance.client
+              .from(AppConstants.ordersTable)
+              .update({
+            'status': AppConstants.orderCancelled,
+            'payment_status': 'failed',
+          })
+              .eq('order_number', orderNumber);
+        } catch (_) {}
+
         if (mounted) {
           setState(() {
             _stripeLoading = false;
@@ -269,6 +320,17 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         _showSnack(e.error.localizedMessage ?? 'Payment failed', isError: true);
       }
     } catch (e) {
+      // Unexpected error — also cancel the order so it's not left dangling.
+      try {
+        await Supabase.instance.client
+            .from(AppConstants.ordersTable)
+            .update({
+          'status': AppConstants.orderCancelled,
+          'payment_status': 'failed',
+        })
+            .eq('order_number', orderNumber);
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _stripeLoading = false;
@@ -538,6 +600,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           noteCtrl: _noteCtrl,
           service: _services[_serviceIdx!],
           store: _stores[_storeIdx!],
+          quantity: _quantity,
+          subtotal: _subtotal,
+          serviceCharge: _kServiceCharge,
+          totalPrice: _totalPrice,
           pickupDate: _pickupDate!,
           pickupTime: _pickupTime,
           deliveryDate: _deliveryDate!,
@@ -549,10 +615,21 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         return _PaymentStep(
           key: const ValueKey(5),
           selectedMethod: _paymentMethod,
-          totalPrice: _serviceIdx != null ? _services[_serviceIdx!].price : 0,
+          perPcsPrice: _perPcsPrice,
+          quantity: _quantity,
+          subtotal: _subtotal,
+          serviceCharge: _kServiceCharge,
+          totalPrice: _totalPrice,
+          cardAvailable: _cardAvailable,
           isDark: isDark,
           stripeError: _stripeError,
           onMethodChanged: (m) => setState(() => _paymentMethod = m),
+          onQuantityChanged: (q) => setState(() {
+            _quantity = q;
+            if (!_cardAvailable) {
+              _paymentMethod = PaymentMethod.cashOnDelivery;
+            }
+          }),
         );
     }
   }
@@ -1015,24 +1092,115 @@ class _StoreCard extends StatelessWidget {
 
 class _PaymentStep extends StatelessWidget {
   final PaymentMethod selectedMethod;
+  final double perPcsPrice;
+  final int quantity;
+  final double subtotal;
+  final double serviceCharge;
   final double totalPrice;
+  final bool cardAvailable;
   final bool isDark;
   final String? stripeError;
   final ValueChanged<PaymentMethod> onMethodChanged;
+  final ValueChanged<int> onQuantityChanged;
 
   const _PaymentStep({
     super.key,
     required this.selectedMethod,
+    required this.perPcsPrice,
+    required this.quantity,
+    required this.subtotal,
+    required this.serviceCharge,
     required this.totalPrice,
+    required this.cardAvailable,
     required this.isDark,
     this.stripeError,
     required this.onMethodChanged,
+    required this.onQuantityChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── Quantity picker ──────────────────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            ),
+            boxShadow: isDark
+                ? []
+                : [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Number of Pieces',
+                style: GoogleFonts.alexandria(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: isDark ? Colors.white : AppColors.lightText,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '৳${perPcsPrice.toStringAsFixed(0)} per piece',
+                style: GoogleFonts.alexandria(
+                  fontSize: 12,
+                  color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _QtyButton(
+                    icon: Icons.remove_rounded,
+                    enabled: quantity > 1,
+                    isDark: isDark,
+                    onTap: () => onQuantityChanged(quantity - 1),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: Text(
+                          '$quantity',
+                          key: ValueKey(quantity),
+                          style: GoogleFonts.alexandria(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : AppColors.lightText,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  _QtyButton(
+                    icon: Icons.add_rounded,
+                    enabled: quantity < 99,
+                    isDark: isDark,
+                    onTap: () => onQuantityChanged(quantity + 1),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // ── Price breakdown card ─────────────────────────────────────────────
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
@@ -1049,30 +1217,71 @@ class _PaymentStep extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Text(
-                'Total Amount',
-                style:
-                GoogleFonts.alexandria(color: Colors.white70, fontSize: 13),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '$quantity pcs × ৳${perPcsPrice.toStringAsFixed(0)}',
+                    style: GoogleFonts.alexandria(
+                        color: Colors.white70, fontSize: 13),
+                  ),
+                  Text(
+                    '৳${subtotal.toStringAsFixed(0)}',
+                    style: GoogleFonts.alexandria(
+                        color: Colors.white70, fontSize: 13),
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                '৳${totalPrice.toStringAsFixed(0)}',
-                style: GoogleFonts.alexandria(
-                  color: Colors.white,
-                  fontSize: 38,
-                  fontWeight: FontWeight.bold,
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Service + Pick & Drop',
+                    style: GoogleFonts.alexandria(
+                        color: Colors.white70, fontSize: 13),
+                  ),
+                  Text(
+                    '৳${serviceCharge.toStringAsFixed(0)}',
+                    style: GoogleFonts.alexandria(
+                        color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Divider(
+                  color: Colors.white.withOpacity(0.25),
+                  thickness: 1,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Select your payment method below',
-                style: GoogleFonts.alexandria(
-                    color: Colors.white60, fontSize: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Total',
+                    style: GoogleFonts.alexandria(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    '৳${totalPrice.toStringAsFixed(0)}',
+                    style: GoogleFonts.alexandria(
+                      color: Colors.white,
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
+
         const SizedBox(height: 24),
+
         Text(
           'Payment Method',
           style: GoogleFonts.alexandria(
@@ -1082,6 +1291,7 @@ class _PaymentStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
+
         _PaymentOption(
           method: PaymentMethod.cashOnDelivery,
           selected: selectedMethod == PaymentMethod.cashOnDelivery,
@@ -1093,18 +1303,64 @@ class _PaymentStep extends StatelessWidget {
           color: AppColors.success,
           onTap: () => onMethodChanged(PaymentMethod.cashOnDelivery),
         ),
+
         const SizedBox(height: 14),
-        _PaymentOption(
-          method: PaymentMethod.stripe,
-          selected: selectedMethod == PaymentMethod.stripe,
-          isDark: isDark,
-          icon: Iconsax.card,
-          title: 'Pay with Card',
-          subtitle: 'Secure payment via Stripe',
-          badge: 'Recommended',
-          color: const Color(0xFF6772E5),
-          onTap: () => onMethodChanged(PaymentMethod.stripe),
-        ),
+
+        if (cardAvailable)
+          _PaymentOption(
+            method: PaymentMethod.stripe,
+            selected: selectedMethod == PaymentMethod.stripe,
+            isDark: isDark,
+            icon: Iconsax.card,
+            title: 'Pay with Card',
+            subtitle: 'Secure payment via Stripe',
+            badge: 'Recommended',
+            color: const Color(0xFF6772E5),
+            onTap: () => onMethodChanged(PaymentMethod.stripe),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.grey.shade800.withOpacity(0.5)
+                  : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Iconsax.card, color: Colors.grey.shade400, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pay with Card',
+                        style: GoogleFonts.alexandria(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Available for orders ৳${_kStripeMinAmount.toStringAsFixed(0)} or more. Add more pieces to unlock.',
+                        style: GoogleFonts.alexandria(
+                          fontSize: 11,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         if (stripeError != null) ...[
           const SizedBox(height: 14),
           Container(
@@ -1165,6 +1421,52 @@ class _PaymentStep extends StatelessWidget {
       ],
     );
   }
+}
+
+// ─── Quantity button ───────────────────────────────────────────────────────────
+
+class _QtyButton extends StatelessWidget {
+  final IconData icon;
+  final bool enabled, isDark;
+  final VoidCallback onTap;
+
+  const _QtyButton({
+    required this.icon,
+    required this.enabled,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: enabled ? onTap : null,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        gradient: enabled ? AppColors.gradient : null,
+        color: enabled
+            ? null
+            : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: enabled
+            ? [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.25),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ]
+            : [],
+      ),
+      child: Icon(
+        icon,
+        color: enabled ? Colors.white : Colors.grey.shade400,
+        size: 22,
+      ),
+    ),
+  );
 }
 
 class _PaymentOption extends StatelessWidget {
@@ -1307,12 +1609,16 @@ class _PaymentOption extends StatelessWidget {
   );
 }
 
-// ─── Address step (UPDATED WITH MAP BUTTON) ───────────────────────────────────
+// ─── Address step ─────────────────────────────────────────────────────────────
 
 class _AddressStep extends StatelessWidget {
   final TextEditingController addrCtrl, noteCtrl;
   final _ServiceItem service;
   final _StoreItem store;
+  final int quantity;
+  final double subtotal;
+  final double serviceCharge;
+  final double totalPrice;
   final DateTime pickupDate, deliveryDate;
   final String pickupTime, deliveryTime;
   final bool isDark;
@@ -1324,6 +1630,10 @@ class _AddressStep extends StatelessWidget {
     required this.noteCtrl,
     required this.service,
     required this.store,
+    required this.quantity,
+    required this.subtotal,
+    required this.serviceCharge,
+    required this.totalPrice,
     required this.pickupDate,
     required this.pickupTime,
     required this.deliveryDate,
@@ -1413,7 +1723,8 @@ class _AddressStep extends StatelessWidget {
                   final selectedAddress = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => MapAddressPickerScreen(isDark: isDark)),
+                        builder: (_) =>
+                            MapAddressPickerScreen(isDark: isDark)),
                   );
                   if (selectedAddress != null) {
                     addrCtrl.text = selectedAddress;
@@ -1495,9 +1806,18 @@ class _AddressStep extends StatelessWidget {
             const SizedBox(height: 8),
             _Row('Store', store.name, isDark),
             const SizedBox(height: 8),
+            _Row('Quantity',
+                '$quantity pcs × ৳${service.price.toStringAsFixed(0)}',
+                isDark),
+            const SizedBox(height: 8),
             _Row('Pickup', '${_fmt(pickupDate)} at $pickupTime', isDark),
             const SizedBox(height: 8),
             _Row('Delivery', '${_fmt(deliveryDate)} at $deliveryTime', isDark),
+            const SizedBox(height: 8),
+            _Row('Subtotal', '৳${subtotal.toStringAsFixed(0)}', isDark),
+            const SizedBox(height: 8),
+            _Row('Service + Pick & Drop',
+                '৳${serviceCharge.toStringAsFixed(0)}', isDark),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 14),
               child: Divider(
@@ -1518,7 +1838,7 @@ class _AddressStep extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '৳${service.price.toStringAsFixed(0)}',
+                  '৳${totalPrice.toStringAsFixed(0)}',
                   style: GoogleFonts.alexandria(
                     fontWeight: FontWeight.bold,
                     fontSize: 22,
@@ -1932,7 +2252,8 @@ class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
       _centerPosition = LatLng(position.latitude, position.longitude);
     });
 
-    _mapController?.animateCamera(CameraUpdate.newLatLngZoom(_centerPosition, 16));
+    _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(_centerPosition, 16));
     _getAddressFromLatLng(_centerPosition);
   }
 
@@ -1947,7 +2268,8 @@ class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
         setState(() {
-          _currentAddress = '${place.street}, ${place.subLocality}, ${place.locality}';
+          _currentAddress =
+          '${place.street}, ${place.subLocality}, ${place.locality}';
         });
       }
     } catch (e) {
@@ -1962,10 +2284,13 @@ class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: widget.isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: widget.isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       appBar: AppBar(
         title: Text('Select Location',
-            style: GoogleFonts.alexandria(fontSize: 16, fontWeight: FontWeight.bold)),
+            style: GoogleFonts.alexandria(
+                fontSize: 16, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
@@ -1975,7 +2300,6 @@ class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
       ),
       body: Stack(
         children: [
-          // 1. The Map
           GoogleMap(
             initialCameraPosition: CameraPosition(
               target: _centerPosition,
@@ -2000,14 +2324,14 @@ class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
             },
           ),
 
-          // 2. The Uber-style floating center pin
           Center(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 40),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,
-                transform: Matrix4.translationValues(0, _isDragging ? -15 : 0, 0),
+                transform:
+                Matrix4.translationValues(0, _isDragging ? -15 : 0, 0),
                 child: const Icon(
                   Icons.location_on,
                   size: 50,
@@ -2017,18 +2341,17 @@ class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
             ),
           ),
 
-          // 3. Floating Action Button for current location
           Positioned(
             right: 16,
             bottom: 180,
             child: FloatingActionButton(
-              backgroundColor: widget.isDark ? AppColors.darkSurface : Colors.white,
+              backgroundColor:
+              widget.isDark ? AppColors.darkSurface : Colors.white,
               onPressed: _getUserCurrentLocation,
               child: const Icon(Icons.my_location, color: AppColors.primary),
             ),
           ),
 
-          // 4. Bottom Address Confirmation Sheet
           Positioned(
             bottom: 0,
             left: 0,
@@ -2037,7 +2360,8 @@ class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: widget.isDark ? AppColors.darkSurface : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(30)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
@@ -2055,7 +2379,9 @@ class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
                       'Selected Address',
                       style: GoogleFonts.alexandria(
                         fontSize: 12,
-                        color: widget.isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                        color: widget.isDark
+                            ? AppColors.darkSubtext
+                            : AppColors.lightSubtext,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -2063,11 +2389,14 @@ class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
                       children: [
                         if (_isLoadingAddress)
                           const SizedBox(
-                            width: 20, height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AppColors.primary),
                           )
                         else
-                          const Icon(Icons.location_city_rounded, color: AppColors.primary),
+                          const Icon(Icons.location_city_rounded,
+                              color: AppColors.primary),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -2075,7 +2404,9 @@ class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
                             style: GoogleFonts.alexandria(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              color: widget.isDark ? Colors.white : AppColors.lightText,
+                              color: widget.isDark
+                                  ? Colors.white
+                                  : AppColors.lightText,
                             ),
                           ),
                         ),
@@ -2088,7 +2419,8 @@ class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                         ),
                         onPressed: _isLoadingAddress || _isDragging
                             ? null
@@ -2096,7 +2428,9 @@ class _MapAddressPickerScreenState extends State<MapAddressPickerScreen> {
                         child: Text(
                           'Confirm Location',
                           style: GoogleFonts.alexandria(
-                              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16),
                         ),
                       ),
                     ),
