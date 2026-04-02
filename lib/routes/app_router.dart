@@ -35,14 +35,22 @@ GoRouter createRouter(AuthBloc authBloc) {
       final authState = authBloc.state;
       final isOnLogin = state.matchedLocation == RoutesName.login;
 
+      // Do nothing while determining auth state (Native Splash is visible)
       if (authState is AuthLoading || authState is AuthInitial) return null;
 
+      // Redirect to login if not authenticated
       if (authState is AuthUnauthenticated || authState is AuthError) {
         return isOnLogin ? null : RoutesName.login;
       }
 
+      // Logic for authenticated users
       if (authState is AuthAuthenticated) {
-        return isOnLogin ? RoutesName.main : null;
+        // 1. Check for pending notification deep links first
+        final pending = NotificationService.consumePendingRoute();
+        if (pending != null) return pending;
+
+        // 2. If on login screen, move to main home
+        if (isOnLogin) return RoutesName.main;
       }
 
       return null;
@@ -83,8 +91,6 @@ GoRouter createRouter(AuthBloc authBloc) {
                   path: RoutesName.placeOrders,
                   pageBuilder: (c, s) {
                     final extra = s.extra;
-                    // PlaceOrderScreen always gets its own isolated OrdersBloc
-                    // so events never bleed into the shared OrderScreen bloc.
                     final screen = extra is ReorderParams
                         ? PlaceOrderScreen(reorderParams: extra)
                         : PlaceOrderScreen(
@@ -160,6 +166,7 @@ GoRouter createRouter(AuthBloc authBloc) {
     errorPageBuilder: (c, s) => _fade(ErrorScreen(error: s.error), s),
   );
 
+  // Link the service to the router for handling taps
   NotificationService.setRouter(router);
 
   return router;

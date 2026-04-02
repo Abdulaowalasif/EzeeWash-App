@@ -1,9 +1,10 @@
 // lib/main.dart
 
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -27,46 +28,34 @@ import 'features/store/presentation/bloc/stores_event.dart';
 import 'firebase_options.dart';
 import 'routes/app_router.dart';
 
-// ─── FCM background handler ────────────────────────────────────────────────
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('[FCM] background message: ${message.messageId}');
-}
-
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // Preserve the native splash screen until initialization is complete
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // 1. Environment variables
+  // 1. Load environment variables
   await dotenv.load(fileName: '.env');
 
-  // 2. Stripe — publishableKey must be set BEFORE applySettings()
+  // 2. Stripe initialization
   Stripe.publishableKey = AppConstants.stripePubKey;
-  // ✅ FIX: applySettings() was commented out, which meant Stripe was never
-  // fully initialised. This caused FunctionException / sheet init failures.
-  await Stripe.instance.applySettings();
 
-  // 3. Firebase
+  // 3. Firebase initialization for notification transport
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // 4. FCM background handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // 5. FCM token
-  await FirebaseMessaging.instance.setAutoInitEnabled(true);
-  final fcmToken = await FirebaseMessaging.instance.getToken();
-  debugPrint('[FCM] token: $fcmToken');
-
-  // 6. Supabase
+  // 4. Supabase initialization
   await Supabase.initialize(
     url: AppConstants.supabaseUrl,
     anonKey: AppConstants.supabaseAnonKey,
   );
 
-  // 7. Notification Service
+  // 5. Notification Service initialization
   await NotificationService.init(AppConstants.oneSignalAppId);
 
-  // 8. Dependency injection
+  // 6. Dependency injection setup
   await initDependencies();
+
+  // Remove the native splash screen after all async services are ready
+  FlutterNativeSplash.remove();
 
   runApp(const EzeeWashApp());
 }
@@ -85,7 +74,9 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
   @override
   void initState() {
     super.initState();
+    // Initialize AuthBloc and trigger the check for an existing user session
     _authBloc = sl<AuthBloc>()..add(const AuthCheckRequested());
+    // Create the router with access to the AuthBloc for redirection logic
     _router = createRouter(_authBloc);
   }
 
@@ -128,6 +119,7 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
 
 class _AuthReactiveLoader extends StatefulWidget {
   final Widget child;
+
   const _AuthReactiveLoader({required this.child});
 
   @override
@@ -142,29 +134,35 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
   Widget build(BuildContext context) {
     return MultiBlocListener(
       listeners: [
-
-        // ── Auth state ─────────────────────────────────────────────────────
+        // Monitor auth state to trigger data loading or notification cleanup
         BlocListener<AuthBloc, AuthState>(
-          listener: (ctx, state) async {
+          listener: (ctx, state) {
             if (state is AuthAuthenticated) {
               final userId = state.user.id;
-              await NotificationService.loginAndWaitForSubscription(userId);
 
+              // Link OneSignal subscription on login
+              unawaited(
+                NotificationService.loginAndWaitForSubscription(userId),
+              );
+
+              // Load user data once upon successful authentication
               if (!_loaded) {
                 _loaded = true;
                 ctx.read<OrdersBloc>().add(const OrdersLoadRequested());
-                ctx.read<NotificationsBloc>()
-                    .add(const NotificationsLoadRequested());
+                ctx.read<NotificationsBloc>().add(
+                  const NotificationsLoadRequested(),
+                );
                 ctx.read<ProfileBloc>().add(const ProfileLoadRequested());
               }
             } else if (state is AuthUnauthenticated || state is AuthError) {
               _loaded = false;
+              // Clear notification user ID on logout
               NotificationService.clearUserId();
             }
           },
         ),
 
-        // ── Orders realtime (foreground status-change local notifications) ─
+        // Generate local notifications for foreground order status changes
         BlocListener<OrdersBloc, OrdersState>(
           listener: (ctx, state) {
             if (state is! OrdersLoaded) return;
@@ -182,7 +180,6 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
             }
           },
         ),
-
       ],
       child: widget.child,
     );

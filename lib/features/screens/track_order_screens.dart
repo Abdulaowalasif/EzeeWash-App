@@ -823,6 +823,8 @@ class _MapPanel extends StatelessWidget {
       key: const ValueKey('map'),
       children: [
         MapView(order: order, isDark: isDark, phase: phase),
+        // Rider card sits between map and delivery info, like a review card
+        _RiderCard(order: order, isDark: isDark, phase: phase),
         const SizedBox(height: 18),
         _DeliveryInfoCard(order: order, isDark: isDark),
       ],
@@ -1761,6 +1763,546 @@ class _SummaryRow extends StatelessWidget {
                 ? AppColors.success
                 : (isDark ? Colors.white : AppColors.lightText))),
   ]);
+}
+
+
+// ─── Rider card ───────────────────────────────────────────────────────────────
+//
+// Displayed below the live map whenever a rider is assigned.
+// Streams rider_locations realtime and joins the riders table to show:
+//   avatar, name, vehicle plate, star rating, online dot, distance, ETA,
+//   Call and Message action buttons.
+//
+// Schema used:
+//   rider_locations.rider_id  → riders.id
+//   riders: full_name, phone, avatar_url, vehicle_type, vehicle_plate,
+//           rating, is_online
+
+class _RiderCard extends StatefulWidget {
+  final OrderEntity order;
+  final bool isDark;
+  final _OrderPhase phase;
+
+  const _RiderCard({
+    super.key,
+    required this.order,
+    required this.isDark,
+    required this.phase,
+  });
+
+  @override
+  State<_RiderCard> createState() => _RiderCardState();
+}
+
+class _RiderCardState extends State<_RiderCard> {
+  // Rider live data from realtime stream
+  Map<String, dynamic>? _locRow;   // rider_locations row
+  Map<String, dynamic>? _riderRow; // riders row (fetched once per rider_id)
+  bool    _loading     = true;
+  double? _distanceKm;
+  LatLng? _customerLoc;
+  StreamSubscription? _sub;
+  String? _lastRiderId;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill from order entity if rider data was already in the initial fetch
+    if (widget.order.riderId != null) {
+      _riderRow = {
+        'full_name':     widget.order.riderName,
+        'phone':         widget.order.riderPhone,
+        'avatar_url':    widget.order.riderAvatarUrl,
+        'vehicle_type':  widget.order.riderVehicleType,
+        'vehicle_plate': widget.order.riderVehiclePlate,
+        'rating':        widget.order.riderRating,
+        'is_online':     widget.order.riderIsOnline,
+      };
+      _lastRiderId = widget.order.riderId;
+    }
+    _resolveCustomerLocation();
+    _listenRiderLocation();
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  // ── Geocode customer address for distance calc ──────────────────────────────
+  Future<void> _resolveCustomerLocation() async {
+    try {
+      final addr = widget.order.deliveryAddress ?? widget.order.pickupAddress;
+      if (addr.isEmpty) return;
+      final locs = await locationFromAddress(addr);
+      if (locs.isNotEmpty && mounted) {
+        _customerLoc = LatLng(locs.first.latitude, locs.first.longitude);
+        _recalcDistance();
+      }
+    } catch (_) {}
+  }
+
+  // ── Stream rider_locations; fetch riders row when rider_id changes ──────────
+  void _listenRiderLocation() {
+    _sub = Supabase.instance.client
+        .from('rider_locations')
+        .stream(primaryKey: ['id'])
+        .eq('order_id', widget.order.id)
+        .listen((data) async {
+      if (!mounted) return;
+      if (data.isEmpty) {
+        setState(() { _loading = false; _locRow = null; });
+        return;
+      }
+
+      final row      = data.first as Map<String, dynamic>;
+      final riderId  = row['rider_id'] as String?;
+
+      // Only re-fetch the riders profile when the assigned rider changes
+      if (riderId != null && riderId != _lastRiderId) {
+        _lastRiderId = riderId;
+        await _fetchRiderProfile(riderId);
+      }
+
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _locRow  = row;
+        });
+        _recalcDistance();
+      }
+    }, onError: (_) {
+      if (mounted) setState(() => _loading = false);
+    });
+  }
+
+  // ── Fetch full rider profile from riders table ──────────────────────────────
+  Future<void> _fetchRiderProfile(String riderId) async {
+    try {
+      final res = await Supabase.instance.client
+          .from('riders')
+          .select('full_name, phone, avatar_url, vehicle_type, vehicle_plate, rating, is_online')
+          .eq('id', riderId)
+          .maybeSingle();
+      if (res != null && mounted) {
+        setState(() => _riderRow = res as Map<String, dynamic>);
+      }
+    } catch (_) {}
+  }
+
+  // ── Haversine-lite distance ─────────────────────────────────────────────────
+  void _recalcDistance() {
+    if (_locRow == null || _customerLoc == null) return;
+    final lat = (_locRow!['latitude']  as num).toDouble();
+    final lng = (_locRow!['longitude'] as num).toDouble();
+    final m   = Geolocator.distanceBetween(
+        lat, lng, _customerLoc!.latitude, _customerLoc!.longitude);
+    if (mounted) setState(() => _distanceKm = m / 1000);
+  }
+
+  // ── Labels ─────────────────────────────────────────────────────────────────
+  String get _distanceLabel {
+    if (_distanceKm == null) return '—';
+    if (_distanceKm! < 1)    return '${(_distanceKm! * 1000).toInt()} m away';
+    return '${_distanceKm!.toStringAsFixed(1)} km away';
+  }
+
+  String get _etaLabel {
+    if (_distanceKm == null) return '—';
+    // Approx ETA at 25 km/h average city speed
+    final mins = ((_distanceKm! / 25) * 60).ceil();
+    if (mins < 2) return '< 1 min';
+    return '$mins min';
+  }
+
+  // ── Convenience getters from riderRow ────────────────────────────────────
+  String get _riderName    => _riderRow?['full_name']     as String? ?? 'Your Rider';
+  String get _riderPhone   => _riderRow?['phone']         as String? ?? '';
+  String? get _riderPhoto  => _riderRow?['avatar_url']    as String?;
+  String get _vehicleType  => _riderRow?['vehicle_type']  as String? ?? 'motorcycle';
+  String? get _vehiclePlate=> _riderRow?['vehicle_plate'] as String?;
+  double get _rating       => (_riderRow?['rating'] as num?)?.toDouble() ?? 5.0;
+  bool   get _isOnline     => _riderRow?['is_online'] as bool? ?? false;
+
+  // ── Vehicle icon helper ───────────────────────────────────────────────────
+  IconData _vehicleIcon() {
+    switch (_vehicleType) {
+      case 'bicycle': return Icons.pedal_bike_rounded;
+      case 'car':     return Icons.directions_car_rounded;
+      case 'van':     return Icons.airport_shuttle_rounded;
+      default:        return Icons.two_wheeler_rounded; // motorcycle
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading)        return _skeleton();
+    if (_locRow == null) return const SizedBox.shrink();
+
+    final isDark   = widget.isDark;
+    final isPickup = widget.phase == _OrderPhase.riderComingToPickup;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 18),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        boxShadow: isDark
+            ? []
+            : [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.09),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          )
+        ],
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // ── Handle bar ────────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Container(
+            width: 36, height: 4,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white24 : Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+          child: Column(children: [
+
+            // ── Phase label pill ─────────────────────────────────────────
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(isDark ? 0.15 : 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  // Live pulse dot
+                  _PulseDot(),
+                  const SizedBox(width: 7),
+                  Text(
+                    isPickup
+                        ? 'Picking up your order'
+                        : 'Delivering your order',
+                    style: GoogleFonts.alexandria(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary),
+                  ),
+                ]),
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            // ── Profile row ───────────────────────────────────────────────
+            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+
+              // Avatar + online indicator
+              Stack(children: [
+                Container(
+                  width: 68, height: 68,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: AppColors.primary.withOpacity(0.25), width: 2.5),
+                  ),
+                  child: ClipOval(
+                    child: _riderPhoto != null
+                        ? Image.network(_riderPhoto!, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _avatarFallback())
+                        : _avatarFallback(),
+                  ),
+                ),
+                Positioned(
+                  right: 2, bottom: 2,
+                  child: Container(
+                    width: 15, height: 15,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _isOnline ? AppColors.success : Colors.grey.shade400,
+                      border: Border.all(
+                          color: isDark ? AppColors.darkSurface : Colors.white,
+                          width: 2),
+                    ),
+                  ),
+                ),
+              ]),
+
+              const SizedBox(width: 16),
+
+              // Name, stars, chips
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_riderName,
+                        style: GoogleFonts.alexandria(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : AppColors.lightText)),
+
+                    const SizedBox(height: 5),
+
+                    // Star rating
+                    Row(children: [
+                      ...List.generate(5, (i) => Icon(
+                        i < _rating.floor()
+                            ? Icons.star_rounded
+                            : i < _rating
+                            ? Icons.star_half_rounded
+                            : Icons.star_outline_rounded,
+                        size: 15, color: const Color(0xFFF59E0B),
+                      )),
+                      const SizedBox(width: 5),
+                      Text(_rating.toStringAsFixed(1),
+                          style: GoogleFonts.alexandria(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? Colors.white70
+                                  : AppColors.lightSubtext)),
+                    ]),
+
+                    const SizedBox(height: 7),
+
+                    // Distance + ETA chips
+                    Wrap(spacing: 7, runSpacing: 5, children: [
+                      _Chip(icon: Icons.near_me_rounded,
+                          label: _distanceLabel,
+                          color: AppColors.primary, isDark: isDark),
+                      _Chip(icon: Icons.access_time_rounded,
+                          label: _etaLabel,
+                          color: AppColors.success, isDark: isDark),
+                      if (_vehiclePlate != null)
+                        _Chip(icon: _vehicleIcon(),
+                            label: _vehiclePlate!,
+                            color: const Color(0xFF8B5CF6), isDark: isDark),
+                    ]),
+                  ],
+                ),
+              ),
+            ]),
+
+            const SizedBox(height: 18),
+            Divider(height: 1,
+                color: isDark ? Colors.white12 : Colors.grey.shade200),
+            const SizedBox(height: 16),
+
+            // ── Action buttons ────────────────────────────────────────────
+            Row(children: [
+              Expanded(
+                child: _RiderActionBtn(
+                  icon: Icons.call_rounded,
+                  label: 'Call Rider',
+                  color: AppColors.success,
+                  isDark: isDark,
+                  enabled: _riderPhone.isNotEmpty,
+                  onTap: () {
+                    // Integrate url_launcher to dial: tel:$_riderPhone
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('Calling $_riderPhone',
+                          style: GoogleFonts.alexandria(fontSize: 13)),
+                      backgroundColor: AppColors.success,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      margin: const EdgeInsets.all(16),
+                      duration: const Duration(seconds: 2),
+                    ));
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _RiderActionBtn(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  label: 'Message',
+                  color: AppColors.primary,
+                  isDark: isDark,
+                  enabled: true,
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('In-app chat coming soon!',
+                          style: GoogleFonts.alexandria(fontSize: 13)),
+                      backgroundColor: AppColors.primary,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      margin: const EdgeInsets.all(16),
+                      duration: const Duration(seconds: 2),
+                    ));
+                  },
+                ),
+              ),
+            ]),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  Widget _avatarFallback() => Container(
+    color: AppColors.primary.withOpacity(0.15),
+    alignment: Alignment.center,
+    child: Text(
+      _riderName.isNotEmpty ? _riderName[0].toUpperCase() : 'R',
+      style: GoogleFonts.alexandria(
+          color: AppColors.primary, fontSize: 26, fontWeight: FontWeight.bold),
+    ),
+  );
+
+  Widget _skeleton() => Container(
+    margin: const EdgeInsets.only(top: 18),
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: widget.isDark ? AppColors.darkSurface : Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(
+          color: widget.isDark ? AppColors.darkBorder : AppColors.lightBorder),
+    ),
+    child: Row(children: [
+      Container(width: 68, height: 68,
+          decoration: BoxDecoration(shape: BoxShape.circle,
+              color: widget.isDark ? Colors.white12 : Colors.grey.shade200)),
+      const SizedBox(width: 16),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(height: 14, width: 130,
+              decoration: BoxDecoration(
+                  color: widget.isDark ? Colors.white12 : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(7))),
+          const SizedBox(height: 10),
+          Container(height: 11, width: 90,
+              decoration: BoxDecoration(
+                  color: widget.isDark ? Colors.white10 : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(7))),
+          const SizedBox(height: 10),
+          Container(height: 22, width: 160,
+              decoration: BoxDecoration(
+                  color: widget.isDark ? Colors.white10 : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(20))),
+        ]),
+      ),
+    ]),
+  );
+}
+
+// ─── Animated live pulse dot ──────────────────────────────────────────────────
+
+class _PulseDot extends StatefulWidget {
+  const _PulseDot();
+  @override State<_PulseDot> createState() => _PulseDotState();
+}
+
+class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
+      ..repeat(reverse: true);
+    _anim = Tween(begin: 0.5, end: 1.0).animate(
+        CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _anim,
+    builder: (_, __) => Opacity(
+      opacity: _anim.value,
+      child: Container(
+        width: 7, height: 7,
+        decoration: const BoxDecoration(
+            shape: BoxShape.circle, color: AppColors.success),
+      ),
+    ),
+  );
+}
+
+// ─── Chip ─────────────────────────────────────────────────────────────────────
+
+class _Chip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isDark;
+  const _Chip({required this.icon, required this.label,
+    required this.color, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+    decoration: BoxDecoration(
+      color: color.withOpacity(isDark ? 0.15 : 0.08),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 11, color: color),
+      const SizedBox(width: 4),
+      Text(label, style: GoogleFonts.alexandria(
+          fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+    ]),
+  );
+}
+
+// ─── Rider action button ──────────────────────────────────────────────────────
+
+class _RiderActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isDark, enabled;
+  final VoidCallback onTap;
+  const _RiderActionBtn({required this.icon, required this.label,
+    required this.color, required this.isDark,
+    required this.enabled, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: enabled ? onTap : null,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        color: enabled
+            ? color.withOpacity(isDark ? 0.18 : 0.1)
+            : (isDark ? Colors.white10 : Colors.grey.shade100),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: enabled
+                ? color.withOpacity(0.3)
+                : (isDark ? Colors.white12 : Colors.grey.shade200)),
+      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(icon, size: 18,
+            color: enabled ? color
+                : (isDark ? Colors.white38 : Colors.grey.shade400)),
+        const SizedBox(width: 8),
+        Text(label, style: GoogleFonts.alexandria(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: enabled ? color
+                : (isDark ? Colors.white38 : Colors.grey.shade400))),
+      ]),
+    ),
+  );
 }
 
 class _EmptyState extends StatelessWidget {

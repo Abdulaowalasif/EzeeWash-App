@@ -51,6 +51,16 @@ class OrderEntity extends Equatable {
   final double? riderLat;
   final double? riderLng;
 
+  // ── Rider profile (from riders table join via rider_locations) ────────────
+  final String? riderId;
+  final String? riderName;
+  final String? riderPhone;
+  final String? riderAvatarUrl;
+  final String? riderVehicleType;
+  final String? riderVehiclePlate;
+  final double? riderRating;
+  final bool riderIsOnline;
+
   const OrderEntity({
     required this.id,
     required this.orderNumber,
@@ -76,8 +86,16 @@ class OrderEntity extends Equatable {
     this.paymentMethod = 'cash_on_delivery',
     this.paymentStatus = 'pending',
     this.stripePaymentIntentId,
-    this.riderLat, // Added to constructor
-    this.riderLng, // Added to constructor
+    this.riderLat,
+    this.riderLng,
+    this.riderId,
+    this.riderName,
+    this.riderPhone,
+    this.riderAvatarUrl,
+    this.riderVehicleType,
+    this.riderVehiclePlate,
+    this.riderRating,
+    this.riderIsOnline = false,
   });
 
   bool get isActive => status != 'delivered' && status != 'cancelled';
@@ -91,7 +109,9 @@ class OrderEntity extends Equatable {
     status,
     progress,
     paymentStatus,
-    riderLat, // Added to props
-    riderLng  // Added to props
+    riderLat,
+    riderLng,
+    riderId,
+    riderIsOnline,
   ];
 }

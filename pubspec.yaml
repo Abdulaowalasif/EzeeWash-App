@@ -60,6 +60,7 @@ dependencies:
   onesignal_flutter: ^5.4.6
   flutter_local_notifications: ^21.0.0
   firebase_messaging: ^16.1.3
+  flutter_native_splash: ^2.4.7
 
 dev_dependencies:
   flutter_test:
@@ -75,7 +76,26 @@ flutter:
     - assets/service_picture/
     - assets/services/
     - assets/images/
+    - assets/logo/
 
-flutter_icons:
+
+flutter_native_splash:
+  color: "#1D4BC7"
+  image: assets/logo/logo.png
+
+  # Set to false to prevent the background/image from stretching to screen edges
+  fullscreen: false
+
+  # Fixes vertical/horizontal stretching by centering the icon
+  android_gravity: center
+  ios_content_mode: center
+
+  android_12:
+    color: "#1D4BC7"
+    image: assets/logo/logo.png
+    icon_background_color: "#1D4BC7"
+    # Note: image_fraction is NOT a valid parameter; it has been removed.
+
   android: true
-  image_path: "assets/logo.png/applogo.png"
+  ios: true
+  web: false

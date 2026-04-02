@@ -18,12 +18,12 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
   final SupabaseClient _client;
   OrdersRemoteDataSourceImpl(this._client);
 
-  // ─── UPDATED: Added rider_locations(latitude, longitude) ───
+  // rider_locations joined with riders so we get full rider profile in one query
   static const _select =
-      '*, services(title,category,image_url), stores(name), order_timelines(*), rider_locations(latitude, longitude)';
+      '*, services(title,category,image_url), stores(name), order_timelines(*), rider_locations(*, riders(*))';
 
   static const _selectNoTimeline =
-      '*, services(title,category,image_url), stores(name), rider_locations(latitude, longitude)';
+      '*, services(title,category,image_url), stores(name), rider_locations(*, riders(*))';
 
   @override
   Future<List<OrderModel>> getOrders(String userId) async {
