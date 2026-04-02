@@ -1,14 +1,18 @@
 // lib/routes/app_router.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/di/injection_container.dart';
 import '../core/service/notification_service.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/notifications/presentation/screens/notification_screen.dart';
+import '../features/orders/presentation/bloc/orders_bloc.dart';
 import '../features/orders/presentation/screens/order_screen.dart';
+import '../features/orders/presentation/screens/order_screen.dart' show ReorderParams;
 import '../features/orders/presentation/screens/place_order_screen.dart';
 import '../features/profile/presentation/presentation/profile_screen.dart';
 import '../features/screens/address_screen.dart';
@@ -78,9 +82,19 @@ GoRouter createRouter(AuthBloc authBloc) {
                 GoRoute(
                   path: RoutesName.placeOrders,
                   pageBuilder: (c, s) {
-                    final preSelectedServiceId = s.extra as String?;
+                    final extra = s.extra;
+                    // PlaceOrderScreen always gets its own isolated OrdersBloc
+                    // so events never bleed into the shared OrderScreen bloc.
+                    final screen = extra is ReorderParams
+                        ? PlaceOrderScreen(reorderParams: extra)
+                        : PlaceOrderScreen(
+                      preSelectedServiceId: extra as String?,
+                    );
                     return _slide(
-                      PlaceOrderScreen(preSelectedServiceId: preSelectedServiceId),
+                      BlocProvider(
+                        create: (_) => sl<OrdersBloc>(),
+                        child: screen,
+                      ),
                       s,
                     );
                   },
@@ -146,9 +160,6 @@ GoRouter createRouter(AuthBloc authBloc) {
     errorPageBuilder: (c, s) => _fade(ErrorScreen(error: s.error), s),
   );
 
-  // Give NotificationService a reference to GoRouter so it can navigate
-  // when a notification tap deep-links to an order screen.
-  // This is safe: GoRouter is fully constructed before any tap can arrive.
   NotificationService.setRouter(router);
 
   return router;

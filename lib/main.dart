@@ -28,8 +28,6 @@ import 'firebase_options.dart';
 import 'routes/app_router.dart';
 
 // ─── FCM background handler ────────────────────────────────────────────────
-// Must be top-level. Registers the background isolate so FCM can wake the app
-// in killed state. OneSignal handles display — no action needed here.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('[FCM] background message: ${message.messageId}');
@@ -41,20 +39,19 @@ void main() async {
   // 1. Environment variables
   await dotenv.load(fileName: '.env');
 
-  // 2. Stripe
+  // 2. Stripe — publishableKey must be set BEFORE applySettings()
   Stripe.publishableKey = AppConstants.stripePubKey;
-  // await Stripe.instance.applySettings();
+  // ✅ FIX: applySettings() was commented out, which meant Stripe was never
+  // fully initialised. This caused FunctionException / sheet init failures.
+  await Stripe.instance.applySettings();
 
-  // 3. Firebase — must come before FCM handler registration
+  // 3. Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // 4. Register FCM background handler immediately after Firebase.initializeApp()
-  //    and before any other async gaps. Required for killed-state push delivery.
+  // 4. FCM background handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // 5. Bootstrap the FCM token pipeline. Without getToken(), the device never
-  //    registers with FCM and OneSignal has no delivery channel for background
-  //    / killed-state pushes.
+  // 5. FCM token
   await FirebaseMessaging.instance.setAutoInitEnabled(true);
   final fcmToken = await FirebaseMessaging.instance.getToken();
   debugPrint('[FCM] token: $fcmToken');
@@ -65,9 +62,7 @@ void main() async {
     anonKey: AppConstants.supabaseAnonKey,
   );
 
-  // 7. Notification Service — creates Android channel + initialises OneSignal.
-  //    Permission is NOT requested here; it happens inside
-  //    loginAndWaitForSubscription() after the user signs in.
+  // 7. Notification Service
   await NotificationService.init(AppConstants.oneSignalAppId);
 
   // 8. Dependency injection
@@ -91,7 +86,6 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
   void initState() {
     super.initState();
     _authBloc = sl<AuthBloc>()..add(const AuthCheckRequested());
-    // createRouter() also calls NotificationService.setRouter() internally.
     _router = createRouter(_authBloc);
   }
 
@@ -154,18 +148,8 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
           listener: (ctx, state) async {
             if (state is AuthAuthenticated) {
               final userId = state.user.id;
-
-              // loginAndWaitForSubscription() does these steps in order:
-              //   1. Request OS notification permission  ← MUST be first
-              //   2. Call OneSignal.login(userId)
-              //   3. Poll until optedIn == true (up to 10 s)
-              //
-              // We await the whole thing so the subscription is confirmed
-              // active before we load orders/notifications. Any Supabase
-              // DB insert after this point will find a valid subscription.
               await NotificationService.loginAndWaitForSubscription(userId);
 
-              // Load user data — runs once per session.
               if (!_loaded) {
                 _loaded = true;
                 ctx.read<OrdersBloc>().add(const OrdersLoadRequested());
@@ -174,8 +158,6 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
                 ctx.read<ProfileBloc>().add(const ProfileLoadRequested());
               }
             } else if (state is AuthUnauthenticated || state is AuthError) {
-              // Always unlink — unconditional so logout before data loads
-              // doesn't leave the device linked to the old user's external_id.
               _loaded = false;
               NotificationService.clearUserId();
             }
@@ -183,7 +165,6 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
         ),
 
         // ── Orders realtime (foreground status-change local notifications) ─
-        // Background/killed-state pushes arrive through OneSignal natively.
         BlocListener<OrdersBloc, OrdersState>(
           listener: (ctx, state) {
             if (state is! OrdersLoaded) return;

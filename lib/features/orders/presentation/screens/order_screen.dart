@@ -158,7 +158,6 @@ class _OrdersBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Build both lists independently from the full order list.
     final activeOrders = state.orders
         .where((o) => o.status != 'delivered' && o.status != 'cancelled')
         .toList();
@@ -166,8 +165,7 @@ class _OrdersBody extends StatelessWidget {
         .where((o) => o.status == 'delivered' || o.status == 'cancelled')
         .toList();
 
-    final displayed =
-    state.showActive ? activeOrders : historyOrders;
+    final displayed = state.showActive ? activeOrders : historyOrders;
 
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -198,8 +196,6 @@ class _OrdersBody extends StatelessWidget {
                 const SizedBox(height: 16),
                 itemBuilder: (context, i) {
                   final order = displayed[i];
-
-                  // Format: "<tab>_<orderId>_<status>"
                   final tab = state.showActive ? 'a' : 'h';
                   return _OrderCard(
                     key: ValueKey(
@@ -340,6 +336,363 @@ class _ToggleItem extends StatelessWidget {
   );
 }
 
+// ─── Reorder bottom sheet ─────────────────────────────────────────────────────
+//
+// Shows a date/time picker sheet pre-filled from the original order.
+// Rules:
+//  • Pickup date  : today or later
+//  • Delivery date: same as pickup (Express) or pickup + 1 day minimum (others)
+//  • Express      : detected when serviceName contains "Express" (case-insensitive)
+//  • Times        : fixed slots (same list as PlaceOrderScreen)
+
+class _ReorderSheet extends StatefulWidget {
+  final OrderEntity order;
+  final bool isDark;
+  const _ReorderSheet({required this.order, required this.isDark});
+
+  @override
+  State<_ReorderSheet> createState() => _ReorderSheetState();
+}
+
+class _ReorderSheetState extends State<_ReorderSheet> {
+  static const _times = [
+    '10:00 AM', '12:00 PM', '02:00 PM', '04:00 PM', '06:00 PM',
+  ];
+
+  late DateTime _pickupDate;
+  late String   _pickupTime;
+  late DateTime _deliveryDate;
+  late String   _deliveryTime;
+
+  bool get _isExpress =>
+      widget.order.serviceName.toLowerCase().contains('express');
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Pre-fill from original order, but bump to today if dates are in the past
+    _pickupDate = widget.order.pickupDate != null &&
+        widget.order.pickupDate!.isAfter(today.subtract(const Duration(days: 1)))
+        ? widget.order.pickupDate!
+        : today;
+
+    _pickupTime = (widget.order.pickupTime != null &&
+        _times.contains(widget.order.pickupTime))
+        ? widget.order.pickupTime!
+        : _times.first;
+
+    // Express: delivery same day as pickup
+    if (_isExpress) {
+      _deliveryDate = _pickupDate;
+    } else {
+      final originalDelivery = widget.order.deliveryDate;
+      final minDelivery = _pickupDate.add(const Duration(days: 1));
+      _deliveryDate = (originalDelivery != null &&
+          originalDelivery.isAfter(_pickupDate))
+          ? originalDelivery
+          : minDelivery;
+    }
+
+    _deliveryTime = (widget.order.deliveryTime != null &&
+        _times.contains(widget.order.deliveryTime))
+        ? widget.order.deliveryTime!
+        : _times.last;
+  }
+
+  // When pickup date changes, enforce delivery date constraints
+  void _onPickupDateChanged(DateTime d) {
+    setState(() {
+      _pickupDate = d;
+      if (_isExpress) {
+        // Express: delivery must be same day
+        _deliveryDate = d;
+      } else {
+        // Non-express: delivery must be at least next day
+        final minDelivery = d.add(const Duration(days: 1));
+        if (_deliveryDate.isBefore(minDelivery)) {
+          _deliveryDate = minDelivery;
+        }
+      }
+    });
+  }
+
+  String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  InputDecoration _deco(String label, Color accent) => InputDecoration(
+    labelText: label, filled: true,
+    fillColor: widget.isDark ? AppColors.darkBackground : AppColors.lightBackground,
+    labelStyle: TextStyle(color: widget.isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: widget.isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: accent, width: 1.5)),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final o = widget.order;
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+          24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      decoration: BoxDecoration(
+        color: widget.isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: widget.isDark ? Colors.white24 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Title
+          Text('Reorder',
+              style: GoogleFonts.alexandria(
+                  fontSize: 20, fontWeight: FontWeight.bold,
+                  color: widget.isDark ? Colors.white : AppColors.lightText)),
+          const SizedBox(height: 4),
+          Text('Same service & store. Update your dates below.',
+              style: GoogleFonts.alexandria(
+                  fontSize: 13,
+                  color: widget.isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
+
+          const SizedBox(height: 20),
+
+          // Order summary pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: widget.isDark
+                  ? AppColors.primary.withOpacity(0.12)
+                  : AppColors.primary.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.primary.withOpacity(0.25)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 18),
+              const SizedBox(width: 10),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(o.serviceName,
+                      style: GoogleFonts.alexandria(
+                          fontSize: 13, fontWeight: FontWeight.bold,
+                          color: widget.isDark ? Colors.white : AppColors.lightText)),
+                  Text('${o.storeName}  •  ${o.itemCount} pcs  •  ৳${o.totalPrice.toStringAsFixed(0)}',
+                      style: GoogleFonts.alexandria(
+                          fontSize: 11,
+                          color: widget.isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
+                ],
+              )),
+              if (_isExpress)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text('Express',
+                      style: GoogleFonts.alexandria(
+                          fontSize: 10, fontWeight: FontWeight.bold,
+                          color: AppColors.warning)),
+                ),
+            ]),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Pickup ────────────────────────────────────────────────────────
+          Text('Pickup Schedule',
+              style: GoogleFonts.alexandria(
+                  fontSize: 13, fontWeight: FontWeight.w600,
+                  color: widget.isDark ? Colors.white : AppColors.lightText)),
+          const SizedBox(height: 10),
+          Row(children: [
+            // Pickup date
+            Expanded(
+              child: TextFormField(
+                controller: TextEditingController(text: _fmt(_pickupDate)),
+                readOnly: true,
+                decoration: _deco('Date', AppColors.primary).copyWith(
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.calendar_today_rounded,
+                        color: AppColors.primary, size: 18),
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _pickupDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime(2100),
+                        builder: (ctx, child) => Theme(
+                          data: Theme.of(ctx).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primary)),
+                          child: child!,
+                        ),
+                      );
+                      if (picked != null) _onPickupDateChanged(picked);
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Pickup time
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _pickupTime,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
+                decoration: _deco('Time', AppColors.primary),
+                items: _times.map((t) => DropdownMenuItem(
+                    value: t, child: Text(t, style: GoogleFonts.alexandria(fontSize: 13)))).toList(),
+                onChanged: (v) { if (v != null) setState(() => _pickupTime = v); },
+              ),
+            ),
+          ]),
+
+          const SizedBox(height: 16),
+
+          // ── Delivery ──────────────────────────────────────────────────────
+          Row(children: [
+            Text('Delivery Schedule',
+                style: GoogleFonts.alexandria(
+                    fontSize: 13, fontWeight: FontWeight.w600,
+                    color: widget.isDark ? Colors.white : AppColors.lightText)),
+            if (_isExpress) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text('Same day as pickup',
+                    style: GoogleFonts.alexandria(
+                        fontSize: 10, color: AppColors.warning,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            // Delivery date
+            Expanded(
+              child: TextFormField(
+                controller: TextEditingController(text: _fmt(_deliveryDate)),
+                readOnly: true,
+                decoration: _deco('Date', AppColors.success).copyWith(
+                  suffixIcon: _isExpress
+                  // Express: delivery date is locked to pickup date
+                      ? const Icon(Icons.lock_outline_rounded,
+                      color: AppColors.warning, size: 18)
+                      : IconButton(
+                    icon: const Icon(Icons.calendar_today_rounded,
+                        color: AppColors.success, size: 18),
+                    onPressed: () async {
+                      // Minimum delivery = pickup + 1 day for non-express
+                      final minDate = _pickupDate.add(const Duration(days: 1));
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _deliveryDate.isBefore(minDate)
+                            ? minDate
+                            : _deliveryDate,
+                        firstDate: minDate,
+                        lastDate: DateTime(2100),
+                        builder: (ctx, child) => Theme(
+                          data: Theme.of(ctx).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.success)),
+                          child: child!,
+                        ),
+                      );
+                      if (picked != null) setState(() => _deliveryDate = picked);
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Delivery time
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _deliveryTime,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.success),
+                decoration: _deco('Time', AppColors.success),
+                items: _times.map((t) => DropdownMenuItem(
+                    value: t, child: Text(t, style: GoogleFonts.alexandria(fontSize: 13)))).toList(),
+                onChanged: (v) { if (v != null) setState(() => _deliveryTime = v); },
+              ),
+            ),
+          ]),
+
+          if (_isExpress) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text(
+                  'Express delivery is same-day only. Delivery date is locked to your pickup date.',
+                  style: GoogleFonts.alexandria(fontSize: 11, color: AppColors.warning),
+                )),
+              ]),
+            ),
+          ],
+
+          const SizedBox(height: 24),
+
+          // Confirm button
+          SizedBox(
+            width: double.infinity,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: AppColors.gradient,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 8, offset: const Offset(0, 4))],
+              ),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: () => Navigator.pop(context, {
+                  'pickupDate':   _pickupDate,
+                  'pickupTime':   _pickupTime,
+                  'deliveryDate': _deliveryDate,
+                  'deliveryTime': _deliveryTime,
+                }),
+                child: Text('Confirm & Reorder',
+                    style: GoogleFonts.alexandria(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Order card ───────────────────────────────────────────────────────────────
 
 class _OrderCard extends StatefulWidget {
@@ -361,8 +714,6 @@ class _OrderCard extends StatefulWidget {
 
 class _OrderCardState extends State<_OrderCard> {
   bool _expanded = false;
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
 
   Color _statusColor(String s) {
     switch (s) {
@@ -441,7 +792,6 @@ class _OrderCardState extends State<_OrderCard> {
     );
   }
 
-  // Derived step completion directly from the order status string
   bool _isStepDone(String status, int stepOrder) {
     int currentStep = 0;
     switch (status) {
@@ -456,7 +806,41 @@ class _OrderCardState extends State<_OrderCard> {
     return stepOrder <= currentStep;
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  // ── Reorder: show sheet, then navigate with prefilled data ────────────────
+  Future<void> _handleReorder(BuildContext context) async {
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ReorderSheet(
+        order: widget.order,
+        isDark: widget.isDark,
+      ),
+    );
+
+    if (result == null || !context.mounted) return;
+
+    // Navigate to PlaceOrderScreen with the original order's details
+    // pre-filled so the user lands on the payment step directly.
+    context.push(
+      RoutesName.placeOrdersNavigate,
+      extra: ReorderParams(
+        serviceId:           widget.order.serviceId,
+        storeId:             widget.order.storeId,
+        serviceName:         widget.order.serviceName,
+        itemCount:           widget.order.itemCount,
+        totalPrice:          widget.order.totalPrice,
+        pickupAddress:       widget.order.pickupAddress,
+        deliveryAddress:     widget.order.deliveryAddress,
+        specialInstructions: widget.order.specialInstructions,
+        pickupDate:          result['pickupDate'] as DateTime,
+        pickupTime:          result['pickupTime'] as String,
+        deliveryDate:        result['deliveryDate'] as DateTime,
+        deliveryTime:        result['deliveryTime'] as String,
+        paymentMethod:       widget.order.paymentMethod,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -464,7 +848,6 @@ class _OrderCardState extends State<_OrderCard> {
     final statusColor = _statusColor(o.status);
     final progress    = _progressFor(o.status, o.progress);
 
-    // Sort timeline locally to ensure steps render in perfect sequential order
     final sortedTimeline = List.of(o.timeline)
       ..sort((a, b) => a.stepOrder.compareTo(b.stepOrder));
 
@@ -479,298 +862,288 @@ class _OrderCardState extends State<_OrderCard> {
               ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-              color: widget.isDark
-                  ? AppColors.darkBorder : AppColors.lightBorder),
+            color: widget.isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          ),
           boxShadow: widget.isDark
               ? []
               : [BoxShadow(
               color: Colors.black.withOpacity(0.04),
-              blurRadius: 15,
-              offset: const Offset(0, 6))],
+              blurRadius: 12,
+              offset: const Offset(0, 5))],
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
 
-              // ── Header ────────────────────────────────────────────────
-              Row(children: [
-                Container(
-                  height: 54, width: 54,
-                  decoration: BoxDecoration(
-                    gradient: AppColors.gradient,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
-                        blurRadius: 8, offset: const Offset(0, 3))],
-                  ),
-                  child: _ServiceImage(
-                      imageUrl: o.serviceImageUrl, isDark: widget.isDark),
-                ),
-                const SizedBox(width: 14),
-                Expanded(child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('#${o.orderNumber}',
-                      style: GoogleFonts.alexandria(
-                          fontWeight: FontWeight.bold, fontSize: 15,
-                          color: widget.isDark
-                              ? Colors.white : AppColors.lightText)),
-                  const SizedBox(height: 2),
+            // ── Header row ───────────────────────────────────────────────
+            Row(children: [
+              _ServiceImage(imageUrl: o.serviceImageUrl, isDark: widget.isDark),
+              const SizedBox(width: 14),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(o.serviceName,
                       style: GoogleFonts.alexandria(
-                          fontSize: 13,
-                          color: widget.isDark
-                              ? Colors.white70 : Colors.black87)),
+                          fontWeight: FontWeight.bold, fontSize: 15,
+                          color: widget.isDark ? Colors.white : AppColors.lightText)),
+                  const SizedBox(height: 3),
                   Text(o.storeName,
+                      style: GoogleFonts.alexandria(
+                          fontSize: 12,
+                          color: widget.isDark
+                              ? AppColors.darkSubtext : AppColors.lightSubtext)),
+                  const SizedBox(height: 5),
+                  Row(children: [
+                    Text('#${o.orderNumber}',
+                        style: GoogleFonts.alexandria(
+                            fontSize: 11, color: AppColors.primary,
+                            fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        o.status.replaceAll('_', ' ').toUpperCase(),
+                        style: GoogleFonts.alexandria(
+                            fontSize: 9,
+                            color: statusColor,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5),
+                      ),
+                    ),
+                  ]),
+                ],
+              )),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('৳${o.totalPrice.toStringAsFixed(0)}',
+                      style: GoogleFonts.alexandria(
+                          fontSize: 18, fontWeight: FontWeight.bold,
+                          color: AppColors.primary)),
+                  Text('${o.itemCount} pcs',
                       style: GoogleFonts.alexandria(
                           fontSize: 11,
                           color: widget.isDark
                               ? AppColors.darkSubtext : AppColors.lightSubtext)),
-                ])),
-                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 5, horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: statusColor.withOpacity(0.4), width: 1),
-                    ),
-                    child: Text(
-                      o.status.replaceAll('_', ' ').toUpperCase(),
-                      style: GoogleFonts.alexandria(
-                          color: statusColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text('৳${o.totalPrice.toStringAsFixed(0)}',
-                      style: GoogleFonts.alexandria(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: AppColors.primary)),
-                ]),
-              ]),
+                ],
+              ),
+            ]),
 
-              const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-              // ── Progress bar ─────────────────────────────────────────
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  height: 6,
-                  color: widget.isDark
-                      ? Colors.white12 : Colors.grey.shade200,
-                  child: LayoutBuilder(
-                    builder: (_, constraints) => Align(
-                      alignment: Alignment.centerLeft,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 600),
-                        curve: Curves.easeOut,
-                        width: constraints.maxWidth *
-                            progress.clamp(0.0, 1.0),
-                        decoration: BoxDecoration(
-                          gradient: AppColors.gradient,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+            // ── Progress bar ─────────────────────────────────────────────
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                height: 6,
+                color: widget.isDark
+                    ? Colors.white12 : Colors.grey.shade200,
+                child: LayoutBuilder(
+                  builder: (_, constraints) => Align(
+                    alignment: Alignment.centerLeft,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.easeOut,
+                      width: constraints.maxWidth * progress.clamp(0.0, 1.0),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.gradient,
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
                 ),
               ),
+            ),
 
-              const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-              // ── Action buttons ───────────────────────────────────────
-              Row(children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: Icon(
-                      _expanded
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.remove_red_eye_outlined,
-                      color: AppColors.primary, size: 18,
-                    ),
-                    onPressed: () => setState(() => _expanded = !_expanded),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(
-                          color: AppColors.primary, width: 1.5),
+            // ── Action buttons ───────────────────────────────────────────
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: Icon(
+                    _expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.remove_red_eye_outlined,
+                    color: AppColors.primary, size: 18,
+                  ),
+                  onPressed: () => setState(() => _expanded = !_expanded),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(
+                        color: AppColors.primary, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  label: Text(_expanded ? 'Hide' : 'Details',
+                      style: GoogleFonts.alexandria(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: widget.isHistory
+                // ── Reorder ─────────────────────────────────────────
+                    ? Container(
+                  decoration: BoxDecoration(
+                    gradient: AppColors.gradient,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4))],
+                  ),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.replay_outlined,
+                        color: Colors.white, size: 16),
+                    onPressed: () => _handleReorder(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    label: Text(_expanded ? 'Hide' : 'Details',
+                    label: Text('Reorder',
                         style: GoogleFonts.alexandria(
-                            color: AppColors.primary,
+                            color: Colors.white,
                             fontWeight: FontWeight.w600,
                             fontSize: 12)),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: widget.isHistory
-                  // ── Reorder ───────────────────────────────────
-                      ? Container(
-                    decoration: BoxDecoration(
-                      gradient: AppColors.gradient,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [BoxShadow(
-                          color: AppColors.primary.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4))],
-                    ),
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.replay_outlined,
-                          color: Colors.white, size: 16),
-                      onPressed: () =>
-                          context.push(RoutesName.placeOrdersNavigate),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      label: Text('Reorder',
-                          style: GoogleFonts.alexandria(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12)),
-                    ),
-                  )
-                  // ── Cancel ────────────────────────────────────
-                      : BlocBuilder<OrdersBloc, OrdersState>(
-                    builder: (ctx, bState) {
-                      final cancelling = bState is OrderCancelling;
-                      return GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: cancelling
-                            ? null
-                            : () => _confirmCancel(ctx),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [BoxShadow(
-                                color: AppColors.error.withOpacity(0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4))],
-                          ),
-                          child: ElevatedButton.icon(
-                            onPressed: null,
-                            icon: cancelling
-                                ? const SizedBox(
-                                width: 14, height: 14,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2))
-                                : const Icon(Icons.cancel_outlined,
-                                color: Colors.white, size: 16),
-                            label: Text(
-                                cancelling ? 'Cancelling…' : 'Cancel',
-                                style: GoogleFonts.alexandria(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              disabledBackgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
+                )
+                // ── Cancel ──────────────────────────────────────────
+                    : BlocBuilder<OrdersBloc, OrdersState>(
+                  builder: (ctx, bState) {
+                    final cancelling = bState is OrderCancelling;
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: cancelling ? null : () => _confirmCancel(ctx),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.error,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [BoxShadow(
+                              color: AppColors.error.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4))],
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: null,
+                          icon: cancelling
+                              ? const SizedBox(
+                              width: 14, height: 14,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2))
+                              : const Icon(Icons.cancel_outlined,
+                              color: Colors.white, size: 16),
+                          label: Text(
+                              cancelling ? 'Cancelling…' : 'Cancel',
+                              style: GoogleFonts.alexandria(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            disabledBackgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
-                      );
-                    },
-                  ),
-                ),
-              ]),
-
-              // ── Timeline expansion ───────────────────────────────────
-              if (_expanded) ...[
-                const SizedBox(height: 20),
-                Divider(color: widget.isDark
-                    ? Colors.white12 : Colors.grey.shade200),
-                const SizedBox(height: 12),
-                Text('Order Timeline',
-                    style: GoogleFonts.alexandria(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: widget.isDark
-                            ? Colors.white : AppColors.lightText)),
-                const SizedBox(height: 12),
-                if (sortedTimeline.isEmpty)
-                  Text('Timeline not available yet',
-                      style: GoogleFonts.alexandria(
-                          fontSize: 13,
-                          color: widget.isDark
-                              ? AppColors.darkSubtext
-                              : AppColors.lightSubtext))
-                else
-                  ...sortedTimeline.map((step) {
-                    // Check dynamically using the new helper
-                    final isStepDone = _isStepDone(o.status, step.stepOrder);
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              margin: const EdgeInsets.only(top: 2, right: 14),
-                              padding: const EdgeInsets.all(5),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isStepDone
-                                    ? AppColors.primary.withOpacity(0.12)
-                                    : (widget.isDark
-                                    ? Colors.white12
-                                    : Colors.grey.shade100),
-                              ),
-                              child: Icon(
-                                isStepDone
-                                    ? Icons.check_circle_rounded
-                                    : Icons.circle_outlined,
-                                color: isStepDone
-                                    ? AppColors.primary
-                                    : Colors.grey.shade400,
-                                size: 16,
-                              ),
-                            ),
-                            Expanded(child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(step.title,
-                                      style: GoogleFonts.alexandria(
-                                          fontWeight: isStepDone
-                                              ? FontWeight.bold : FontWeight.w500,
-                                          color: isStepDone
-                                              ? (widget.isDark
-                                              ? Colors.white : Colors.black87)
-                                              : Colors.grey.shade500,
-                                          fontSize: 13)),
-                                  if (step.description != null &&
-                                      step.description!.isNotEmpty)
-                                    Text(step.description!,
-                                        style: GoogleFonts.alexandria(
-                                            fontSize: 11,
-                                            color: widget.isDark
-                                                ? AppColors.darkSubtext
-                                                : AppColors.lightSubtext)),
-                                  if (isStepDone && step.eventTime != null)
-                                    Text(_formatTime(step.eventTime!),
-                                        style: GoogleFonts.alexandria(
-                                            fontSize: 10,
-                                            color: AppColors.primary.withOpacity(0.7))),
-                                ])),
-                          ]),
+                      ),
                     );
-                  }),
-              ],
+                  },
+                ),
+              ),
             ]),
+
+            // ── Timeline expansion ───────────────────────────────────────
+            if (_expanded) ...[
+              const SizedBox(height: 20),
+              Divider(color: widget.isDark ? Colors.white12 : Colors.grey.shade200),
+              const SizedBox(height: 12),
+              Text('Order Timeline',
+                  style: GoogleFonts.alexandria(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: widget.isDark ? Colors.white : AppColors.lightText)),
+              const SizedBox(height: 12),
+              if (sortedTimeline.isEmpty)
+                Text('Timeline not available yet',
+                    style: GoogleFonts.alexandria(
+                        fontSize: 13,
+                        color: widget.isDark
+                            ? AppColors.darkSubtext
+                            : AppColors.lightSubtext))
+              else
+                ...sortedTimeline.map((step) {
+                  final isStepDone = _isStepDone(o.status, step.stepOrder);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(top: 2, right: 14),
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isStepDone
+                                  ? AppColors.primary.withOpacity(0.12)
+                                  : (widget.isDark
+                                  ? Colors.white12
+                                  : Colors.grey.shade100),
+                            ),
+                            child: Icon(
+                              isStepDone
+                                  ? Icons.check_circle_rounded
+                                  : Icons.circle_outlined,
+                              color: isStepDone
+                                  ? AppColors.primary
+                                  : Colors.grey.shade400,
+                              size: 16,
+                            ),
+                          ),
+                          Expanded(child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(step.title,
+                                    style: GoogleFonts.alexandria(
+                                        fontWeight: isStepDone
+                                            ? FontWeight.bold : FontWeight.w500,
+                                        color: isStepDone
+                                            ? (widget.isDark
+                                            ? Colors.white : Colors.black87)
+                                            : Colors.grey.shade500,
+                                        fontSize: 13)),
+                                if (step.description != null &&
+                                    step.description!.isNotEmpty)
+                                  Text(step.description!,
+                                      style: GoogleFonts.alexandria(
+                                          fontSize: 11,
+                                          color: widget.isDark
+                                              ? AppColors.darkSubtext
+                                              : AppColors.lightSubtext)),
+                                if (isStepDone && step.eventTime != null)
+                                  Text(_formatTime(step.eventTime!),
+                                      style: GoogleFonts.alexandria(
+                                          fontSize: 10,
+                                          color: AppColors.primary.withOpacity(0.7))),
+                              ])),
+                        ]),
+                  );
+                }),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -823,4 +1196,40 @@ class _ServiceImage extends StatelessWidget {
           color: Colors.white, size: 28),
     ),
   );
+}
+
+// ─── ReorderParams ────────────────────────────────────────────────────────────
+// Passed as `extra` to PlaceOrderScreen so it can pre-fill all fields
+// and skip straight to the payment step.
+
+class ReorderParams {
+  final String serviceId;
+  final String storeId;
+  final String serviceName;
+  final int itemCount;
+  final double totalPrice;
+  final String pickupAddress;
+  final String? deliveryAddress;
+  final String? specialInstructions;
+  final DateTime pickupDate;
+  final String pickupTime;
+  final DateTime deliveryDate;
+  final String deliveryTime;
+  final String paymentMethod; // 'cash_on_delivery' | 'stripe'
+
+  const ReorderParams({
+    required this.serviceId,
+    required this.storeId,
+    required this.serviceName,
+    required this.itemCount,
+    required this.totalPrice,
+    required this.pickupAddress,
+    this.deliveryAddress,
+    this.specialInstructions,
+    required this.pickupDate,
+    required this.pickupTime,
+    required this.deliveryDate,
+    required this.deliveryTime,
+    required this.paymentMethod,
+  });
 }

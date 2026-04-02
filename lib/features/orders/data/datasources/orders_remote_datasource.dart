@@ -85,7 +85,12 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         'status': AppConstants.orderPending,
         'progress': 0.0,
         'payment_method': params.paymentMethod.value,
-        'payment_status': 'pending',
+        // For Stripe, placeOrder is only called AFTER presentPaymentSheet()
+        // succeeds, so the payment is already confirmed at this point.
+        // For COD the payment is collected later, so it stays 'pending'.
+        'payment_status': params.paymentMethod == PaymentMethod.stripe
+            ? 'paid'
+            : 'pending',
       })
           .select(_selectNoTimeline)
           .single();
