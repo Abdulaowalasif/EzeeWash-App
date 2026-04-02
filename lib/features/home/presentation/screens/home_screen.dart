@@ -1,6 +1,6 @@
-// lib/features/home/screens/home_screen.dart
+// lib/features/home/presentation/screens/home_screen.dart
+import 'dart:ui'; // 👈 ADDED FOR GLASS BLUR EFFECT
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:ezzewash/features/screens/track_order_screens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +17,7 @@ import '../../../profile/presentation/bloc/profile_bloc.dart';
 import '../../../profile/presentation/bloc/profile_state.dart';
 import '../../../services/presentation/bloc/service_bloc.dart';
 import '../../../services/presentation/bloc/service_state.dart';
+import '../../../screens/track_order_screens.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,179 +37,311 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: isDark
           ? AppColors.darkBackground
           : AppColors.lightBackground,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _HomeAppBar(isDark: isDark),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.symmetric(
-                  horizontal: Responsive.horizontalPadding(context),
-                  vertical: 15,
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: Responsive.maxContentWidth(context),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 10),
-                        _SearchBox(
-                          isDark: isDark,
-                          onChanged: (q) => setState(() => _localQuery = q),
-                        ),
-                        const SizedBox(height: 25),
-                        _SectionHeader(
-                          title: 'Our Services',
-                          onViewAll: () => context.go(RoutesName.services),
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 15),
-                        _ServicesGrid(
-                          isDark: isDark,
-                          crossAxisCount: Responsive.gridCount(context),
-                          localQuery: _localQuery,
-                        ),
-                        const SizedBox(height: 30),
-                        _QuickActions(isDark: isDark),
-                        const SizedBox(height: 30),
-                        _SectionHeader(
-                          title: 'Recent Orders',
-                          onViewAll: () => context.go(RoutesName.orders),
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 15),
-                        _RecentOrdersList(isDark: isDark),
-                        const SizedBox(height: 20),
-                      ],
-                    ),
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // Collapsible Sliver App Bar
+          _HomeSliverAppBar(
+            isDark: isDark,
+            onSearch: (q) => setState(() => _localQuery = q),
+          ),
+
+          // Scrollable Content
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.horizontalPadding(context),
+                vertical: 20,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: Responsive.maxContentWidth(context),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SectionHeader(
+                        title: 'Our Services',
+                        onViewAll: () => context.go(RoutesName.services),
+                        isDark: isDark,
+                      ),
+                      const SizedBox(height: 15),
+                      _ServicesGrid(
+                        isDark: isDark,
+                        crossAxisCount: Responsive.gridCount(context),
+                        localQuery: _localQuery,
+                      ),
+                      const SizedBox(height: 30),
+                      _QuickActions(isDark: isDark),
+                      const SizedBox(height: 30),
+                      _SectionHeader(
+                        title: 'Recent Orders',
+                        onViewAll: () => context.go(RoutesName.orders),
+                        isDark: isDark,
+                      ),
+                      const SizedBox(height: 15),
+                      _RecentOrdersList(isDark: isDark),
+                      const SizedBox(height: 40),
+                    ],
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ===== App Bar =====
-class _HomeAppBar extends StatelessWidget {
+// ===== Sliver App Bar =====
+class _HomeSliverAppBar extends StatelessWidget {
   final bool isDark;
+  final ValueChanged<String> onSearch;
 
-  const _HomeAppBar({required this.isDark});
+  const _HomeSliverAppBar({
+    required this.isDark,
+    required this.onSearch,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: EdgeInsets.fromLTRB(
-        Responsive.horizontalPadding(context),
-        10,
-        Responsive.horizontalPadding(context),
-        5,
-      ),
-      decoration: BoxDecoration(
-        gradient: AppColors.gradient,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          BlocBuilder<ProfileBloc, ProfileState>(
-            builder: (context, state) {
-              final name = state is ProfileLoaded
-                  ? state.profile.fullName?.split(' ').first ?? 'User'
-                  : 'User';
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return SliverAppBar(
+      expandedHeight: 270.0, // 👈 INCREASED HEIGHT TO FIT THE GLASS CARD
+      pinned: true,
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      automaticallyImplyLeading: false,
+      // Gradient background wrapper with curved bottom edges
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: AppColors.gradient,
+          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: FlexibleSpaceBar(
+          // Fades out the search bar & glass card as it collapses
+          collapseMode: CollapseMode.parallax,
+          background: SafeArea(
+            child: Padding(
+              // Added top padding to prevent overlapping with the pinned title
+              padding: const EdgeInsets.fromLTRB(20, 65, 20, 20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text(
-                    'EzeeWash',
-                    style: GoogleFonts.pacifico(
+                  const _UserProfileGlassCard(), // 👈 NEW GLASS CARD WIDGET
+                  const SizedBox(height: 16),
+                  _SearchBox(
+                    isDark: isDark,
+                    onChanged: onSearch,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      // Pinned Title (Name and Greeting)
+      title: BlocBuilder<ProfileBloc, ProfileState>(
+        builder: (context, state) {
+          final name = state is ProfileLoaded
+              ? state.profile.fullName?.split(' ').first ?? 'User'
+              : 'User';
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'EzzeWash',
+                style: GoogleFonts.pacifico(
+                  color: Colors.white,
+                  fontSize: 22,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              Text(
+                'Welcome 👋',
+                style: GoogleFonts.alexandria(
+                  color: Colors.white.withOpacity(0.85),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+      // Pinned Actions (Notification Bell)
+      actions: [
+        GestureDetector(
+          onTap: () => context.go(RoutesName.alerts),
+          child: BlocBuilder<NotificationsBloc, NotificationsState>(
+            builder: (context, state) {
+              final unread = state is NotificationsLoaded
+                  ? state.unreadCount
+                  : 0;
+              return Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Iconsax.notification,
                       color: Colors.white,
-                      fontSize: 26,
-                      letterSpacing: 1.2,
+                      size: 22,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Hello, $name 👋',
-                    style: GoogleFonts.alexandria(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: 12,
+                  if (unread > 0)
+                    Positioned(
+                      right: -4,
+                      top: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.primary,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          unread > 9 ? '9+' : '$unread',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
                 ],
               );
             },
           ),
-          GestureDetector(
-            onTap: () => context.go(RoutesName.alerts),
-            child: BlocBuilder<NotificationsBloc, NotificationsState>(
-              builder: (context, state) {
-                final unread = state is NotificationsLoaded
-                    ? state.unreadCount
-                    : 0;
-                return Stack(
-                  clipBehavior: Clip.none,
+        ),
+        const SizedBox(width: 20),
+      ],
+    );
+  }
+}
+
+// ===== NEW: Transparent Glass Profile Card =====
+class _UserProfileGlassCard extends StatelessWidget {
+  const _UserProfileGlassCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ProfileBloc, ProfileState>(
+      builder: (context, state) {
+        if (state is ProfileLoaded) {
+          final p = state.profile;
+
+          // Format address nicely
+          String location = '';
+          if (p.address != null && p.address!.isNotEmpty) location += p.address!;
+          if (p.city != null && p.city!.isNotEmpty) {
+            location += location.isNotEmpty ? ', ${p.city}' : p.city!;
+          }
+
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12), // Glass Blur
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white.withOpacity(0.25)),
+                ),
+                child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Iconsax.notification,
-                        color: Colors.white,
-                        size: 24,
+                    // Profile Avatar
+                    CircleAvatar(
+                      radius: 26,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      backgroundImage: p.avatarUrl != null
+                          ? CachedNetworkImageProvider(p.avatarUrl!)
+                          : null,
+                      child: p.avatarUrl == null
+                          ? const Icon(Iconsax.user, color: Colors.white)
+                          : null,
+                    ),
+                    const SizedBox(width: 14),
+
+                    // Profile Details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            p.fullName ?? 'User Profile',
+                            style: GoogleFonts.alexandria(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (p.phone != null && p.phone!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.phone, color: Colors.white70, size: 12),
+                                const SizedBox(width: 4),
+                                Text(
+                                  p.phone!,
+                                  style: GoogleFonts.alexandria(color: Colors.white70, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (location.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 2),
+                                  child: Icon(Icons.location_on, color: Colors.white70, size: 12),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    location,
+                                    style: GoogleFonts.alexandria(color: Colors.white70, fontSize: 11),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    if (unread > 0)
-                      Positioned(
-                        right: -2,
-                        top: -2,
-                        child: Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.secondary,
-                              width: 2,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              unread > 9 ? '9+' : '$unread',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
                   ],
-                );
-              },
+                ),
+              ),
             ),
-          ),
-        ],
-      ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
     );
   }
 }
@@ -242,12 +375,12 @@ class _SearchBoxState extends State<_SearchBox> {
         boxShadow: widget.isDark
             ? []
             : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: TextField(
         controller: _ctrl,
@@ -267,20 +400,20 @@ class _SearchBoxState extends State<_SearchBox> {
             builder: (_, value, __) => value.text.isEmpty
                 ? const SizedBox.shrink()
                 : IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                    color: Colors.grey[400],
-                    onPressed: () {
-                      _ctrl.clear();
-                      widget.onChanged('');
-                    },
-                  ),
+              icon: const Icon(Icons.close_rounded, size: 18),
+              color: Colors.grey[400],
+              onPressed: () {
+                _ctrl.clear();
+                widget.onChanged('');
+              },
+            ),
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide.none,
           ),
           contentPadding: const EdgeInsets.symmetric(
-            vertical: 16,
+            vertical: 14,
             horizontal: 20,
           ),
         ),
@@ -352,8 +485,6 @@ class _ServicesGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ServicesBloc, ServicesState>(
-      // Only rebuild when the master services list changes — not on
-      // service screen filter/search changes which mutate state.filtered
       buildWhen: (prev, curr) {
         if (prev is ServicesLoaded && curr is ServicesLoaded) {
           return prev.services != curr.services;
@@ -364,21 +495,19 @@ class _ServicesGrid extends StatelessWidget {
         if (state is ServicesLoading) return _buildShimmerGrid();
 
         if (state is ServicesLoaded) {
-          // Always read from the unfiltered master list — never state.filtered
-          // which is owned by the service screen's search/category state.
           final q = localQuery.toLowerCase().trim();
           final all = state.services;
           final services =
-              (q.isEmpty
-                      ? all
-                      : all.where((s) {
-                          return s.title.toLowerCase().contains(q) ||
-                              (s.description?.toLowerCase().contains(q) ??
-                                  false) ||
-                              s.tags.any((t) => t.toLowerCase().contains(q));
-                        }).toList())
-                  .take(4)
-                  .toList();
+          (q.isEmpty
+              ? all
+              : all.where((s) {
+            return s.title.toLowerCase().contains(q) ||
+                (s.description?.toLowerCase().contains(q) ??
+                    false) ||
+                s.tags.any((t) => t.toLowerCase().contains(q));
+          }).toList())
+              .take(4)
+              .toList();
 
           if (services.isEmpty && q.isNotEmpty) {
             return Padding(
@@ -499,17 +628,16 @@ class _ServiceCardState extends State<_ServiceCard> {
             boxShadow: widget.isDark
                 ? []
                 : [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 15,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 15,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Service image or fallback icon
               Container(
                 width: 60,
                 height: 60,
@@ -517,8 +645,8 @@ class _ServiceCardState extends State<_ServiceCard> {
                   gradient: widget.imageUrl == null ? AppColors.gradient : null,
                   color: widget.imageUrl != null
                       ? (widget.isDark
-                            ? AppColors.darkSurface
-                            : Colors.grey.shade100)
+                      ? AppColors.darkSurface
+                      : Colors.grey.shade100)
                       : null,
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -526,35 +654,35 @@ class _ServiceCardState extends State<_ServiceCard> {
                   borderRadius: BorderRadius.circular(16),
                   child: widget.imageUrl != null
                       ? CachedNetworkImage(
-                          imageUrl: widget.imageUrl!,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primary.withOpacity(0.5),
-                              ),
-                            ),
-                          ),
-                          errorWidget: (_, __, ___) => Container(
-                            decoration: BoxDecoration(
-                              gradient: AppColors.gradient,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Icon(
-                              widget.fallbackIcon,
-                              color: Colors.white,
-                              size: 26,
-                            ),
-                          ),
-                        )
-                      : Icon(
-                          widget.fallbackIcon,
-                          color: Colors.white,
-                          size: 26,
+                    imageUrl: widget.imageUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary.withOpacity(0.5),
                         ),
+                      ),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      decoration: BoxDecoration(
+                        gradient: AppColors.gradient,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        widget.fallbackIcon,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                    ),
+                  )
+                      : Icon(
+                    widget.fallbackIcon,
+                    color: Colors.white,
+                    size: 26,
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -663,17 +791,17 @@ class _ActionBtn extends StatelessWidget {
           border: filled
               ? null
               : Border.all(
-                  color: AppColors.primary.withOpacity(0.4),
-                  width: 1.5,
-                ),
+            color: AppColors.primary.withOpacity(0.4),
+            width: 1.5,
+          ),
           boxShadow: filled
               ? [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ]
               : [],
         ),
         child: Row(
@@ -710,7 +838,6 @@ class _RecentOrdersList extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<OrdersBloc, OrdersState>(
       builder: (context, state) {
-        // Only show spinner on the very first load (OrdersInitial → OrdersLoading)
         if (state is OrdersInitial || state is OrdersLoading) {
           return const Center(
             child: Padding(
@@ -737,22 +864,21 @@ class _RecentOrdersList extends StatelessWidget {
             children: recent
                 .map(
                   (order) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _RecentOrderCard(
-                      orderId: order.id,
-                      id: '#${order.orderNumber}',
-                      service: order.serviceName,
-                      status: order.status,
-                      progress: order.progress,
-                      isDark: isDark,
-                      image: order.serviceImageUrl.toString(),
-                    ),
-                  ),
-                )
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _RecentOrderCard(
+                  orderId: order.id,
+                  id: '#${order.orderNumber}',
+                  service: order.serviceName,
+                  status: order.status,
+                  progress: order.progress,
+                  isDark: isDark,
+                  image: order.serviceImageUrl.toString(),
+                ),
+              ),
+            )
                 .toList(),
           );
         }
-        // OrderPlacing / OrderPlaced / OrdersError — show nothing in home
         return const SizedBox.shrink();
       },
     );
@@ -793,12 +919,12 @@ class _RecentOrderCard extends StatelessWidget {
           boxShadow: isDark
               ? []
               : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 15,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           children: [
@@ -877,8 +1003,8 @@ class _RecentOrderCard extends StatelessWidget {
             ),
           ],
         ),
-      ), // Container
-    ); // GestureDetector
+      ),
+    );
   }
 }
 
@@ -911,35 +1037,35 @@ class _ServiceImage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: imageUrl != null
             ? CachedNetworkImage(
-                imageUrl: imageUrl!,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.primary.withOpacity(0.5),
-                    ),
-                  ),
-                ),
-                errorWidget: (_, __, ___) => Container(
-                  decoration: BoxDecoration(
-                    gradient: AppColors.gradient,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.local_laundry_service,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-              )
-            : const Icon(
-                Icons.local_laundry_service,
-                color: Colors.white,
-                size: 28,
+          imageUrl: imageUrl!,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary.withOpacity(0.5),
               ),
+            ),
+          ),
+          errorWidget: (_, __, ___) => Container(
+            decoration: BoxDecoration(
+              gradient: AppColors.gradient,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.local_laundry_service,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+        )
+            : const Icon(
+          Icons.local_laundry_service,
+          color: Colors.white,
+          size: 28,
+        ),
       ),
     );
   }

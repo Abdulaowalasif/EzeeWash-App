@@ -18,12 +18,17 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
   final SupabaseClient _client;
   OrdersRemoteDataSourceImpl(this._client);
 
-  // rider_locations joined with riders so we get full rider profile in one query
+  // Join riders directly via orders.rider_id (current assigned rider).
+  // Also join rider_locations for live lat/lng (separate table, keyed by rider_id).
   static const _select =
-      '*, services(title,category,image_url), stores(name), order_timelines(*), rider_locations(*, riders(*))';
+      '*, services(title,category,image_url), stores(name), order_timelines(*),'
+      ' riders:rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
+      ' rider_locations!rider_locations_order_id_fkey(latitude,longitude,updated_at)';
 
   static const _selectNoTimeline =
-      '*, services(title,category,image_url), stores(name), rider_locations(*, riders(*))';
+      '*, services(title,category,image_url), stores(name),'
+      ' riders:rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
+      ' rider_locations!rider_locations_order_id_fkey(latitude,longitude,updated_at)';
 
   @override
   Future<List<OrderModel>> getOrders(String userId) async {

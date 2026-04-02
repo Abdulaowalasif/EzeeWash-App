@@ -1,4 +1,4 @@
-// lib/features/services/screens/service_screen.dart
+// lib/features/services/presentation/screens/service_screen.dart
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -52,61 +52,56 @@ class _ServiceScreenState extends State<ServiceScreen> {
     return Scaffold(
       backgroundColor:
       isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Sticky header
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                Responsive.horizontalPadding(context),
-                10,
-                Responsive.horizontalPadding(context),
-                0,
-              ),
-              child: _ServicesAppBar(isDark: isDark),
+      // Removed SafeArea from the body root so the custom app bar
+      // can draw its gradient fully behind the status bar.
+      body: Column(
+        children: [
+          // 🚀 Fixed (Non-Sliver) App Bar containing the Search Box
+          _ServicesAppBar(isDark: isDark),
+
+          Expanded(
+            child: BlocBuilder<ServicesBloc, ServicesState>(
+              builder: (context, state) {
+                if (state is ServicesLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (state is ServicesError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            color: AppColors.error, size: 48),
+                        const SizedBox(height: 12),
+                        Text(state.message),
+                        TextButton(
+                          onPressed: () => context
+                              .read<ServicesBloc>()
+                              .add(const ServicesLoadRequested()),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                if (state is ServicesLoaded) {
+                  return _ServicesContent(
+                    state: state,
+                    isDark: isDark,
+                    categoryIcons: _categoryIcons,
+                  );
+                }
+                return const SizedBox.shrink();
+              },
             ),
-            Expanded(
-              child: BlocBuilder<ServicesBloc, ServicesState>(
-                builder: (context, state) {
-                  if (state is ServicesLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (state is ServicesError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline,
-                              color: AppColors.error, size: 48),
-                          const SizedBox(height: 12),
-                          Text(state.message),
-                          TextButton(
-                            onPressed: () => context
-                                .read<ServicesBloc>()
-                                .add(const ServicesLoadRequested()),
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  if (state is ServicesLoaded) {
-                    return _ServicesContent(
-                      state: state,
-                      isDark: isDark,
-                      categoryIcons: _categoryIcons,
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
+
+// ─── Unified Custom App Bar ───────────────────────────────────────────────────
 
 class _ServicesAppBar extends StatelessWidget {
   final bool isDark;
@@ -115,43 +110,114 @@ class _ServicesAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      width: double.infinity,
       decoration: BoxDecoration(
         gradient: AppColors.gradient,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Our Services',
-            style: GoogleFonts.alexandria(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+      child: SafeArea(
+        bottom: false, // Ensures we only pad the top (status bar)
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Our Services',
+                    style: GoogleFonts.alexandria(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Iconsax.category,
+                        color: Colors.white, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Moved SearchBar here from the body content
+              _SearchBar(isDark: isDark),
+            ],
           ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Iconsax.category,
-                color: Colors.white, size: 20),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
+
+// ─── Enhanced Search Bar ──────────────────────────────────────────────────────
+
+class _SearchBar extends StatelessWidget {
+  final bool isDark;
+  const _SearchBar({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: isDark
+            ? []
+            : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        onChanged: (val) =>
+            context.read<ServicesBloc>().add(ServicesSearchChanged(val)),
+        style: GoogleFonts.alexandria(
+          fontSize: 14,
+          color: isDark ? Colors.white : AppColors.lightText,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Search services...',
+          hintStyle: GoogleFonts.alexandria(
+            color: isDark ? Colors.grey[500] : Colors.grey[400],
+            fontSize: 14,
+          ),
+          prefixIcon: Icon(
+            Iconsax.search_normal,
+            color: isDark ? Colors.grey[400] : Colors.grey[400],
+            size: 20,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 14,
+            horizontal: 20,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Scrollable Body Content ──────────────────────────────────────────────────
 
 class _ServicesContent extends StatelessWidget {
   final ServicesLoaded state;
@@ -172,9 +238,12 @@ class _ServicesContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(
-        horizontal: Responsive.horizontalPadding(context),
-        vertical: 20,
+      physics: const BouncingScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(
+        Responsive.horizontalPadding(context),
+        16, // Top padding just below the app bar
+        Responsive.horizontalPadding(context),
+        30, // Bottom padding to ensure scroll clearance
       ),
       child: Center(
         child: ConstrainedBox(
@@ -184,9 +253,6 @@ class _ServicesContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Search
-              _SearchBar(isDark: isDark),
-              const SizedBox(height: 20),
               // Category chips
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -209,7 +275,10 @@ class _ServicesContent extends StatelessWidget {
                   }).toList(),
                 ),
               ),
-              const SizedBox(height: 24),
+
+              // 🚀 FIX: Reduced manual gap
+              const SizedBox(height: 20),
+
               // Services list
               if (state.filtered.isEmpty)
                 Center(
@@ -229,6 +298,8 @@ class _ServicesContent extends StatelessWidget {
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
+                  // 🚀 FIX: Kill automatic Safe Area padding added by ListView
+                  padding: EdgeInsets.zero,
                   itemCount: state.filtered.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 16),
                   itemBuilder: (context, i) => _ServiceCard(
@@ -236,7 +307,6 @@ class _ServicesContent extends StatelessWidget {
                     isDark: isDark,
                   ),
                 ),
-              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -245,43 +315,7 @@ class _ServicesContent extends StatelessWidget {
   }
 }
 
-class _SearchBar extends StatelessWidget {
-  final bool isDark;
-  const _SearchBar({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      onChanged: (val) =>
-          context.read<ServicesBloc>().add(ServicesSearchChanged(val)),
-      decoration: InputDecoration(
-        hintText: 'Search services...',
-        hintStyle: GoogleFonts.alexandria(
-            color: Colors.grey.shade500, fontSize: 14),
-        prefixIcon: Icon(Iconsax.search_normal,
-            color: Colors.grey.shade400, size: 20),
-        filled: true,
-        fillColor:
-        isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: isDark ? Colors.transparent : AppColors.lightBorder,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.primary),
-        ),
-      ),
-    );
-  }
-}
+// ─── Category Chip ────────────────────────────────────────────────────────────
 
 class _CategoryChip extends StatelessWidget {
   final String label;
@@ -304,22 +338,17 @@ class _CategoryChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        padding:
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           gradient: isSelected ? AppColors.gradient : null,
           color: isSelected
               ? null
-              : (isDark
-              ? AppColors.darkSurface
-              : AppColors.lightSurface),
+              : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
           borderRadius: BorderRadius.circular(20),
           border: isSelected
               ? null
               : Border.all(
-            color: isDark
-                ? AppColors.darkBorder
-                : AppColors.lightBorder,
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
             width: 1.2,
           ),
           boxShadow: isSelected
@@ -340,17 +369,14 @@ class _CategoryChip extends StatelessWidget {
               size: 16,
               color: isSelected
                   ? Colors.white
-                  : (isDark
-                  ? AppColors.darkSubtext
-                  : AppColors.lightSubtext),
+                  : (isDark ? AppColors.darkSubtext : AppColors.lightSubtext),
             ),
             const SizedBox(width: 6),
             Text(
               label,
               style: GoogleFonts.alexandria(
                 fontSize: 13,
-                fontWeight:
-                isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected
                     ? Colors.white
                     : (isDark ? Colors.white70 : Colors.black87),
@@ -362,6 +388,8 @@ class _CategoryChip extends StatelessWidget {
     );
   }
 }
+
+// ─── Service Card ─────────────────────────────────────────────────────────────
 
 class _ServiceCard extends StatelessWidget {
   final ServiceEntity service;
@@ -376,8 +404,7 @@ class _ServiceCard extends StatelessWidget {
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color:
-          isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
         ),
         boxShadow: isDark
             ? []
@@ -394,8 +421,7 @@ class _ServiceCard extends StatelessWidget {
         children: [
           // Service image
           ClipRRect(
-            borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             child: SizedBox(
               height: 140,
               width: double.infinity,
@@ -414,7 +440,8 @@ class _ServiceCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                errorWidget: (_, __, ___) => _ServiceImageFallback(isDark: isDark),
+                errorWidget: (_, __, ___) =>
+                    _ServiceImageFallback(isDark: isDark),
               )
                   : _ServiceImageFallback(isDark: isDark),
             ),
@@ -436,9 +463,7 @@ class _ServiceCard extends StatelessWidget {
                             style: GoogleFonts.alexandria(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              color: isDark
-                                  ? Colors.white
-                                  : AppColors.lightText,
+                              color: isDark ? Colors.white : AppColors.lightText,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -503,8 +528,7 @@ class _ServiceCard extends StatelessWidget {
                               color: AppColors.primary, width: 1.5),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
-                          padding:
-                          const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         label: Text(
                           'Reviews',
@@ -533,16 +557,15 @@ class _ServiceCard extends StatelessWidget {
                         child: ElevatedButton.icon(
                           icon: const Icon(Iconsax.calendar_tick,
                               color: Colors.white, size: 16),
-                          onPressed: () => context
-                              .push(RoutesName.placeOrdersNavigate, extra: service.id),
+                          onPressed: () => context.push(
+                              RoutesName.placeOrdersNavigate,
+                              extra: service.id),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
-                                borderRadius:
-                                BorderRadius.circular(12)),
-                            padding:
-                            const EdgeInsets.symmetric(vertical: 12),
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                           label: Text(
                             'Book Now',
@@ -616,8 +639,6 @@ class _ServiceImageFallback extends StatelessWidget {
     );
   }
 }
-
-
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REVIEW SYSTEM
@@ -702,7 +723,10 @@ class _ReviewSheetState extends State<_ReviewSheet> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final data = await _client
           .from(AppConstants.reviewsTable)
@@ -724,11 +748,13 @@ class _ReviewSheetState extends State<_ReviewSheet> {
         _dist = dist;
         _avg = reviews.isEmpty ? 0 : sum / reviews.length;
         _loading = false;
-        _alreadyReviewed =
-            uid != null && reviews.any((r) => r.userId == uid);
+        _alreadyReviewed = uid != null && reviews.any((r) => r.userId == uid);
       });
     } catch (e) {
-      setState(() { _loading = false; _error = e.toString(); });
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
     }
   }
 
@@ -750,7 +776,6 @@ class _ReviewSheetState extends State<_ReviewSheet> {
     final bg = widget.isDark ? AppColors.darkSurface : Colors.white;
 
     return DraggableScrollableSheet(
-      // starts at ~50 %, snaps to 85 % when dragged up
       initialChildSize: 0.52,
       minChildSize: 0.35,
       maxChildSize: 0.88,
@@ -788,7 +813,9 @@ class _ReviewSheetState extends State<_ReviewSheet> {
                       color: AppColors.primary, strokeWidth: 2.5))
                   : _error != null
                   ? _ErrorState(
-                  message: _error!, onRetry: _load, isDark: widget.isDark)
+                  message: _error!,
+                  onRetry: _load,
+                  isDark: widget.isDark)
                   : CustomScrollView(
                 controller: scrollCtrl,
                 physics: const ClampingScrollPhysics(),
@@ -844,8 +871,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
                             (_, i) => _ReviewTile(
                           review: _reviews[i],
                           isDark: widget.isDark,
-                          showDivider:
-                          i < _reviews.length - 1,
+                          showDivider: i < _reviews.length - 1,
                         ),
                         childCount: _reviews.length,
                       ),
@@ -902,7 +928,10 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
       setState(() => _error = 'You must be signed in to review.');
       return;
     }
-    setState(() { _submitting = true; _error = null; });
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
     try {
       await _client.from(AppConstants.reviewsTable).insert({
         'service_id': widget.service.id,
@@ -972,8 +1001,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
                 ),
                 IconButton(
                   icon: Icon(Icons.close_rounded,
-                      color:
-                      widget.isDark ? Colors.white54 : Colors.black38),
+                      color: widget.isDark ? Colors.white54 : Colors.black38),
                   onPressed: () => Navigator.pop(context),
                 ),
               ]),
@@ -1046,15 +1074,13 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
                     maxLength: 500,
                     style: GoogleFonts.alexandria(
                         fontSize: 14,
-                        color: widget.isDark
-                            ? Colors.white
-                            : AppColors.lightText),
+                        color:
+                        widget.isDark ? Colors.white : AppColors.lightText),
                     decoration: InputDecoration(
                       hintText: 'Share your experience…',
                       hintStyle: GoogleFonts.alexandria(
-                          color: widget.isDark
-                              ? Colors.white30
-                              : Colors.black38,
+                          color:
+                          widget.isDark ? Colors.white30 : Colors.black38,
                           fontSize: 13),
                       filled: true,
                       fillColor: widget.isDark
@@ -1078,9 +1104,8 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
                       ),
                       counterStyle: GoogleFonts.alexandria(
                           fontSize: 11,
-                          color: widget.isDark
-                              ? Colors.white30
-                              : Colors.black38),
+                          color:
+                          widget.isDark ? Colors.white30 : Colors.black38),
                     ),
                   ),
 
@@ -1114,8 +1139,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
                             ? []
                             : [
                           BoxShadow(
-                              color:
-                              AppColors.primary.withOpacity(0.28),
+                              color: AppColors.primary.withOpacity(0.28),
                               blurRadius: 12,
                               offset: const Offset(0, 4)),
                         ],
@@ -1184,9 +1208,7 @@ class _SummaryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isDark
-        ? AppColors.primary.withOpacity(0.08)
-        : const Color(0xFFF0F5FF);
+    final bg = isDark ? AppColors.primary.withOpacity(0.08) : const Color(0xFFF0F5FF);
 
     if (count == 0) {
       return Container(
@@ -1194,8 +1216,7 @@ class _SummaryBar extends StatelessWidget {
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: AppColors.primary.withOpacity(0.15)),
+          border: Border.all(color: AppColors.primary.withOpacity(0.15)),
         ),
         child: Row(children: [
           Container(
@@ -1211,9 +1232,7 @@ class _SummaryBar extends StatelessWidget {
           Text('No reviews yet — be the first!',
               style: GoogleFonts.alexandria(
                   fontSize: 13,
-                  color: isDark
-                      ? AppColors.darkSubtext
-                      : AppColors.lightSubtext)),
+                  color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
         ]),
       );
     }
@@ -1244,9 +1263,7 @@ class _SummaryBar extends StatelessWidget {
             '$count review${count == 1 ? '' : 's'}',
             style: GoogleFonts.alexandria(
                 fontSize: 10,
-                color: isDark
-                    ? AppColors.darkSubtext
-                    : AppColors.lightSubtext),
+                color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext),
           ),
         ]),
 
@@ -1511,7 +1528,6 @@ class _ReviewTile extends StatelessWidget {
             ),
           ]),
         ),
-
         if (showDivider)
           Divider(
               height: 1,
@@ -1584,16 +1600,13 @@ class _ErrorState extends StatelessWidget {
   final bool isDark;
 
   const _ErrorState(
-      {required this.message,
-        required this.onRetry,
-        required this.isDark});
+      {required this.message, required this.onRetry, required this.isDark});
 
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
       padding: const EdgeInsets.all(24),
-      child:
-      Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         const Icon(Icons.error_outline, color: AppColors.error, size: 44),
         const SizedBox(height: 12),
         Text(message,
@@ -1643,9 +1656,7 @@ class _SheetHeader extends StatelessWidget {
   final VoidCallback onClose;
 
   const _SheetHeader(
-      {required this.service,
-        required this.isDark,
-        required this.onClose});
+      {required this.service, required this.isDark, required this.onClose});
 
   @override
   Widget build(BuildContext context) {
@@ -1664,21 +1675,20 @@ class _SheetHeader extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(service.title,
-                      style: GoogleFonts.alexandria(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: isDark ? Colors.white : AppColors.lightText)),
-                  Text('Customer Reviews',
-                      style: GoogleFonts.alexandria(
-                          fontSize: 11,
-                          color: isDark
-                              ? AppColors.darkSubtext
-                              : AppColors.lightSubtext)),
-                ]),
+            child:
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(service.title,
+                  style: GoogleFonts.alexandria(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: isDark ? Colors.white : AppColors.lightText)),
+              Text('Customer Reviews',
+                  style: GoogleFonts.alexandria(
+                      fontSize: 11,
+                      color: isDark
+                          ? AppColors.darkSubtext
+                          : AppColors.lightSubtext)),
+            ]),
           ),
           IconButton(
             icon: Icon(Icons.close_rounded,

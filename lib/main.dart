@@ -4,7 +4,6 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -29,9 +28,7 @@ import 'firebase_options.dart';
 import 'routes/app_router.dart';
 
 void main() async {
-  // Preserve the native splash screen until initialization is complete
-  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  WidgetsFlutterBinding.ensureInitialized();
 
   // 1. Load environment variables
   await dotenv.load(fileName: '.env');
@@ -54,9 +51,6 @@ void main() async {
   // 6. Dependency injection setup
   await initDependencies();
 
-  // Remove the native splash screen after all async services are ready
-  FlutterNativeSplash.remove();
-
   runApp(const EzeeWashApp());
 }
 
@@ -74,9 +68,7 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
   @override
   void initState() {
     super.initState();
-    // Initialize AuthBloc and trigger the check for an existing user session
     _authBloc = sl<AuthBloc>()..add(const AuthCheckRequested());
-    // Create the router with access to the AuthBloc for redirection logic
     _router = createRouter(_authBloc);
   }
 
@@ -119,7 +111,6 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
 
 class _AuthReactiveLoader extends StatefulWidget {
   final Widget child;
-
   const _AuthReactiveLoader({required this.child});
 
   @override
@@ -134,35 +125,23 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
   Widget build(BuildContext context) {
     return MultiBlocListener(
       listeners: [
-        // Monitor auth state to trigger data loading or notification cleanup
         BlocListener<AuthBloc, AuthState>(
           listener: (ctx, state) {
             if (state is AuthAuthenticated) {
               final userId = state.user.id;
-
-              // Link OneSignal subscription on login
-              unawaited(
-                NotificationService.loginAndWaitForSubscription(userId),
-              );
-
-              // Load user data once upon successful authentication
+              unawaited(NotificationService.loginAndWaitForSubscription(userId));
               if (!_loaded) {
                 _loaded = true;
                 ctx.read<OrdersBloc>().add(const OrdersLoadRequested());
-                ctx.read<NotificationsBloc>().add(
-                  const NotificationsLoadRequested(),
-                );
+                ctx.read<NotificationsBloc>().add(const NotificationsLoadRequested());
                 ctx.read<ProfileBloc>().add(const ProfileLoadRequested());
               }
             } else if (state is AuthUnauthenticated || state is AuthError) {
               _loaded = false;
-              // Clear notification user ID on logout
               NotificationService.clearUserId();
             }
           },
         ),
-
-        // Generate local notifications for foreground order status changes
         BlocListener<OrdersBloc, OrdersState>(
           listener: (ctx, state) {
             if (state is! OrdersLoaded) return;

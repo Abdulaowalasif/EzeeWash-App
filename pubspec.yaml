@@ -29,7 +29,7 @@ dependencies:
   dio: ^5.4.3+1
   flutter_stripe: ^12.4.0
   http: ^1.2.1
-  shared_preferences: ^2.3.2
+  shared_preferences: ^2.5.5
   flutter_secure_storage: ^10.0.0
 
   # --- UI ---
@@ -78,24 +78,18 @@ flutter:
     - assets/images/
     - assets/logo/
 
-
 flutter_native_splash:
-  color: "#1D4BC7"
-  image: assets/logo/logo.png
+  # ─── Light Theme Config ──────────────────────────────────────────
+  color: "#42a5f5"
+  image: "assets/logo/logo.png"
 
-  # Set to false to prevent the background/image from stretching to screen edges
-  fullscreen: false
-
-  # Fixes vertical/horizontal stretching by centering the icon
-  android_gravity: center
-  ios_content_mode: center
-
+  # ─── Android 12+ Specific Config ─────────────────────────────────
   android_12:
-    color: "#1D4BC7"
-    image: assets/logo/logo.png
-    icon_background_color: "#1D4BC7"
-    # Note: image_fraction is NOT a valid parameter; it has been removed.
+    color: "#42a5f5"
+    # ─── Dark Theme Override (Android 12+) ─────────────────────────
+    color_dark: "#042a49"
 
-  android: true
-  ios: true
-  web: false
+  # ─── General Dark Theme (Older Android/iOS) ──────────────────────
+  color_dark: "#042a49"
+
+  fullscreen: true

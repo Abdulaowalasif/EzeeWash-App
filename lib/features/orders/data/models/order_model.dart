@@ -59,6 +59,8 @@ class OrderModel extends OrderEntity {
     super.riderLat,
     super.riderLng,
     super.riderId,
+    super.pickupRiderId,
+    super.deliveryRiderId,
     super.riderName,
     super.riderPhone,
     super.riderAvatarUrl,
@@ -76,15 +78,16 @@ class OrderModel extends OrderEntity {
 
     final serviceMap = j['services'] as Map?;
 
-    // ── Extract rider_locations row (has rider_id FK + lat/lng) ──────────────
-    final riderLocs  = j['rider_locations'] as List?;
-    final locData    = (riderLocs != null && riderLocs.isNotEmpty)
+    // ── Rider profile joined directly from orders.rider_id → riders ──────────
+    // The select query aliases 'riders:rider_id(...)' so Supabase returns it
+    // as the key 'riders' in the row.
+    final riderData = j['riders'] as Map<String, dynamic>?;
+
+    // ── rider_locations: live lat/lng for the map ────────────────────────────
+    final riderLocs = j['rider_locations'] as List?;
+    final locData   = (riderLocs != null && riderLocs.isNotEmpty)
         ? riderLocs.first as Map<String, dynamic>
         : null;
-
-    // rider_locations joins riders via rider_id — Supabase returns the nested
-    // riders object when we select rider_locations(*, riders(*))
-    final riderData  = locData?['riders'] as Map<String, dynamic>?;
 
     return OrderModel(
       id: j['id'] as String,
@@ -118,19 +121,26 @@ class OrderModel extends OrderEntity {
       paymentStatus: j['payment_status'] as String? ?? 'pending',
       stripePaymentIntentId: j['stripe_payment_intent_id'] as String?,
 
-      // ── Coordinates from rider_locations ─────────────────────────────────────
-      riderLat: locData != null ? (locData['latitude']  as num).toDouble() : null,
-      riderLng: locData != null ? (locData['longitude'] as num).toDouble() : null,
+      // ── Live rider lat/lng from rider_locations ───────────────────────────
+      // Falls back to riders.current_lat/lng if no active location row exists.
+      riderLat: locData != null
+          ? (locData['latitude']  as num).toDouble()
+          : (riderData?['current_lat'] as num?)?.toDouble(),
+      riderLng: locData != null
+          ? (locData['longitude'] as num).toDouble()
+          : (riderData?['current_lng'] as num?)?.toDouble(),
 
-      // ── Rider profile from riders table ───────────────────────────────────
-      riderId:          locData?['rider_id']        as String?,
-      riderName:        riderData?['full_name']      as String?,
-      riderPhone:       riderData?['phone']          as String?,
-      riderAvatarUrl:   riderData?['avatar_url']     as String?,
-      riderVehicleType: riderData?['vehicle_type']   as String?,
-      riderVehiclePlate:riderData?['vehicle_plate']  as String?,
-      riderRating:      (riderData?['rating'] as num?)?.toDouble(),
-      riderIsOnline:    riderData?['is_online']      as bool? ?? false,
+      // ── Rider profile from orders.rider_id → riders ───────────────────────
+      riderId:           j['rider_id']              as String?,
+      pickupRiderId:     j['pickup_rider_id']       as String?,
+      deliveryRiderId:   j['delivery_rider_id']     as String?,
+      riderName:         riderData?['full_name']     as String?,
+      riderPhone:        riderData?['phone']         as String?,
+      riderAvatarUrl:    riderData?['avatar_url']    as String?,
+      riderVehicleType:  riderData?['vehicle_type']  as String?,
+      riderVehiclePlate: riderData?['vehicle_plate'] as String?,
+      riderRating:       (riderData?['rating'] as num?)?.toDouble(),
+      riderIsOnline:     riderData?['is_online']     as bool? ?? false,
     );
   }
 

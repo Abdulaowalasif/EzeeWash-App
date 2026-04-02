@@ -85,7 +85,7 @@ class NotificationService {
   }
 
   // =========================================================================
-  // loginAndWaitForSubscription() — Fixed: Now properly defined
+  // loginAndWaitForSubscription()
   // =========================================================================
   static Future<void> loginAndWaitForSubscription(String userId) async {
     final alreadyGranted = await OneSignal.Notifications.permission;
@@ -109,7 +109,7 @@ class NotificationService {
   }
 
   // =========================================================================
-  // clearUserId() — Fixed: Now properly defined
+  // clearUserId()
   // =========================================================================
   static void clearUserId() {
     OneSignal.logout();
@@ -117,7 +117,7 @@ class NotificationService {
   }
 
   // =========================================================================
-  // showOrderUpdate() — Fixed: Now properly defined
+  // showOrderUpdate()
   // =========================================================================
   static Future<void> showOrderUpdate({
     required String orderNumber,
@@ -139,12 +139,13 @@ class NotificationService {
   static void _onTap() {
     final router = _router;
     if (router != null) {
-      final loc = router.routerDelegate.currentConfiguration.last.matchedLocation;
+      final loc = router.routerDelegate.currentConfiguration.uri.toString();
       final isPreAuth = loc == RoutesName.splash || loc == RoutesName.login;
 
       if (!isPreAuth) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          router.push(RoutesName.alertsNavigate);
+          // Changed push to go to properly handle StatefulShellRoute tab switching
+          router.go(RoutesName.alertsNavigate);
         });
         return;
       }

@@ -1,4 +1,4 @@
-// lib/features/notifications/screens/notification_screen.dart
+// lib/features/notifications/presentation/screens/notification_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,212 +19,231 @@ class NotificationScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor:
       isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(100),
-        child: SafeArea(
-          child: Container(
-            margin: EdgeInsets.fromLTRB(
-              Responsive.horizontalPadding(context),
-              10,
-              Responsive.horizontalPadding(context),
-              10,
-            ),
-            padding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              gradient: AppColors.gradient,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Notifications',
-                  style: GoogleFonts.alexandria(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                // Mark All Read button — only shown when there are unread
-                BlocBuilder<NotificationsBloc, NotificationsState>(
-                  builder: (context, state) {
-                    if (state is NotificationsLoaded && state.hasUnread) {
-                      return GestureDetector(
-                        onTap: () => context
-                            .read<NotificationsBloc>()
-                            .add(const NotificationsMarkAllReadRequested()),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
+      // Replaced standard AppBar with a Column layout to use custom header
+      body: Column(
+        children: [
+          // 🚀 Fixed Custom Header matching Home, Service, and Order screens
+          _NotificationsAppBar(isDark: isDark),
+
+          Expanded(
+            child: BlocBuilder<NotificationsBloc, NotificationsState>(
+              builder: (context, state) {
+                // ── Initial / Loading ────────────────────────────────────────────
+                if (state is NotificationsInitial || state is NotificationsLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primary,
+                      strokeWidth: 2.5,
+                    ),
+                  );
+                }
+
+                // ── Error ────────────────────────────────────────────────────────
+                if (state is NotificationsError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Iconsax.warning_2,
+                            size: 64,
+                            color: isDark
+                                ? AppColors.darkSubtext
+                                : AppColors.lightSubtext,
                           ),
-                          child: Text(
-                            'Mark All Read',
+                          const SizedBox(height: 16),
+                          Text(
+                            'Could not load notifications',
                             style: GoogleFonts.alexandria(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : AppColors.lightText,
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          Text(
+                            state.message,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.alexandria(
+                              fontSize: 13,
+                              color: isDark
+                                  ? AppColors.darkSubtext
+                                  : AppColors.lightSubtext,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            label: Text(
+                              'Try Again',
+                              style: GoogleFonts.alexandria(
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            onPressed: () => context
+                                .read<NotificationsBloc>()
+                                .add(const NotificationsLoadRequested()),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                // ── Loaded ───────────────────────────────────────────────────────
+                if (state is NotificationsLoaded) {
+                  if (state.notifications.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Iconsax.notification_bing,
+                            size: 72,
+                            color: isDark
+                                ? AppColors.darkSubtext
+                                : AppColors.lightSubtext,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No notifications yet',
+                            style: GoogleFonts.alexandria(
+                              fontSize: 16,
+                              color: isDark
+                                  ? AppColors.darkSubtext
+                                  : AppColors.lightSubtext,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'You\'ll see order updates and promotions here.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.alexandria(
+                              fontSize: 13,
+                              color: isDark
+                                  ? AppColors.darkSubtext
+                                  : AppColors.lightSubtext,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    physics: const BouncingScrollPhysics(),
+                    // Manually control padding to prevent automatic SafeArea gap
+                    padding: EdgeInsets.fromLTRB(
+                      Responsive.horizontalPadding(context),
+                      16,
+                      Responsive.horizontalPadding(context),
+                      30,
+                    ),
+                    itemCount: state.notifications.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, i) {
+                      final notif = state.notifications[i];
+                      return _NotificationCard(
+                        notification: notif,
+                        isDark: isDark,
+                        onTap: notif.isRead
+                            ? null // already read — no action needed
+                            : () => context
+                            .read<NotificationsBloc>()
+                            .add(NotificationMarkReadRequested(notif.id)),
                       );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                ),
-              ],
+                    },
+                  );
+                }
+
+                return const SizedBox.shrink();
+              },
             ),
           ),
-        ),
+        ],
       ),
-      body: BlocBuilder<NotificationsBloc, NotificationsState>(
-        builder: (context, state) {
-          // ── Initial / Loading ────────────────────────────────────────────
-          if (state is NotificationsInitial || state is NotificationsLoading) {
-            return Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-                strokeWidth: 2.5,
-              ),
-            );
-          }
+    );
+  }
+}
 
-          // ── Error ────────────────────────────────────────────────────────
-          if (state is NotificationsError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Iconsax.warning_2,
-                      size: 64,
-                      color: isDark
-                          ? AppColors.darkSubtext
-                          : AppColors.lightSubtext,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Could not load notifications',
-                      style: GoogleFonts.alexandria(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : AppColors.lightText,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      state.message,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.alexandria(
-                        fontSize: 13,
-                        color: isDark
-                            ? AppColors.darkSubtext
-                            : AppColors.lightSubtext,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: Text(
-                        'Try Again',
-                        style: GoogleFonts.alexandria(
-                            fontWeight: FontWeight.w600),
-                      ),
-                      onPressed: () => context
+// ─── Custom App Bar ───────────────────────────────────────────────────────────
+
+class _NotificationsAppBar extends StatelessWidget {
+  final bool isDark;
+
+  const _NotificationsAppBar({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: AppColors.gradient,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Notifications',
+                style: GoogleFonts.alexandria(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              // Mark All Read button — only shown when there are unread
+              BlocBuilder<NotificationsBloc, NotificationsState>(
+                builder: (context, state) {
+                  if (state is NotificationsLoaded && state.hasUnread) {
+                    return GestureDetector(
+                      onTap: () => context
                           .read<NotificationsBloc>()
-                          .add(const NotificationsLoadRequested()),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                          .add(const NotificationsMarkAllReadRequested()),
+                      child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Mark All Read',
+                          style: GoogleFonts.alexandria(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
               ),
-            );
-          }
-
-          // ── Loaded ───────────────────────────────────────────────────────
-          if (state is NotificationsLoaded) {
-            if (state.notifications.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Iconsax.notification_bing,
-                      size: 72,
-                      color: isDark
-                          ? AppColors.darkSubtext
-                          : AppColors.lightSubtext,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No notifications yet',
-                      style: GoogleFonts.alexandria(
-                        fontSize: 16,
-                        color: isDark
-                            ? AppColors.darkSubtext
-                            : AppColors.lightSubtext,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'You\'ll see order updates and promotions here.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.alexandria(
-                        fontSize: 13,
-                        color: isDark
-                            ? AppColors.darkSubtext
-                            : AppColors.lightSubtext,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return ListView.separated(
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.symmetric(
-                horizontal: Responsive.horizontalPadding(context),
-                vertical: 10,
-              ),
-              itemCount: state.notifications.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (context, i) {
-                final notif = state.notifications[i];
-                return _NotificationCard(
-                  notification: notif,
-                  isDark: isDark,
-                  onTap: notif.isRead
-                      ? null // already read — no action needed
-                      : () => context
-                      .read<NotificationsBloc>()
-                      .add(NotificationMarkReadRequested(notif.id)),
-                );
-              },
-            );
-          }
-
-          return const SizedBox.shrink();
-        },
+            ],
+          ),
+        ),
       ),
     );
   }

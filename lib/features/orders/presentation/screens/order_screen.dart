@@ -152,134 +152,77 @@ class _OrderScreenState extends State<OrderScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(100),
-        child: SafeArea(
-          child: Container(
-            margin: EdgeInsets.fromLTRB(
-              Responsive.horizontalPadding(context), 10,
-              Responsive.horizontalPadding(context), 10,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              gradient: AppColors.gradient,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: 12, offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Text('My Orders',
-                  style: GoogleFonts.alexandria(
-                    color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                BlocBuilder<OrdersBloc, OrdersState>(
-                  builder: (ctx, state) {
-                    if (state is! OrdersLoaded) return const SizedBox.shrink();
-                    final allOrders = state.orders;
-                    return GestureDetector(
-                      onTap: () => _showFilterSheet(ctx, allOrders),
-                      child: Stack(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Iconsax.filter, color: Colors.white, size: 20),
+      body: Column(
+        children: [
+          _OrdersAppBar(
+            isDark: isDark,
+            filter: _filter,
+            onShowFilter: _showFilterSheet,
+          ),
+
+          Expanded(
+            child: BlocConsumer<OrdersBloc, OrdersState>(
+              listenWhen: (_, s) => s is OrderCancelled || s is OrdersError,
+              listener: (context, state) {
+                if (state is OrderCancelled) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Order cancelled.', style: GoogleFonts.alexandria(fontSize: 13)),
+                    backgroundColor: AppColors.success,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    margin: const EdgeInsets.all(16),
+                  ));
+                } else if (state is OrdersError) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(state.message, style: GoogleFonts.alexandria(fontSize: 13)),
+                    backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    margin: const EdgeInsets.all(16),
+                  ));
+                }
+              },
+              builder: (context, state) {
+                if (state is OrdersInitial || state is OrdersLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (state is OrdersError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.error_outline, color: AppColors.error, size: 52),
+                        const SizedBox(height: 14),
+                        Text(state.message,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.alexandria(fontSize: 14,
+                              color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          onPressed: () => context.read<OrdersBloc>().add(const OrdersLoadRequested()),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          if (_filter.activeCount > 0)
-                            Positioned(
-                              right: 0, top: 0,
-                              child: Container(
-                                width: 16, height: 16,
-                                decoration: const BoxDecoration(
-                                  color: Colors.orangeAccent,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: Text('${_filter.activeCount}',
-                                    style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ],
+                          label: Text('Retry', style: GoogleFonts.alexandria(fontWeight: FontWeight.w600)),
+                        ),
+                      ]),
+                    ),
+                  );
+                }
+                if (state is OrdersLoaded) {
+                  return _OrdersBody(state: state, isDark: isDark, filter: _filter,
+                    onClearFilter: () => setState(() => _filter = const _OrderFilter()),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
             ),
           ),
-        ),
-      ),
-      body: BlocConsumer<OrdersBloc, OrdersState>(
-        listenWhen: (_, s) => s is OrderCancelled || s is OrdersError,
-        listener: (context, state) {
-          if (state is OrderCancelled) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Order cancelled.', style: GoogleFonts.alexandria(fontSize: 13)),
-              backgroundColor: AppColors.success,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              margin: const EdgeInsets.all(16),
-            ));
-          } else if (state is OrdersError) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(state.message, style: GoogleFonts.alexandria(fontSize: 13)),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              margin: const EdgeInsets.all(16),
-            ));
-          }
-        },
-        builder: (context, state) {
-          if (state is OrdersInitial || state is OrdersLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state is OrdersError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.error_outline, color: AppColors.error, size: 52),
-                  const SizedBox(height: 14),
-                  Text(state.message,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.alexandria(fontSize: 14,
-                        color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                    onPressed: () => context.read<OrdersBloc>().add(const OrdersLoadRequested()),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary, foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    label: Text('Retry', style: GoogleFonts.alexandria(fontWeight: FontWeight.w600)),
-                  ),
-                ]),
-              ),
-            );
-          }
-          if (state is OrdersLoaded) {
-            return _OrdersBody(state: state, isDark: isDark, filter: _filter,
-              onClearFilter: () => setState(() => _filter = const _OrderFilter()),
-            );
-          }
-          return const SizedBox.shrink();
-        },
+        ],
       ),
       floatingActionButton: Container(
         decoration: BoxDecoration(
@@ -292,6 +235,101 @@ class _OrderScreenState extends State<OrderScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           child: const Icon(Iconsax.add, color: Colors.white, size: 28),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Custom App Bar ───────────────────────────────────────────────────────────
+
+class _OrdersAppBar extends StatelessWidget {
+  final bool isDark;
+  final _OrderFilter filter;
+  final void Function(BuildContext, List<OrderEntity>) onShowFilter;
+
+  const _OrdersAppBar({
+    required this.isDark,
+    required this.filter,
+    required this.onShowFilter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: AppColors.gradient,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'My Orders',
+                style: GoogleFonts.alexandria(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              BlocBuilder<OrdersBloc, OrdersState>(
+                builder: (ctx, state) {
+                  if (state is! OrdersLoaded) return const SizedBox.shrink();
+                  final allOrders = state.orders;
+                  return GestureDetector(
+                    onTap: () => onShowFilter(ctx, allOrders),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Iconsax.filter, color: Colors.white, size: 20),
+                        ),
+                        if (filter.activeCount > 0)
+                          Positioned(
+                            right: -2,
+                            top: -2,
+                            child: Container(
+                              width: 16,
+                              height: 16,
+                              decoration: const BoxDecoration(
+                                color: Colors.orangeAccent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${filter.activeCount}',
+                                  style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -319,8 +357,9 @@ class _OrdersBody extends StatelessWidget {
     final displayed = filter.apply(base);
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: Responsive.horizontalPadding(context), vertical: 10,
+      padding: EdgeInsets.fromLTRB(
+        Responsive.horizontalPadding(context), 16,
+        Responsive.horizontalPadding(context), 10,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -354,6 +393,7 @@ class _OrdersBody extends StatelessWidget {
                   ? _EmptyState(showActive: state.showActive, isDark: isDark, isFiltered: filter.isActive)
                   : ListView.separated(
                 physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.zero,
                 itemCount: displayed.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 16),
                 itemBuilder: (context, i) {
@@ -454,7 +494,7 @@ class _ActiveFilterBar extends StatelessWidget {
   }
 }
 
-// ─── Filter bottom sheet ──────────────────────────────────────────────────────
+// ─── Filter bottom sheet (Draggable) ──────────────────────────────────────────
 
 class _FilterSheet extends StatefulWidget {
   final _OrderFilter current;
@@ -496,10 +536,8 @@ class _FilterSheetState extends State<_FilterSheet> {
   }
 
   bool get isDark => Theme.of(context).brightness == Brightness.dark;
-
   Color get _bg => isDark ? AppColors.darkSurface : Colors.white;
   Color get _textColor => isDark ? Colors.white : AppColors.lightText;
-  Color get _subColor => isDark ? AppColors.darkSubtext : AppColors.lightSubtext;
 
   Widget _sectionTitle(String t) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
@@ -562,138 +600,169 @@ class _FilterSheetState extends State<_FilterSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 32),
-      decoration: BoxDecoration(
-        color: _bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: SingleChildScrollView(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Handle
-          Center(child: Container(
-            width: 40, height: 4,
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white24 : Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          )),
-          const SizedBox(height: 20),
-          // Header
-          Row(children: [
-            Text('Filter Orders', style: GoogleFonts.alexandria(
-              fontSize: 20, fontWeight: FontWeight.bold, color: _textColor,
-            )),
-            const Spacer(),
-            if (_f.isActive)
-              GestureDetector(
-                onTap: () => setState(() => _f = const _OrderFilter()),
-                child: Text('Reset', style: GoogleFonts.alexandria(
-                  fontSize: 13, color: AppColors.error, fontWeight: FontWeight.w600,
-                )),
-              ),
-          ]),
-          const SizedBox(height: 24),
-
-          // ── Date Range ──────────────────────────────────────────────────
-          _sectionTitle('Date Range'),
-          Wrap(children: [
-            _chip(label: 'All time',   selected: _f.dateRange == _DateRange.all,    onTap: () => setState(() => _f = _f.copyWith(dateRange: _DateRange.all))),
-            _chip(label: 'Today',      selected: _f.dateRange == _DateRange.today,  onTap: () => setState(() => _f = _f.copyWith(dateRange: _DateRange.today))),
-            _chip(label: 'Last 7 days',selected: _f.dateRange == _DateRange.last7,  onTap: () => setState(() => _f = _f.copyWith(dateRange: _DateRange.last7))),
-            _chip(label: 'Last 30 days',selected: _f.dateRange == _DateRange.last30,onTap: () => setState(() => _f = _f.copyWith(dateRange: _DateRange.last30))),
-            _chip(label: 'Custom',     selected: _f.dateRange == _DateRange.custom, onTap: () => setState(() => _f = _f.copyWith(dateRange: _DateRange.custom))),
-          ]),
-          if (_f.dateRange == _DateRange.custom) ...[
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(child: _DateButton(label: 'From: ${_fmtDate(_f.customStart)}', onTap: () => _pickCustomDate(true), isDark: isDark)),
-              const SizedBox(width: 12),
-              Expanded(child: _DateButton(label: 'To: ${_fmtDate(_f.customEnd)}',     onTap: () => _pickCustomDate(false), isDark: isDark)),
-            ]),
-          ],
-          const SizedBox(height: 20),
-
-          // ── Store ────────────────────────────────────────────────────────
-          if (_storeNames.isNotEmpty) ...[
-            _sectionTitle('Store'),
-            Wrap(children: [
-              _chip(label: 'All stores', selected: _f.storeId == null,
-                  onTap: () => setState(() => _f = _f.copyWith(storeId: null))),
-              ..._storeMap.entries.map((e) => _chip(
-                label: e.value,
-                selected: _f.storeId == e.key,
-                onTap: () => setState(() => _f = _f.copyWith(storeId: e.key)),
-              )),
-            ]),
-            const SizedBox(height: 20),
-          ],
-
-          // ── Service / Category ───────────────────────────────────────────
-          if (_serviceNames.isNotEmpty) ...[
-            _sectionTitle('Service / Category'),
-            Wrap(children: [
-              _chip(label: 'All services', selected: _f.serviceName == null,
-                  onTap: () => setState(() => _f = _f.copyWith(serviceName: null))),
-              ..._serviceNames.map((s) => _chip(
-                label: s,
-                selected: _f.serviceName == s,
-                onTap: () => setState(() => _f = _f.copyWith(serviceName: s)),
-              )),
-            ]),
-            const SizedBox(height: 20),
-          ],
-
-          // ── Order Status ─────────────────────────────────────────────────
-          _sectionTitle('Order Status'),
-          Wrap(children: [
-            _chip(label: 'All statuses', selected: _f.status == null,
-                onTap: () => setState(() => _f = _f.copyWith(status: null))),
-            ..._statuses.map((s) {
-              final color = _statusChipColor(s);
-              return _chip(
-                label: s.replaceAll('_', ' '),
-                selected: _f.status == s,
-                color: color,
-                onTap: () => setState(() => _f = _f.copyWith(status: s)),
-              );
-            }),
-          ]),
-          const SizedBox(height: 20),
-
-          // ── Sort ─────────────────────────────────────────────────────────
-          _sectionTitle('Sort By'),
-          Wrap(children: _sortOptions.entries.map((e) => _chip(
-            label: e.value,
-            selected: _f.sortBy == e.key,
-            onTap: () => setState(() => _f = _f.copyWith(sortBy: e.key)),
-          )).toList()),
-          const SizedBox(height: 28),
-
-          // Apply button
-          SizedBox(
-            width: double.infinity,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: AppColors.gradient,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
-              ),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: () => Navigator.pop(context, _f),
-                child: Text('Apply Filters', style: GoogleFonts.alexandria(
-                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15,
-                )),
-              ),
-            ),
+    // 🚀 We use DraggableScrollableSheet so it's draggable up/down
+    // and correctly hosts the internal ScrollView
+    return DraggableScrollableSheet(
+      initialChildSize: 0.65, // Starts at 65% of screen height
+      minChildSize: 0.40,     // Can drag down to 40%
+      maxChildSize: 0.90,     // Can drag up to 90%
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: _bg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
-        ]),
-      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Pinned Header & Drag Handle ──────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+                child: Column(
+                  children: [
+                    Center(child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    )),
+                    const SizedBox(height: 20),
+                    Row(children: [
+                      Text('Filter Orders', style: GoogleFonts.alexandria(
+                        fontSize: 20, fontWeight: FontWeight.bold, color: _textColor,
+                      )),
+                      const Spacer(),
+                      if (_f.isActive)
+                        GestureDetector(
+                          onTap: () => setState(() => _f = const _OrderFilter()),
+                          child: Text('Reset', style: GoogleFonts.alexandria(
+                            fontSize: 13, color: AppColors.error, fontWeight: FontWeight.w600,
+                          )),
+                        ),
+                    ]),
+                  ],
+                ),
+              ),
+
+              // ── Scrollable Body ──────────────────────────────────────────────
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController, // 👈 Hooked up to the drag sheet
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Date Range ──
+                      _sectionTitle('Date Range'),
+                      Wrap(children: [
+                        _chip(label: 'All time',   selected: _f.dateRange == _DateRange.all,    onTap: () => setState(() => _f = _f.copyWith(dateRange: _DateRange.all))),
+                        _chip(label: 'Today',      selected: _f.dateRange == _DateRange.today,  onTap: () => setState(() => _f = _f.copyWith(dateRange: _DateRange.today))),
+                        _chip(label: 'Last 7 days',selected: _f.dateRange == _DateRange.last7,  onTap: () => setState(() => _f = _f.copyWith(dateRange: _DateRange.last7))),
+                        _chip(label: 'Last 30 days',selected: _f.dateRange == _DateRange.last30,onTap: () => setState(() => _f = _f.copyWith(dateRange: _DateRange.last30))),
+                        _chip(label: 'Custom',     selected: _f.dateRange == _DateRange.custom, onTap: () => setState(() => _f = _f.copyWith(dateRange: _DateRange.custom))),
+                      ]),
+                      if (_f.dateRange == _DateRange.custom) ...[
+                        const SizedBox(height: 10),
+                        Row(children: [
+                          Expanded(child: _DateButton(label: 'From: ${_fmtDate(_f.customStart)}', onTap: () => _pickCustomDate(true), isDark: isDark)),
+                          const SizedBox(width: 12),
+                          Expanded(child: _DateButton(label: 'To: ${_fmtDate(_f.customEnd)}',     onTap: () => _pickCustomDate(false), isDark: isDark)),
+                        ]),
+                      ],
+                      const SizedBox(height: 20),
+
+                      // ── Store ──
+                      if (_storeNames.isNotEmpty) ...[
+                        _sectionTitle('Store'),
+                        Wrap(children: [
+                          _chip(label: 'All stores', selected: _f.storeId == null,
+                              onTap: () => setState(() => _f = _f.copyWith(storeId: null))),
+                          ..._storeMap.entries.map((e) => _chip(
+                            label: e.value,
+                            selected: _f.storeId == e.key,
+                            onTap: () => setState(() => _f = _f.copyWith(storeId: e.key)),
+                          )),
+                        ]),
+                        const SizedBox(height: 20),
+                      ],
+
+                      // ── Service / Category ──
+                      if (_serviceNames.isNotEmpty) ...[
+                        _sectionTitle('Service / Category'),
+                        Wrap(children: [
+                          _chip(label: 'All services', selected: _f.serviceName == null,
+                              onTap: () => setState(() => _f = _f.copyWith(serviceName: null))),
+                          ..._serviceNames.map((s) => _chip(
+                            label: s,
+                            selected: _f.serviceName == s,
+                            onTap: () => setState(() => _f = _f.copyWith(serviceName: s)),
+                          )),
+                        ]),
+                        const SizedBox(height: 20),
+                      ],
+
+                      // ── Order Status ──
+                      _sectionTitle('Order Status'),
+                      Wrap(children: [
+                        _chip(label: 'All statuses', selected: _f.status == null,
+                            onTap: () => setState(() => _f = _f.copyWith(status: null))),
+                        ..._statuses.map((s) {
+                          final color = _statusChipColor(s);
+                          return _chip(
+                            label: s.replaceAll('_', ' '),
+                            selected: _f.status == s,
+                            color: color,
+                            onTap: () => setState(() => _f = _f.copyWith(status: s)),
+                          );
+                        }),
+                      ]),
+                      const SizedBox(height: 20),
+
+                      // ── Sort ──
+                      _sectionTitle('Sort By'),
+                      Wrap(children: _sortOptions.entries.map((e) => _chip(
+                        label: e.value,
+                        selected: _f.sortBy == e.key,
+                        onTap: () => setState(() => _f = _f.copyWith(sortBy: e.key)),
+                      )).toList()),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Pinned Bottom Apply Button ──────────────────────────────────
+              Padding(
+                padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: AppColors.gradient,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                    ),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: () => Navigator.pop(context, _f),
+                      child: Text('Apply Filters', style: GoogleFonts.alexandria(
+                        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15,
+                      )),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -828,8 +897,6 @@ class _ToggleItem extends StatelessWidget {
 }
 
 // ─── All existing widgets below (unchanged) ───────────────────────────────────
-// _ReorderSheet, _OrderCard, _ServiceImage, ReorderParams
-// kept exactly as they were in the original file
 
 class _ReorderSheet extends StatefulWidget {
   final OrderEntity order;
@@ -854,7 +921,7 @@ class _ReorderSheetState extends State<_ReorderSheet> {
     final today = DateTime(now.year, now.month, now.day);
     _pickupDate = (widget.order.pickupDate != null && widget.order.pickupDate!.isAfter(today.subtract(const Duration(days: 1)))) ? widget.order.pickupDate! : today;
     _pickupTime = (widget.order.pickupTime != null && _times.contains(widget.order.pickupTime)) ? widget.order.pickupTime! : _times.first;
-    _deliveryDate = _isExpress ? _pickupDate : _pickupDate.add(const Duration(days: 2));
+    _deliveryDate = _isExpress ? _pickupDate : _pickupDate.add(const Duration(days: 1));
     _deliveryTime = (widget.order.deliveryTime != null && _times.contains(widget.order.deliveryTime)) ? widget.order.deliveryTime! : _times.last;
   }
 

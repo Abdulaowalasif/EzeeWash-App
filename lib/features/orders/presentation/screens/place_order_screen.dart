@@ -1,4 +1,5 @@
 // lib/features/orders/presentation/screens/place_order_screen.dart
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -12,6 +13,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/responsive.dart';
@@ -87,7 +89,7 @@ class PlaceOrderScreen extends StatefulWidget {
   State<PlaceOrderScreen> createState() => _PlaceOrderScreenState();
 }
 
-const double _kServiceCharge = 50.0;
+const double _kServiceCharge = 30.0;
 const double _kStripeMinAmount = 100.0;
 
 class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
@@ -111,6 +113,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   bool _stripeLoading = false;
   String? _stripeError;
 
+  late List<String> _pickupTimeSlots;
+  late List<String> _deliveryTimeSlots;
+
   double get _perPcsPrice {
     final rp = widget.reorderParams;
     if (rp != null) return (rp.totalPrice - _kServiceCharge) / rp.itemCount;
@@ -126,6 +131,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   @override
   void initState() {
     super.initState();
+    _pickupTimeSlots = _generatePickupTimeSlots();
+    _deliveryTimeSlots = _generateDeliveryTimeSlots();
+
     final rp = widget.reorderParams;
     if (rp != null) {
       _quantity = rp.itemCount;
@@ -144,6 +152,97 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       _loadData();
     }
     _addrCtrl.addListener(() => setState(() {}));
+  }
+
+  // ─── Schedule Helpers ────────────────────────────────────────────────────
+
+  bool get _isExpress =>
+      _serviceIdx != null &&
+          _services[_serviceIdx!].category == 'Express';
+
+  /// Pickup cutoff: Express = 6:00 PM, Others = 7:30 PM
+  DateTime _pickupCutoff(DateTime forDate) {
+    if (_isExpress) {
+      return DateTime(forDate.year, forDate.month, forDate.day, 18, 0);
+    }
+    return DateTime(forDate.year, forDate.month, forDate.day, 20, 0);
+  }
+
+  /// Returns true if today is too late to start a pickup order (< 1hr before cutoff)
+  bool get _todayOrderingClosed {
+    final now = DateTime.now();
+    final cutoff = _pickupCutoff(now);
+    return now.isAfter(cutoff.subtract(const Duration(hours: 1)));
+  }
+
+  /// Pickup slots: every 30 min from 7:00 AM up to cutoff.
+  /// Today: start = now + 1 hour, rounded up to next 30-min mark.
+  List<String> _generatePickupTimeSlots() {
+    final List<String> slots = ['Select time'];
+    if (_pickupDate == null) return slots;
+
+    final now = DateTime.now();
+    final isToday = DateUtils.isSameDay(_pickupDate, now);
+    final cutoff = _pickupCutoff(_pickupDate!);
+
+    DateTime start;
+    if (isToday) {
+      final earliest = now.add(const Duration(hours: 1));
+      final m = earliest.minute;
+      if (m == 0) {
+        start = DateTime(_pickupDate!.year, _pickupDate!.month, _pickupDate!.day, earliest.hour, 0);
+      } else if (m <= 30) {
+        start = DateTime(_pickupDate!.year, _pickupDate!.month, _pickupDate!.day, earliest.hour, 30);
+      } else {
+        start = DateTime(_pickupDate!.year, _pickupDate!.month, _pickupDate!.day, earliest.hour + 1, 0);
+      }
+    } else {
+      start = DateTime(_pickupDate!.year, _pickupDate!.month, _pickupDate!.day, 8, 0);
+    }
+
+    DateTime slot = start;
+    while (!slot.isAfter(cutoff)) {
+      slots.add(DateFormat('h:mm a').format(slot));
+      slot = slot.add(const Duration(minutes: 30));
+    }
+    return slots;
+  }
+
+  /// Delivery slots: every 30 min from 7:00 AM to 8:00 PM.
+  /// Express same-day: enforce minimum 5-hour gap after pickup time.
+  List<String> _generateDeliveryTimeSlots() {
+    final List<String> slots = ['Select time'];
+    if (_deliveryDate == null) return slots;
+
+    final base = _deliveryDate!;
+    final endSlot = DateTime(base.year, base.month, base.day, 20, 0);
+    DateTime start = DateTime(base.year, base.month, base.day, 8, 0);
+
+    // Express same-day: min 5h gap from pickup time
+    if (_isExpress &&
+        _pickupDate != null &&
+        DateUtils.isSameDay(_pickupDate, _deliveryDate) &&
+        _pickupTime != 'Select time') {
+      try {
+        final parsed = DateFormat('h:mm a').parse(_pickupTime);
+        final minDelivery = DateTime(
+          base.year, base.month, base.day, parsed.hour, parsed.minute,
+        ).add(const Duration(hours: 5));
+        if (minDelivery.isAfter(start)) start = minDelivery;
+      } catch (_) {}
+    }
+
+    // Round start UP to next 30-min mark
+    if (start.minute != 0 && start.minute != 30) {
+      start = start.add(Duration(minutes: 30 - (start.minute % 30)));
+    }
+
+    DateTime slot = start;
+    while (!slot.isAfter(endSlot)) {
+      slots.add(DateFormat('h:mm a').format(slot));
+      slot = slot.add(const Duration(minutes: 30));
+    }
+    return slots;
   }
 
   @override
@@ -177,7 +276,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         int? preIdx;
         if (widget.preSelectedServiceId != null) {
           final idx = services.indexWhere(
-            (s) => s.id == widget.preSelectedServiceId,
+                (s) => s.id == widget.preSelectedServiceId,
           );
           if (idx != -1) preIdx = idx;
         }
@@ -201,14 +300,35 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   void _handlePickupDateChanged(DateTime date) {
     setState(() {
       _pickupDate = date;
-      if (_serviceIdx != null) {
-        final category = _services[_serviceIdx!].category;
-        _deliveryDate = (category == 'Express')
-            ? date
-            : date.add(const Duration(days: 2));
+      _pickupTimeSlots = _generatePickupTimeSlots();
+      // Reset pickup time if it's no longer in the valid slots
+      if (!_pickupTimeSlots.contains(_pickupTime)) _pickupTime = 'Select time';
+
+      // Auto-set delivery date based on service type:
+      // Express → same day allowed; Others → always next day (forced)
+      if (_isExpress) {
+        _deliveryDate = date; // Express defaults to same day
+      } else {
+        // Default to next day, but user can choose any date after pickup
+        _deliveryDate = date.add(const Duration(days: 1));
       }
+
+      // Reset delivery time since date or pickup time changed
+      _deliveryTime = 'Select time';
+      _deliveryTimeSlots = _generateDeliveryTimeSlots();
     });
   }
+
+  /// Min delivery date: Express = same day as pickup; Others = strictly next day.
+  DateTime get _minDeliveryDate {
+    if (_pickupDate == null) return DateTime.now();
+    if (_isExpress) return _pickupDate!;
+    return _pickupDate!.add(const Duration(days: 1));
+  }
+
+  /// Max delivery date: no upper limit for any service type.
+  /// User can pick any date on or after the min delivery date.
+  DateTime? get _maxDeliveryDate => null;
 
   bool get _canProceed {
     switch (_step) {
@@ -220,7 +340,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         return _pickupDate != null &&
             _deliveryDate != null &&
             _pickupTime != 'Select time' &&
-            _deliveryTime != 'Select time';
+            _deliveryTime != 'Select time' &&
+            _pickupTimeSlots.length > 1 &&
+            _deliveryTimeSlots.length > 1;
       case 4:
         return _addrCtrl.text.trim().isNotEmpty;
       case 5:
@@ -282,7 +404,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           'description': 'EzeeWash - $svcTitle',
         },
       );
-
       final clientSecret = response.data['clientSecret'] as String;
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
@@ -297,7 +418,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           ),
         ),
       );
-
       await Stripe.instance.presentPaymentSheet();
       if (mounted)
         context.read<OrdersBloc>().add(
@@ -305,9 +425,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         );
     } on StripeException catch (e) {
       if (mounted) setState(() => _stripeLoading = false);
-      if (e.error.code == FailureCode.Canceled) {
-        _showSnack('Payment cancelled. Order was not placed.', isError: true);
-      } else {
+      if (e.error.code != FailureCode.Canceled) {
         if (mounted)
           setState(() {
             _stripeError = e.error.localizedMessage;
@@ -341,7 +459,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    if (_dataLoading)
+    if (_dataLoading) {
       return Scaffold(
         backgroundColor: isDark
             ? AppColors.darkBackground
@@ -350,6 +468,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
+    }
 
     return BlocListener<OrdersBloc, OrdersState>(
       listener: (context, state) {
@@ -441,7 +560,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                     enabled: _canProceed,
                     isDark: isDark,
                     isLoading:
-                        context.watch<OrdersBloc>().state is OrderPlacing ||
+                    context.watch<OrdersBloc>().state is OrderPlacing ||
                         _stripeLoading,
                     paymentMethod: _paymentMethod,
                     onBack: () {
@@ -497,7 +616,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           key: const ValueKey(1),
           children: List.generate(
             _services.length,
-            (i) => _ServiceCard(
+                (i) => _ServiceCard(
               service: _services[i],
               selected: _serviceIdx == i,
               isDark: isDark,
@@ -510,7 +629,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           key: const ValueKey(2),
           children: List.generate(
             _stores.length,
-            (i) => _StoreCard(
+                (i) => _StoreCard(
               store: _stores[i],
               selected: _storeIdx == i,
               isDark: isDark,
@@ -526,10 +645,32 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           deliveryDate: _deliveryDate,
           deliveryTime: _deliveryTime,
           isDark: isDark,
+          isExpress: _isExpress,
+          pickupTimeSlots: _pickupTimeSlots,
+          deliveryTimeSlots: _deliveryTimeSlots,
           onPickupDate: _handlePickupDateChanged,
-          onPickupTime: (t) => setState(() => _pickupTime = t),
-          onDeliveryDate: (d) => setState(() => _deliveryDate = d),
+          onPickupTime: (t) {
+            setState(() {
+              _pickupTime = t;
+              // Refresh delivery slots since 5h gap depends on pickup time
+              _deliveryTimeSlots = _generateDeliveryTimeSlots();
+              if (!_deliveryTimeSlots.contains(_deliveryTime)) {
+                _deliveryTime = 'Select time';
+              }
+            });
+          },
+          onDeliveryDate: (d) {
+            setState(() {
+              _deliveryDate = d;
+              _deliveryTimeSlots = _generateDeliveryTimeSlots();
+              if (!_deliveryTimeSlots.contains(_deliveryTime)) {
+                _deliveryTime = 'Select time';
+              }
+            });
+          },
           onDeliveryTime: (t) => setState(() => _deliveryTime = t),
+          minDeliveryDate: _minDeliveryDate,
+          maxDeliveryDate: _maxDeliveryDate,
         );
       case 4:
         return _AddressStep(
@@ -552,10 +693,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           isDark: isDark,
           stripeError: _stripeError,
           serviceName:
-              widget.reorderParams?.serviceName ??
+          widget.reorderParams?.serviceName ??
               _services[_serviceIdx!].title,
           storeName:
-              widget.reorderParams?.storeName ?? _stores[_storeIdx!].name,
+          widget.reorderParams?.storeName ?? _stores[_storeIdx!].name,
           pickupInfo: '${_fmtDate(_pickupDate!)} at $_pickupTime',
           deliveryInfo: '${_fmtDate(_deliveryDate!)} at $_deliveryTime',
           onMethodChanged: (m) => setState(() => _paymentMethod = m),
@@ -571,7 +712,261 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
 
-// ─── Address Step (Smooth Dark Map) ───────────────────────────────────────
+// ─── Schedule Step Component ──────────────────────────────────────────────────
+
+class _ScheduleStep extends StatelessWidget {
+  final DateTime? pickupDate, deliveryDate, minDeliveryDate, maxDeliveryDate;
+  final String pickupTime, deliveryTime;
+  final bool isDark, isExpress;
+  final List<String> pickupTimeSlots, deliveryTimeSlots;
+  final ValueChanged<DateTime> onPickupDate, onDeliveryDate;
+  final ValueChanged<String> onPickupTime, onDeliveryTime;
+
+  const _ScheduleStep({
+    super.key,
+    required this.pickupDate,
+    required this.deliveryDate,
+    required this.pickupTime,
+    required this.deliveryTime,
+    required this.isDark,
+    required this.isExpress,
+    required this.pickupTimeSlots,
+    required this.deliveryTimeSlots,
+    required this.onPickupDate,
+    required this.onDeliveryDate,
+    required this.onPickupTime,
+    required this.onDeliveryTime,
+    this.minDeliveryDate,
+    this.maxDeliveryDate,
+  });
+
+  static String _fmt(DateTime? d) => d == null
+      ? ''
+      : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  static InputDecoration _deco(String label, Color accent, bool isDark) =>
+      InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: accent, width: 1.5),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    // Cutoff info label
+    final cutoffLabel = isExpress
+        ? 'Express: pickup must be before 6:00 PM'
+        : 'Pickup must be before 8:00 PM';
+    final deliveryLabel = isExpress
+        ? 'Same-day delivery · min 5h after pickup'
+        : 'Delivery must be at least the next day';
+
+    return Column(
+      children: [
+
+        _SchCard(
+          title: 'Pickup Schedule',
+          icon: Iconsax.arrow_up_3,
+          gradient: AppColors.gradient,
+          accent: AppColors.primary,
+          date: pickupDate,
+          time: pickupTime,
+          times: pickupTimeSlots,
+          isDark: isDark,
+          fmt: _fmt,
+          deco: _deco,
+          onDate: onPickupDate,
+          onTime: onPickupTime,
+          minDate: DateTime.now(),
+          maxDate: null,
+          noSlotsMessage: 'No pickup slots available today. Please choose another date.',
+        ),
+        const SizedBox(height: 18),
+        _SchCard(
+          title: 'Delivery Schedule',
+          icon: Iconsax.arrow_down_2,
+          gradient: const LinearGradient(
+            colors: [AppColors.success, Color(0xFF059669)],
+          ),
+          accent: AppColors.success,
+          date: deliveryDate,
+          time: deliveryTime,
+          times: deliveryTimeSlots,
+          isDark: isDark,
+          fmt: _fmt,
+          deco: _deco,
+          onDate: onDeliveryDate,
+          onTime: onDeliveryTime,
+          minDate: minDeliveryDate,
+          maxDate: maxDeliveryDate,
+          noSlotsMessage: isExpress
+              ? 'No slots available with 5h gap. Choose a later pickup time or next day.'
+              : 'No delivery slots available for this date.',
+        ),
+      ],
+    );
+  }
+}
+
+class _SchCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Gradient gradient;
+  final Color accent;
+  final DateTime? date, minDate, maxDate;
+  final String time, noSlotsMessage;
+  final List<String> times;
+  final bool isDark;
+  final String Function(DateTime?) fmt;
+  final InputDecoration Function(String, Color, bool) deco;
+  final ValueChanged<DateTime> onDate;
+  final ValueChanged<String> onTime;
+
+  const _SchCard({
+    required this.title,
+    required this.icon,
+    required this.gradient,
+    required this.accent,
+    required this.date,
+    required this.time,
+    required this.times,
+    required this.isDark,
+    required this.fmt,
+    required this.deco,
+    required this.onDate,
+    required this.onTime,
+    required this.noSlotsMessage,
+    this.minDate,
+    this.maxDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool noSlotsAvailable = times.length <= 1;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: gradient,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: GoogleFonts.alexandria(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : AppColors.lightText,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          TextFormField(
+            controller: TextEditingController(text: fmt(date)),
+            readOnly: true,
+            decoration: deco('Date', accent, isDark).copyWith(
+              suffixIcon: IconButton(
+                icon: Icon(Icons.calendar_today_rounded, color: accent, size: 20),
+                onPressed: () async {
+                  final now = DateTime.now();
+                  final firstDate = minDate ?? now;
+                  DateTime initial;
+                  if (date != null && !date!.isBefore(firstDate)) {
+                    initial = date!;
+                  } else {
+                    initial = firstDate;
+                  }
+                  // If maxDate set (non-Express delivery lock), clamp initial
+                  if (maxDate != null && initial.isAfter(maxDate!)) {
+                    initial = maxDate!;
+                  }
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: initial,
+                    firstDate: firstDate,
+                    lastDate: maxDate ?? DateTime(2100),
+                    builder: (ctx, child) => Theme(
+                      data: Theme.of(ctx).copyWith(
+                        colorScheme: ColorScheme.light(primary: accent),
+                      ),
+                      child: child!,
+                    ),
+                  );
+                  if (picked != null) onDate(picked);
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (noSlotsAvailable && date != null)
+            Container(
+              padding: const EdgeInsets.all(14),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.error.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, color: AppColors.error, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      noSlotsMessage,
+                      style: GoogleFonts.alexandria(
+                        color: AppColors.error,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            DropdownButtonFormField<String>(
+              value: times.contains(time) ? time : times[0],
+              icon: Icon(Icons.keyboard_arrow_down_rounded, color: accent),
+              decoration: deco('Time', accent, isDark),
+              items: times
+                  .map(
+                    (t) => DropdownMenuItem(
+                  value: t,
+                  child: Text(t, style: GoogleFonts.alexandria(fontSize: 14)),
+                ),
+              )
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) onTime(v);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 class _AddressStep extends StatefulWidget {
   final TextEditingController addrCtrl, noteCtrl;
@@ -595,15 +990,8 @@ class _AddressStepState extends State<_AddressStep> {
   LatLng _centerPosition = const LatLng(23.8103, 90.4125);
   bool _isMoving = false;
 
-  final String _darkMapStyle = '''[
-    {"elementType": "geometry", "stylers": [{"color": "#212121"}]},
-    {"elementType": "labels.icon", "stylers": [{"visibility": "off"}]},
-    {"elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]},
-    {"elementType": "labels.text.stroke", "stylers": [{"color": "#212121"}]},
-    {"featureType": "poi", "elementType": "geometry", "stylers": [{"color": "#181818"}]},
-    {"featureType": "road", "elementType": "geometry.fill", "stylers": [{"color": "#2c2c2c"}]},
-    {"featureType": "water", "elementType": "geometry", "stylers": [{"color": "#000000"}]}
-  ]''';
+  final String _darkMapStyle =
+      '[{"elementType": "geometry", "stylers": [{"color": "#212121"}]}, {"elementType": "labels.icon", "stylers": [{"visibility": "off"}]}, {"elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]}, {"elementType": "labels.text.stroke", "stylers": [{"color": "#212121"}]}, {"featureType": "poi", "elementType": "geometry", "stylers": [{"color": "#181818"}]}, {"featureType": "road", "elementType": "geometry.fill", "stylers": [{"color": "#2c2c2c"}]}, {"featureType": "water", "elementType": "geometry", "stylers": [{"color": "#000000"}]}]';
 
   @override
   void initState() {
@@ -658,7 +1046,8 @@ class _AddressStepState extends State<_AddressStep> {
                 GoogleMap(
                   gestureRecognizers: {
                     Factory<EagerGestureRecognizer>(
-                            () => EagerGestureRecognizer()),
+                          () => EagerGestureRecognizer(),
+                    ),
                   },
                   initialCameraPosition: CameraPosition(
                     target: _centerPosition,
@@ -734,8 +1123,6 @@ class _AddressStepState extends State<_AddressStep> {
     );
   }
 }
-
-// ─── Payment Step ─────────────────────────────────────────────────────────────
 
 class _PaymentStep extends StatelessWidget {
   final PaymentMethod selectedMethod;
@@ -909,7 +1296,6 @@ class _PaymentStep extends StatelessWidget {
           icon: Iconsax.money_recive,
           title: 'Cash on Delivery',
           subtitle: 'Pay when your laundry is delivered',
-          badge: null,
           color: AppColors.success,
           onTap: () => onMethodChanged(PaymentMethod.cashOnDelivery),
         ),
@@ -1008,216 +1394,6 @@ class _PaymentStep extends StatelessWidget {
   );
 }
 
-// ─── Schedule Step ────────────────────────────────────────────────────────────
-
-class _ScheduleStep extends StatelessWidget {
-  final DateTime? pickupDate, deliveryDate;
-  final String pickupTime, deliveryTime;
-  final bool isDark;
-  final ValueChanged<DateTime> onPickupDate, onDeliveryDate;
-  final ValueChanged<String> onPickupTime, onDeliveryTime;
-
-  const _ScheduleStep({
-    super.key,
-    required this.pickupDate,
-    required this.deliveryDate,
-    required this.pickupTime,
-    required this.deliveryTime,
-    required this.isDark,
-    required this.onPickupDate,
-    required this.onDeliveryDate,
-    required this.onPickupTime,
-    required this.onDeliveryTime,
-  });
-
-  static const _times = [
-    'Select time',
-    '10:00 AM',
-    '12:00 PM',
-    '02:00 PM',
-    '04:00 PM',
-    '06:00 PM',
-  ];
-
-  String _fmt(DateTime? d) => d == null
-      ? ''
-      : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-
-  InputDecoration _deco(String label, Color accent, bool isDark) =>
-      InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: isDark
-            ? AppColors.darkBackground
-            : AppColors.lightBackground,
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: accent, width: 1.5),
-        ),
-      );
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      _SchCard(
-        title: 'Pickup Schedule',
-        icon: Iconsax.arrow_up_3,
-        gradient: AppColors.gradient,
-        accent: AppColors.primary,
-        date: pickupDate,
-        time: pickupTime,
-        times: _times,
-        isDark: isDark,
-        fmt: _fmt,
-        deco: _deco,
-        onDate: onPickupDate,
-        onTime: onPickupTime,
-      ),
-      const SizedBox(height: 18),
-      _SchCard(
-        title: 'Delivery Schedule',
-        icon: Iconsax.arrow_down_2,
-        gradient: const LinearGradient(
-          colors: [AppColors.success, Color(0xFF059669)],
-        ),
-        accent: AppColors.success,
-        date: deliveryDate,
-        time: deliveryTime,
-        times: _times,
-        isDark: isDark,
-        fmt: _fmt,
-        deco: _deco,
-        onDate: onDeliveryDate,
-        onTime: onDeliveryTime,
-        minDate: deliveryDate,
-      ),
-    ],
-  );
-}
-
-class _SchCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Gradient gradient;
-  final Color accent;
-  final DateTime? date;
-  final String time;
-  final List<String> times;
-  final bool isDark;
-  final String Function(DateTime?) fmt;
-  final InputDecoration Function(String, Color, bool) deco;
-  final ValueChanged<DateTime> onDate;
-  final ValueChanged<String> onTime;
-  final DateTime? minDate;
-
-  const _SchCard({
-    required this.title,
-    required this.icon,
-    required this.gradient,
-    required this.accent,
-    required this.date,
-    required this.time,
-    required this.times,
-    required this.isDark,
-    required this.fmt,
-    required this.deco,
-    required this.onDate,
-    required this.onTime,
-    this.minDate,
-  });
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(
-        color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-      ),
-      boxShadow: isDark
-          ? []
-          : [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: Colors.white, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: GoogleFonts.alexandria(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppColors.lightText,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        TextFormField(
-          controller: TextEditingController(text: fmt(date)),
-          readOnly: true,
-          decoration: deco('Date', accent, isDark).copyWith(
-            suffixIcon: IconButton(
-              icon: Icon(Icons.calendar_today_rounded, color: accent, size: 20),
-              onPressed: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: date ?? minDate ?? DateTime.now(),
-                  firstDate: minDate ?? DateTime.now(),
-                  lastDate: DateTime(2100),
-                  builder: (ctx, child) => Theme(
-                    data: Theme.of(
-                      ctx,
-                    ).copyWith(colorScheme: ColorScheme.light(primary: accent)),
-                    child: child!,
-                  ),
-                );
-                if (picked != null) onDate(picked);
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        DropdownButtonFormField<String>(
-          value: time,
-          icon: Icon(Icons.keyboard_arrow_down_rounded, color: accent),
-          decoration: deco('Time', accent, isDark),
-          items: times
-              .map(
-                (t) => DropdownMenuItem(
-                  value: t,
-                  child: Text(t, style: GoogleFonts.alexandria(fontSize: 14)),
-                ),
-              )
-              .toList(),
-          onChanged: (v) {
-            if (v != null) onTime(v);
-          },
-        ),
-      ],
-    ),
-  );
-}
-
-// ─── UI Helpers ─────────────────────────────────────────────────────────────
-
 class _BottomNav extends StatelessWidget {
   final int step, totalSteps;
   final bool enabled, isDark, isLoading;
@@ -1273,12 +1449,12 @@ class _BottomNav extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               boxShadow: enabled
                   ? [
-                      BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ]
                   : [],
             ),
             child: ElevatedButton(
@@ -1293,28 +1469,28 @@ class _BottomNav extends StatelessWidget {
               ),
               child: isLoading
                   ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
                   : Text(
-                      step < totalSteps
-                          ? 'Next'
-                          : (paymentMethod == PaymentMethod.stripe
-                                ? 'Pay Now'
-                                : 'Confirm'),
-                      style: GoogleFonts.alexandria(
-                        color: enabled
-                            ? Colors.white
-                            : (isDark
-                                  ? Colors.grey.shade500
-                                  : Colors.grey.shade400),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                step < totalSteps
+                    ? 'Next'
+                    : (paymentMethod == PaymentMethod.stripe
+                    ? 'Pay Now'
+                    : 'Confirm'),
+                style: GoogleFonts.alexandria(
+                  color: enabled
+                      ? Colors.white
+                      : (isDark
+                      ? Colors.grey.shade500
+                      : Colors.grey.shade400),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ),
@@ -1340,15 +1516,6 @@ class _StepProgress extends StatelessWidget {
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       borderRadius: BorderRadius.circular(20),
       border: Border.all(color: AppColors.darkBorder),
-      boxShadow: isDark
-          ? []
-          : [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
     ),
     child: Row(
       children: List.generate(totalSteps * 2 - 1, (i) {
@@ -1370,13 +1537,13 @@ class _StepProgress extends StatelessWidget {
               child: done
                   ? const Icon(Icons.check, color: Colors.white, size: 16)
                   : Text(
-                      '$s',
-                      style: GoogleFonts.alexandria(
-                        color: active ? Colors.white : Colors.grey,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
+                '$s',
+                style: GoogleFonts.alexandria(
+                  color: active ? Colors.white : Colors.grey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
             ),
           );
         }
@@ -1425,12 +1592,12 @@ class _QtyBtn extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: enabled
             ? [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.25),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ]
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.25),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ]
             : [],
       ),
       child: Icon(
@@ -1482,12 +1649,12 @@ class _PaymentOpt extends StatelessWidget {
         ),
         boxShadow: selected
             ? [
-                BoxShadow(
-                  color: color.withOpacity(0.15),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5),
-                ),
-              ]
+          BoxShadow(
+            color: color.withOpacity(0.15),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ]
             : [],
       ),
       child: Row(
@@ -1606,8 +1773,8 @@ class _ServiceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected
             ? (isDark
-                  ? AppColors.primary.withOpacity(0.15)
-                  : AppColors.primary.withOpacity(0.07))
+            ? AppColors.primary.withOpacity(0.15)
+            : AppColors.primary.withOpacity(0.07))
             : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
@@ -1699,8 +1866,8 @@ class _StoreCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected
             ? (isDark
-                  ? AppColors.primary.withOpacity(0.15)
-                  : AppColors.primary.withOpacity(0.07))
+            ? AppColors.primary.withOpacity(0.15)
+            : AppColors.primary.withOpacity(0.07))
             : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
@@ -1795,13 +1962,13 @@ class _ItemImage extends StatelessWidget {
       borderRadius: BorderRadius.circular(15),
       child: imageUrl != null
           ? CachedNetworkImage(
-              imageUrl: imageUrl!,
-              fit: BoxFit.cover,
-              errorWidget: (_, __, ___) => Icon(
-                fallbackIcon,
-                color: selected ? Colors.white : Colors.grey,
-              ),
-            )
+        imageUrl: imageUrl!,
+        fit: BoxFit.cover,
+        errorWidget: (_, _, _) => Icon(
+          fallbackIcon,
+          color: selected ? Colors.white : Colors.grey,
+        ),
+      )
           : Icon(fallbackIcon, color: selected ? Colors.white : Colors.grey),
     ),
   );

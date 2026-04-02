@@ -13,6 +13,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../core/constants/app_color.dart';
@@ -53,6 +56,17 @@ extension _PhaseX on String {
           phase == _OrderPhase.riderComingToDeliver;
 }
 
+// ─── Rating helpers ──────────────────────────────────────────────────────────
+
+enum _RatingEvent { pickup, delivery }
+
+/// Tracks which rating sheets have been shown this session so they only
+/// fire once even if the BLoC rebuilds multiple times on the same status.
+class _RatingMemory {
+  bool shownForPickup   = false;
+  bool shownForDelivery = false;
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 class TrackOrderScreen extends StatefulWidget {
@@ -65,6 +79,7 @@ class TrackOrderScreen extends StatefulWidget {
 
 class _TrackOrderScreenState extends State<TrackOrderScreen> {
   bool _showTimeline = false;
+  final _ratingMem = _RatingMemory();
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +115,12 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
           }
           if (order == null) return _EmptyState(isDark: isDark);
 
+          // Trigger rating sheet after build — safe via postFrameCallback
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _checkRating(context, order!, isDark);
+          });
+
           return TrackContent(
             order: order,
             showTimeline: _showTimeline,
@@ -108,6 +129,57 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
           );
         },
       ),
+    );
+  }
+
+  // ── Rating trigger logic ─────────────────────────────────────────────────
+  // After pickup  → status == picked_up   → rate the pickup rider
+  // After delivery → status == delivered  → rate the delivery rider
+  // Checks SharedPreferences to ensure it only shows once per order phase.
+  Future<void> _checkRating(BuildContext ctx, OrderEntity order, bool isDark) async {
+    final phase = order.status.phase;
+
+    // 1. Check Pickup Rating
+    if (phase == _OrderPhase.atStore &&
+        !_ratingMem.shownForPickup &&
+        (order.pickupRiderId ?? order.riderId) != null) {
+
+      _ratingMem.shownForPickup = true; // Lock for current session to prevent BLoC double-firing
+
+      final prefs = await SharedPreferences.getInstance();
+      final hasHandled = prefs.getBool('rated_pickup_${order.id}') ?? false;
+
+      if (!hasHandled && ctx.mounted) {
+        _showRatingSheet(ctx, order, isDark, _RatingEvent.pickup);
+      }
+    }
+
+    // 2. Check Delivery Rating
+    if (phase == _OrderPhase.delivered &&
+        !_ratingMem.shownForDelivery &&
+        (order.deliveryRiderId ?? order.riderId) != null) {
+
+      _ratingMem.shownForDelivery = true; // Lock for current session
+
+      final prefs = await SharedPreferences.getInstance();
+      final hasHandled = prefs.getBool('rated_delivery_${order.id}') ?? false;
+
+      if (!hasHandled && ctx.mounted) {
+        _showRatingSheet(ctx, order, isDark, _RatingEvent.delivery);
+      }
+    }
+  }
+
+  void _showRatingSheet(
+      BuildContext ctx, OrderEntity order, bool isDark, _RatingEvent evt) {
+    showModalBottomSheet(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      isDismissible: false,
+      enableDrag: false,
+      builder: (_) =>
+          _RatingSheet(order: order, isDark: isDark, eventType: evt),
     );
   }
 }
@@ -158,7 +230,6 @@ class TrackContent extends StatelessWidget {
     }
   }
 
-
   static double effectiveProgress({
     required String status,
     required double dbProgress,
@@ -166,7 +237,6 @@ class TrackContent extends StatelessWidget {
     final fromStatus = progressForStatus(status);
     return dbProgress > fromStatus ? dbProgress : fromStatus;
   }
-
 
   _OrderPhase get _phase => order.status.phase;
 
@@ -1346,18 +1416,53 @@ class _MapViewState extends State<MapView> {
   bool _denied = false;
   StreamSubscription? _sub;
 
+  // Cached rider profile — pre-filled from order entity, refreshed if
+  // rider_locations stream returns a different rider_id.
+  Map<String, dynamic>? _riderRow;
+  String? _lastRiderId;
+
   static const LatLng _dhaka = LatLng(23.8103, 90.4125);
 
   @override
   void initState() {
     super.initState();
+    // Pre-fill rider profile from the order entity (already fetched via join)
+    _prefillRiderFromOrder();
     _init();
+  }
+
+  void _prefillRiderFromOrder() {
+    final o = widget.order;
+    if (o.riderId == null) return;
+    _lastRiderId = o.riderId;
+    _riderRow = {
+      'id':            o.riderId,
+      'full_name':     o.riderName,
+      'phone':         o.riderPhone,
+      'avatar_url':    o.riderAvatarUrl,
+      'vehicle_type':  o.riderVehicleType,
+      'vehicle_plate': o.riderVehiclePlate,
+      'rating':        o.riderRating,
+      'is_online':     o.riderIsOnline,
+    };
+    // Seed initial position from order entity
+    if (o.riderLat != null && o.riderLng != null) {
+      _riderPos = LatLng(o.riderLat!, o.riderLng!);
+    }
   }
 
   @override
   void didUpdateWidget(MapView old) {
     super.didUpdateWidget(old);
     if (old.order.status != widget.order.status) _fit();
+    // If rider changed (reassignment), refresh cached profile
+    if (old.order.riderId != widget.order.riderId) {
+      _prefillRiderFromOrder();
+      if (widget.order.riderId != null &&
+          widget.order.riderId != _lastRiderId) {
+        _fetchRiderProfile(widget.order.riderId!);
+      }
+    }
   }
 
   @override
@@ -1368,10 +1473,6 @@ class _MapViewState extends State<MapView> {
   }
 
   Future<void> _init() async {
-    if (widget.order.riderLat != null && widget.order.riderLng != null) {
-      _riderPos = LatLng(widget.order.riderLat!, widget.order.riderLng!);
-    }
-
     try {
       final addr = widget.order.deliveryAddress ?? widget.order.pickupAddress;
       if (addr.isNotEmpty) {
@@ -1411,19 +1512,71 @@ class _MapViewState extends State<MapView> {
     }
   }
 
+  // Stream rider_locations for live lat/lng updates.
+  // Also refreshes the rider profile if the assigned rider changes.
   void _listenRider() {
     _sub = Supabase.instance.client
         .from('rider_locations')
         .stream(primaryKey: ['id'])
         .eq('order_id', widget.order.id)
-        .listen((data) {
+        .listen((data) async {
       if (data.isNotEmpty && mounted) {
-        final lat = (data.first['latitude'] as num).toDouble();
-        final lng = (data.first['longitude'] as num).toDouble();
-        setState(() => _riderPos = LatLng(lat, lng));
-        _fit();
+        final row    = data.first as Map<String, dynamic>;
+        final lat    = (row['latitude']  as num).toDouble();
+        final lng    = (row['longitude'] as num).toDouble();
+        final newRid = row['rider_id']   as String?;
+
+        // If rider changed, fetch fresh profile from riders table
+        if (newRid != null && newRid != _lastRiderId) {
+          _lastRiderId = newRid;
+          await _fetchRiderProfile(newRid);
+        }
+
+        if (mounted) {
+          setState(() => _riderPos = LatLng(lat, lng));
+          _fit();
+        }
       }
     });
+  }
+
+  // Fetch rider profile directly from riders table using the rider_id
+  Future<void> _fetchRiderProfile(String riderId) async {
+    try {
+      final res = await Supabase.instance.client
+          .from('riders')
+          .select(
+          'id, full_name, phone, avatar_url, vehicle_type, vehicle_plate,'
+              ' rating, is_online, total_trips, current_lat, current_lng')
+          .eq('id', riderId)
+          .maybeSingle();
+      if (res != null && mounted) {
+        setState(() => _riderRow = res as Map<String, dynamic>);
+      }
+    } catch (_) {}
+  }
+
+  // Opens the rider info bottom sheet when the rider marker is tapped
+  void _onRiderMarkerTap() {
+    if (_riderRow == null) return;
+    final distKm = (_customerLoc != null && _riderPos != null)
+        ? Geolocator.distanceBetween(_riderPos!.latitude, _riderPos!.longitude,
+        _customerLoc!.latitude, _customerLoc!.longitude) /
+        1000
+        : null;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _RiderInfoSheet(
+        order: widget.order,
+        isDark: widget.isDark,
+        phase: widget.phase,
+        riderRow: _riderRow!,
+        riderPos: _riderPos,
+        distanceKm: distKm,
+      ),
+    );
   }
 
   Future<void> _fit() async {
@@ -1471,6 +1624,8 @@ class _MapViewState extends State<MapView> {
                 : 'Rider • Coming to Pickup'),
         icon: BitmapDescriptor.defaultMarkerWithHue(
             BitmapDescriptor.hueOrange),
+        // Tap rider marker → show full rider info sheet
+        onTap: _onRiderMarkerTap,
       ));
     }
     return m;
@@ -1545,6 +1700,28 @@ class _MapViewState extends State<MapView> {
           ),
         ),
 
+        // 'Tap rider' hint badge — shown when rider marker is visible
+        if (_riderPos != null)
+          Positioned(
+            top: 14,
+            right: 14,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(20)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.touch_app_rounded,
+                    color: Colors.white, size: 13),
+                const SizedBox(width: 5),
+                Text('Tap rider',
+                    style: GoogleFonts.alexandria(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ),
         // Phase label badge
         Positioned(
           top: 14,
@@ -1764,7 +1941,6 @@ class _SummaryRow extends StatelessWidget {
                 : (isDark ? Colors.white : AppColors.lightText))),
   ]);
 }
-
 
 // ─── Rider card ───────────────────────────────────────────────────────────────
 //
@@ -2109,18 +2285,18 @@ class _RiderCardState extends State<_RiderCard> {
                   color: AppColors.success,
                   isDark: isDark,
                   enabled: _riderPhone.isNotEmpty,
-                  onTap: () {
-                    // Integrate url_launcher to dial: tel:$_riderPhone
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text('Calling $_riderPhone',
-                          style: GoogleFonts.alexandria(fontSize: 13)),
-                      backgroundColor: AppColors.success,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      margin: const EdgeInsets.all(16),
-                      duration: const Duration(seconds: 2),
-                    ));
+                  onTap: () async {
+                    final Uri phoneUri = Uri(scheme: 'tel', path: _riderPhone);
+                    if (await canLaunchUrl(phoneUri)) {
+                      await launchUrl(phoneUri);
+                    } else if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Could not open dialer', style: GoogleFonts.alexandria(fontSize: 13)),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
                   },
                 ),
               ),
@@ -2131,18 +2307,19 @@ class _RiderCardState extends State<_RiderCard> {
                   label: 'Message',
                   color: AppColors.primary,
                   isDark: isDark,
-                  enabled: true,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text('In-app chat coming soon!',
-                          style: GoogleFonts.alexandria(fontSize: 13)),
-                      backgroundColor: AppColors.primary,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      margin: const EdgeInsets.all(16),
-                      duration: const Duration(seconds: 2),
-                    ));
+                  enabled: _riderPhone.isNotEmpty,
+                  onTap: () async {
+                    final Uri smsUri = Uri(scheme: 'sms', path: _riderPhone);
+                    if (await canLaunchUrl(smsUri)) {
+                      await launchUrl(smsUri);
+                    } else if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Could not open messaging app', style: GoogleFonts.alexandria(fontSize: 13)),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
                   },
                 ),
               ),
@@ -2303,6 +2480,710 @@ class _RiderActionBtn extends StatelessWidget {
       ]),
     ),
   );
+}
+
+// ─── Rider info bottom sheet ──────────────────────────────────────────────────
+// Shown when the user taps the orange rider marker on the map.
+// Fetches all data from the orders.rider_id → riders join already cached
+// in _MapViewState._riderRow — no extra network call on open.
+// Shows: avatar, name, status pill, rating/trips/ETA stats,
+//        vehicle info, distance, and Call + Message buttons.
+
+class _RiderInfoSheet extends StatelessWidget {
+  final OrderEntity order;
+  final bool isDark;
+  final _OrderPhase phase;
+  final Map<String, dynamic> riderRow;
+  final LatLng? riderPos;
+  final double? distanceKm;
+
+  const _RiderInfoSheet({
+    required this.order,
+    required this.isDark,
+    required this.phase,
+    required this.riderRow,
+    this.riderPos,
+    this.distanceKm,
+  });
+
+  // ── Getters from riders table row ─────────────────────────────────────────
+  String   get _name    => riderRow['full_name']     as String? ?? 'Your Rider';
+  String?  get _photo   => riderRow['avatar_url']    as String?;
+  String   get _phone   => riderRow['phone']         as String? ?? '';
+  double   get _rating  => (riderRow['rating']  as num?)?.toDouble() ?? 5.0;
+  bool     get _online  => riderRow['is_online'] as bool? ?? false;
+  int      get _trips   => riderRow['total_trips'] as int? ?? 0;
+  String   get _vtype   => riderRow['vehicle_type']  as String? ?? 'motorcycle';
+  String?  get _plate   => riderRow['vehicle_plate'] as String?;
+
+  String get _distLabel {
+    if (distanceKm == null) return '—';
+    if (distanceKm! < 1)    return '${(distanceKm! * 1000).toInt()} m';
+    return '${distanceKm!.toStringAsFixed(1)} km';
+  }
+
+  String get _etaLabel {
+    if (distanceKm == null) return '—';
+    final m = ((distanceKm! / 25) * 60).ceil();
+    return m < 2 ? '< 1 min' : '$m min';
+  }
+
+  String get _latLngLabel {
+    if (riderPos == null) return '—';
+    return '${riderPos!.latitude.toStringAsFixed(5)}, '
+        '${riderPos!.longitude.toStringAsFixed(5)}';
+  }
+
+  IconData _vIcon() {
+    switch (_vtype) {
+      case 'bicycle': return Icons.pedal_bike_rounded;
+      case 'car':     return Icons.directions_car_rounded;
+      case 'van':     return Icons.airport_shuttle_rounded;
+      default:        return Icons.two_wheeler_rounded;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isPickup = phase == _OrderPhase.riderComingToPickup;
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+          24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+
+        // Handle
+        Container(width: 40, height: 4,
+            decoration: BoxDecoration(
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 20),
+
+        // Avatar + online dot
+        Stack(alignment: Alignment.bottomRight, children: [
+          Container(
+            width: 90, height: 90,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                  color: AppColors.primary.withOpacity(0.3), width: 3),
+              boxShadow: [BoxShadow(
+                  color: AppColors.primary.withOpacity(0.18),
+                  blurRadius: 16, offset: const Offset(0, 6))],
+            ),
+            child: ClipOval(
+              child: _photo != null
+                  ? Image.network(_photo!, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _fb())
+                  : _fb(),
+            ),
+          ),
+          Container(width: 22, height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _online ? AppColors.success : Colors.grey.shade400,
+                border: Border.all(
+                    color: isDark ? AppColors.darkSurface : Colors.white,
+                    width: 2.5),
+              )),
+        ]),
+
+        const SizedBox(height: 14),
+
+        // Name
+        Text(_name,
+            style: GoogleFonts.alexandria(
+                fontSize: 20, fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : AppColors.lightText)),
+        const SizedBox(height: 6),
+
+        // Status pill with live dot
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(isDark ? 0.15 : 0.08),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            _PulseDot(),
+            const SizedBox(width: 6),
+            Text(
+              isPickup ? 'Picking up your order' : 'Delivering your order',
+              style: GoogleFonts.alexandria(
+                  fontSize: 12, fontWeight: FontWeight.w600,
+                  color: AppColors.primary),
+            ),
+          ]),
+        ),
+
+        const SizedBox(height: 20),
+
+        // Stats row: rating · trips · ETA
+        Row(children: [
+          _StatBox(label: 'Rating',
+              value: _rating.toStringAsFixed(1),
+              icon: Icons.star_rounded,
+              color: const Color(0xFFF59E0B), isDark: isDark),
+          const SizedBox(width: 10),
+          _StatBox(label: 'Trips',
+              value: '$_trips',
+              icon: Icons.route_rounded,
+              color: AppColors.primary, isDark: isDark),
+          const SizedBox(width: 10),
+          _StatBox(label: 'ETA',
+              value: _etaLabel,
+              icon: Icons.access_time_rounded,
+              color: AppColors.success, isDark: isDark),
+        ]),
+
+        const SizedBox(height: 20),
+
+        // Info rows
+        _SheetInfoRow(icon: Icons.near_me_rounded,
+            color: AppColors.primary,
+            title: 'Distance', value: _distLabel, isDark: isDark),
+        _SheetInfoRow(icon: _vIcon(),
+            color: const Color(0xFF8B5CF6),
+            title: 'Vehicle',
+            value: '${_vtype[0].toUpperCase()}${_vtype.substring(1)}'
+                '${_plate != null ? "  •  $_plate" : ""}',
+            isDark: isDark),
+        _SheetInfoRow(
+            icon: Icons.location_on_rounded,
+            color: AppColors.warning,
+            title: 'Current Location',
+            value: _latLngLabel,
+            isDark: isDark),
+        _SheetInfoRow(
+            icon: Icons.circle,
+            color: _online ? AppColors.success : Colors.grey,
+            title: 'Status',
+            value: _online ? 'Online' : 'Offline',
+            isDark: isDark),
+
+        const SizedBox(height: 18),
+        Divider(height: 1,
+            color: isDark ? Colors.white12 : Colors.grey.shade200),
+        const SizedBox(height: 18),
+
+        // Action buttons
+        Row(children: [
+          Expanded(
+            child: _SheetActionBtn(
+              icon: Icons.call_rounded, label: 'Call Rider',
+              color: AppColors.success, isDark: isDark,
+              enabled: _phone.isNotEmpty,
+              onTap: () async {
+                Navigator.pop(context);
+                final Uri phoneUri = Uri(scheme: 'tel', path: _phone);
+                if (await canLaunchUrl(phoneUri)) {
+                  await launchUrl(phoneUri);
+                } else if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Could not open dialer', style: GoogleFonts.alexandria(fontSize: 13)),
+                    backgroundColor: AppColors.error,
+                  ));
+                }
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _SheetActionBtn(
+              icon: Icons.chat_bubble_outline_rounded, label: 'Message',
+              color: AppColors.primary, isDark: isDark, enabled: _phone.isNotEmpty,
+              onTap: () async {
+                Navigator.pop(context);
+                final Uri smsUri = Uri(scheme: 'sms', path: _phone);
+                if (await canLaunchUrl(smsUri)) {
+                  await launchUrl(smsUri);
+                } else if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Could not open messaging app', style: GoogleFonts.alexandria(fontSize: 13)),
+                    backgroundColor: AppColors.error,
+                  ));
+                }
+              },
+            ),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _fb() => Container(
+      color: AppColors.primary.withOpacity(0.12),
+      alignment: Alignment.center,
+      child: Text(
+        _name.isNotEmpty ? _name[0].toUpperCase() : 'R',
+        style: GoogleFonts.alexandria(
+            color: AppColors.primary, fontSize: 32,
+            fontWeight: FontWeight.bold),
+      ));
+}
+
+// ─── Shared sheet widgets ─────────────────────────────────────────────────────
+
+class _StatBox extends StatelessWidget {
+  final String label, value;
+  final IconData icon;
+  final Color color;
+  final bool isDark;
+  const _StatBox({required this.label, required this.value,
+    required this.icon, required this.color, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) => Expanded(child: Container(
+    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+    decoration: BoxDecoration(
+      color: color.withOpacity(isDark ? 0.12 : 0.07),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: color.withOpacity(0.2)),
+    ),
+    child: Column(children: [
+      Icon(icon, size: 18, color: color),
+      const SizedBox(height: 6),
+      Text(value, style: GoogleFonts.alexandria(
+          fontSize: 15, fontWeight: FontWeight.bold,
+          color: isDark ? Colors.white : AppColors.lightText)),
+      const SizedBox(height: 2),
+      Text(label, style: GoogleFonts.alexandria(
+          fontSize: 10,
+          color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
+    ]),
+  ));
+}
+
+class _SheetInfoRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title, value;
+  final bool isDark;
+  const _SheetInfoRow({required this.icon, required this.color,
+    required this.title, required this.value, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Row(children: [
+      Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12)),
+        child: Icon(icon, color: color, size: 18),
+      ),
+      const SizedBox(width: 14),
+      Expanded(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: GoogleFonts.alexandria(
+              fontSize: 11,
+              color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
+          Text(value, style: GoogleFonts.alexandria(
+              fontSize: 14, fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : AppColors.lightText)),
+        ],
+      )),
+    ]),
+  );
+}
+
+class _SheetActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isDark, enabled;
+  final VoidCallback onTap;
+  const _SheetActionBtn({required this.icon, required this.label,
+    required this.color, required this.isDark,
+    required this.enabled, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: enabled ? onTap : null,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        color: enabled
+            ? color.withOpacity(isDark ? 0.18 : 0.1)
+            : (isDark ? Colors.white10 : Colors.grey.shade100),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: enabled
+                ? color.withOpacity(0.3)
+                : (isDark ? Colors.white12 : Colors.grey.shade200)),
+      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(icon, size: 18,
+            color: enabled ? color
+                : (isDark ? Colors.white38 : Colors.grey.shade400)),
+        const SizedBox(width: 8),
+        Text(label, style: GoogleFonts.alexandria(
+            fontSize: 13, fontWeight: FontWeight.w600,
+            color: enabled ? color
+                : (isDark ? Colors.white38 : Colors.grey.shade400))),
+      ]),
+    ),
+  );
+}
+
+// ─── Rating sheet ─────────────────────────────────────────────────────────────
+// Auto-shown after:
+//   pickup   (status → picked_up)   — rates the pickup rider
+//   delivery (status → delivered)   — rates the delivery rider
+//
+// Rider ID used:
+//   pickup  → order.pickupRiderId  ?? order.riderId
+//   delivery → order.deliveryRiderId ?? order.riderId
+//
+// On submit: rolling-average update to riders.rating + riders.total_trips,
+// plus an optional insert into rider_ratings table.
+
+class _RatingSheet extends StatefulWidget {
+  final OrderEntity order;
+  final bool isDark;
+  final _RatingEvent eventType;
+  const _RatingSheet({
+    required this.order, required this.isDark, required this.eventType});
+  @override State<_RatingSheet> createState() => _RatingSheetState();
+}
+
+class _RatingSheetState extends State<_RatingSheet>
+    with SingleTickerProviderStateMixin {
+  int    _stars     = 0;
+  bool   _submitted = false;
+  bool   _loading   = false;
+  String _comment   = '';
+
+  late final AnimationController _bounceCtrl;
+  late final List<Animation<double>> _starAnims;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounceCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 600));
+    _starAnims = List.generate(
+        5,
+            (i) => Tween<double>(begin: 1.0, end: 1.4).animate(
+            CurvedAnimation(
+                parent: _bounceCtrl,
+                curve: Interval(i * 0.1, i * 0.1 + 0.4,
+                    curve: Curves.elasticOut))));
+  }
+
+  @override
+  void dispose() { _bounceCtrl.dispose(); super.dispose(); }
+
+  void _onStar(int s) {
+    setState(() => _stars = s);
+    _bounceCtrl.forward(from: 0);
+  }
+
+  // The rider being rated depends on the event type:
+  //   pickup  → pickup_rider_id if set, else rider_id
+  //   delivery → delivery_rider_id if set, else rider_id
+  String? get _targetRiderId {
+    if (widget.eventType == _RatingEvent.pickup) {
+      return widget.order.pickupRiderId ?? widget.order.riderId;
+    }
+    return widget.order.deliveryRiderId ?? widget.order.riderId;
+  }
+
+  // Saves the action to device storage so the sheet never shows again for this order phase
+  Future<void> _markAsHandled() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = widget.eventType == _RatingEvent.pickup
+        ? 'rated_pickup_${widget.order.id}'
+        : 'rated_delivery_${widget.order.id}';
+    await prefs.setBool(key, true);
+  }
+
+  Future<void> _submit() async {
+    if (_stars == 0) return;
+    setState(() => _loading = true);
+
+    try {
+      final client   = Supabase.instance.client;
+      final riderId  = _targetRiderId;
+      final userId   = client.auth.currentUser?.id;
+
+      if (riderId != null) {
+        // 1. Update the rolling average in the riders table
+        final res = await client
+            .from('riders')
+            .select('rating, total_trips')
+            .eq('id', riderId)
+            .maybeSingle();
+
+        if (res != null) {
+          final cur   = (res['rating']      as num?)?.toDouble() ?? 5.0;
+          final trips = (res['total_trips'] as int?)          ?? 0;
+          final newT  = trips + 1;
+          final newR  = double.parse(
+              ((cur * trips + _stars) / newT).toStringAsFixed(2));
+
+          await client
+              .from('riders')
+              .update({'rating': newR, 'total_trips': newT})
+              .eq('id', riderId);
+        }
+
+        // 2. Insert the specific review into the rider_ratings table
+        if (userId != null) {
+          await client.from('rider_ratings').insert({
+            'order_id':    widget.order.id,
+            'rider_id':    riderId,
+            'user_id':     userId,
+            'rating_type': widget.eventType == _RatingEvent.pickup ? 'pickup' : 'delivery',
+            'stars':       _stars,
+            'comment':     _comment.trim().isEmpty ? null : _comment.trim(),
+          });
+        } else {
+          debugPrint('Warning: Could not insert rating, user_id is null.');
+        }
+      }
+
+      await _markAsHandled(); // Mark as completed to never show again
+
+      if (mounted) setState(() { _submitted = true; _loading = false; });
+      await Future.delayed(const Duration(milliseconds: 1400));
+      if (mounted) Navigator.pop(context); // Close the bottom sheet
+
+    } catch (e) {
+      debugPrint('Error submitting rating: $e');
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String get _title => widget.eventType == _RatingEvent.pickup
+      ? 'Rate Your Pickup'   : 'Rate Your Delivery';
+  String get _subtitle => widget.eventType == _RatingEvent.pickup
+      ? 'How was your pickup experience?' : 'How was your delivery experience?';
+  String get _starLabel {
+    switch (_stars) {
+      case 1: return 'Poor';
+      case 2: return 'Fair';
+      case 3: return 'Good';
+      case 4: return 'Great';
+      case 5: return 'Excellent!';
+      default: return 'Tap to rate';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+          24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        child: _submitted ? _success() : _form(),
+      ),
+    );
+  }
+
+  Widget _form() {
+    final isDark = widget.isDark;
+    final name   = widget.order.riderName ?? 'Your Rider';
+    final photo  = widget.order.riderAvatarUrl;
+    return Column(key: const ValueKey('form'), mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Container(width: 40, height: 4,
+              decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+
+          // Rider avatar
+          Container(width: 72, height: 72,
+            decoration: BoxDecoration(shape: BoxShape.circle,
+                border: Border.all(
+                    color: AppColors.primary.withOpacity(0.25), width: 2.5)),
+            child: ClipOval(
+              child: photo != null
+                  ? Image.network(photo, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _fb(name, isDark))
+                  : _fb(name, isDark),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          Text(_title, style: GoogleFonts.alexandria(
+              fontSize: 20, fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : AppColors.lightText)),
+          const SizedBox(height: 4),
+          Text(_subtitle, style: GoogleFonts.alexandria(
+              fontSize: 13,
+              color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
+          const SizedBox(height: 2),
+          Text('with $name', style: GoogleFonts.alexandria(
+              fontSize: 13, fontWeight: FontWeight.w600,
+              color: AppColors.primary)),
+          const SizedBox(height: 24),
+
+          // Animated star row
+          Row(mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (i) {
+                final s = i + 1;
+                return AnimatedBuilder(
+                  animation: _starAnims[i],
+                  builder: (_, __) => Transform.scale(
+                    scale: _stars >= s ? _starAnims[i].value : 1.0,
+                    child: GestureDetector(
+                      onTap: () => _onStar(s),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Icon(
+                          _stars >= s
+                              ? Icons.star_rounded : Icons.star_outline_rounded,
+                          size: 44,
+                          color: _stars >= s
+                              ? const Color(0xFFF59E0B) : Colors.grey.shade400,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              })),
+          const SizedBox(height: 8),
+          Text(_starLabel, style: GoogleFonts.alexandria(
+              fontSize: 13, fontWeight: FontWeight.w600,
+              color: _stars > 0
+                  ? const Color(0xFFF59E0B)
+                  : (isDark ? AppColors.darkSubtext : AppColors.lightSubtext))),
+          const SizedBox(height: 20),
+
+          // Comment box
+          TextField(
+            maxLines: 3, maxLength: 200,
+            onChanged: (v) => _comment = v,
+            style: GoogleFonts.alexandria(
+                fontSize: 13,
+                color: isDark ? Colors.white : AppColors.lightText),
+            decoration: InputDecoration(
+              hintText: 'Leave a comment (optional)…',
+              hintStyle: GoogleFonts.alexandria(
+                  fontSize: 13,
+                  color: isDark ? Colors.white38 : Colors.grey.shade400),
+              filled: true,
+              fillColor: isDark
+                  ? AppColors.darkBackground : const Color(0xFFF8FAFF),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                      color: isDark
+                          ? AppColors.darkBorder : AppColors.lightBorder)),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(
+                      color: AppColors.primary, width: 1.5)),
+              counterStyle: GoogleFonts.alexandria(
+                  fontSize: 11,
+                  color: isDark ? Colors.white38 : Colors.grey.shade400),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Skip / Submit
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: _loading ? null : () async {
+                await _markAsHandled(); // Remember the skip so it doesn't show again
+                if (context.mounted) Navigator.pop(context); // Close the bottom sheet
+              },
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                    color: isDark ? Colors.white24 : Colors.grey.shade300),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: Text('Skip', style: GoogleFonts.alexandria(
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white60 : AppColors.lightSubtext)),
+            )),
+            const SizedBox(width: 12),
+            Expanded(flex: 2, child: Container(
+              decoration: BoxDecoration(
+                gradient: _stars > 0 ? AppColors.gradient : null,
+                color: _stars > 0
+                    ? null
+                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: _stars > 0
+                    ? [BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 8, offset: const Offset(0, 4))]
+                    : [],
+              ),
+              child: ElevatedButton(
+                onPressed: (_stars > 0 && !_loading) ? _submit : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                child: _loading
+                    ? const SizedBox(width: 20, height: 20,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                    : Text('Submit Rating', style: GoogleFonts.alexandria(
+                    color: _stars > 0 ? Colors.white
+                        : (isDark
+                        ? Colors.grey.shade500
+                        : Colors.grey.shade400),
+                    fontWeight: FontWeight.bold)),
+              ),
+            )),
+          ]),
+        ]);
+  }
+
+  Widget _success() => Column(
+      key: const ValueKey('ok'), mainAxisSize: MainAxisSize.min, children: [
+    const SizedBox(height: 20),
+    Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(shape: BoxShape.circle,
+            gradient: LinearGradient(
+                colors: [AppColors.success, Color(0xFF059669)])),
+        child: const Icon(Icons.check_rounded, color: Colors.white, size: 40)),
+    const SizedBox(height: 16),
+    Text('Thanks for rating!', style: GoogleFonts.alexandria(
+        fontSize: 20, fontWeight: FontWeight.bold,
+        color: widget.isDark ? Colors.white : AppColors.lightText)),
+    const SizedBox(height: 8),
+    Text('Your feedback helps us improve.',
+        textAlign: TextAlign.center,
+        style: GoogleFonts.alexandria(
+            fontSize: 13,
+            color: widget.isDark
+                ? AppColors.darkSubtext : AppColors.lightSubtext)),
+    const SizedBox(height: 24),
+  ]);
+
+  Widget _fb(String name, bool isDark) => Container(
+      color: AppColors.primary.withOpacity(0.12), alignment: Alignment.center,
+      child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'R',
+          style: GoogleFonts.alexandria(
+              color: AppColors.primary, fontSize: 26,
+              fontWeight: FontWeight.bold)));
 }
 
 class _EmptyState extends StatelessWidget {

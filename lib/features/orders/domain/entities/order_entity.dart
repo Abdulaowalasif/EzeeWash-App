@@ -51,8 +51,11 @@ class OrderEntity extends Equatable {
   final double? riderLat;
   final double? riderLng;
 
-  // ── Rider profile (from riders table join via rider_locations) ────────────
-  final String? riderId;
+  // ── Rider IDs from orders table ─────────────────────────────────────────
+  final String? riderId;          // current assigned rider (orders.rider_id)
+  final String? pickupRiderId;    // orders.pickup_rider_id
+  final String? deliveryRiderId;  // orders.delivery_rider_id
+
   final String? riderName;
   final String? riderPhone;
   final String? riderAvatarUrl;
@@ -89,6 +92,8 @@ class OrderEntity extends Equatable {
     this.riderLat,
     this.riderLng,
     this.riderId,
+    this.pickupRiderId,
+    this.deliveryRiderId,
     this.riderName,
     this.riderPhone,
     this.riderAvatarUrl,
@@ -112,6 +117,8 @@ class OrderEntity extends Equatable {
     riderLat,
     riderLng,
     riderId,
+    pickupRiderId,
+    deliveryRiderId,
     riderIsOnline,
   ];
 }
