@@ -35,16 +35,13 @@ GoRouter createRouter(AuthBloc authBloc) {
       final isLogin = state.matchedLocation == RoutesName.login;
 
       // Still loading — stay on login page to avoid grey/blank screen.
-      // If already on login, no redirect needed. Otherwise go to login.
       if (authState is AuthInitial || authState is AuthLoading) {
         return isLogin ? null : RoutesName.login;
       }
 
       if (authState is AuthAuthenticated) {
-        // Check for a pending deep-link from a notification
         final pendingRoute = NotificationService.consumePendingRoute();
         if (pendingRoute != null) return pendingRoute;
-        // Send authenticated users away from the login page
         if (isLogin) return RoutesName.main;
         return null;
       }
@@ -97,9 +94,27 @@ GoRouter createRouter(AuthBloc authBloc) {
                           : PlaceOrderScreen(
                         preSelectedServiceId: extra as String?,
                       );
+
+                      // FIX: Use BlocProvider.value instead of BlocProvider(create: ...).
+                      //
+                      // Previously, BlocProvider(create: (_) => sl<OrdersBloc>())
+                      // created a BRAND NEW, ISOLATED OrdersBloc instance for
+                      // PlaceOrderScreen. When the order was placed successfully,
+                      // _onPlace emitted OrderPlaced and then dispatched
+                      // OrdersLoadRequested — but only into this isolated bloc.
+                      // The ROOT OrdersBloc (provided in main.dart and used by
+                      // OrderScreen) never received the reload, so the newly
+                      // placed order was written to the DB but the UI stayed stale
+                      // until the app was restarted.
+                      //
+                      // BlocProvider.value passes the SAME root OrdersBloc instance
+                      // down. When PlaceOrderScreen dispatches OrderPlaceRequested
+                      // and the subsequent OrdersLoadRequested fires, it updates the
+                      // shared state that OrderScreen is already listening to —
+                      // so the new order appears on the UI immediately.
                       return _slide(
-                        BlocProvider(
-                          create: (_) => sl<OrdersBloc>(),
+                        BlocProvider.value(
+                          value: c.read<OrdersBloc>(), // ✅ share the root bloc
                           child: screen,
                         ),
                         s,

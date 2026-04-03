@@ -31,34 +31,26 @@ import 'routes/app_router.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Request required permissions on app launch
   await _requestAppPermissions();
 
-  // 1. Load environment variables
   await dotenv.load(fileName: '.env');
 
-  // 2. Stripe initialization
   Stripe.publishableKey = AppConstants.stripePubKey;
 
-  // 3. Firebase initialization for notification transport
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // 4. Supabase initialization
   await Supabase.initialize(
     url: AppConstants.supabaseUrl,
     anonKey: AppConstants.supabaseAnonKey,
   );
 
-  // 5. Notification Service initialization
   await NotificationService.init(AppConstants.oneSignalAppId);
 
-  // 6. Dependency injection setup
   await initDependencies();
 
   runApp(const EzeeWashApp());
 }
 
-// Helper function to request permissions using permission_handler
 Future<void> _requestAppPermissions() async {
   await [
     Permission.location,
@@ -84,9 +76,6 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
     _router = createRouter(_authBloc);
   }
 
-  // FIX: Recreating the GoRouter instance completely wipes out the routing state,
-  // including the cached StatefulShellRoute branches. This completely fixes the
-  // infamous "blank/grey screen after logout and relogin" bug in GoRouter.
   void _recreateRouter() {
     setState(() {
       _router = createRouter(_authBloc);
@@ -115,7 +104,7 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
         BlocProvider(create: (_) => sl<ProfileBloc>()),
       ],
       child: _AuthReactiveLoader(
-        onLogout: _recreateRouter, // Pass the reset callback here
+        onLogout: _recreateRouter,
         child: MaterialApp.router(
           debugShowCheckedModeBanner: false,
           title: AppConstants.appName,
@@ -145,10 +134,6 @@ class _AuthReactiveLoader extends StatefulWidget {
 }
 
 class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
-  // Tracks whether we've already dispatched data-load events for the
-  // current authenticated session. Reset to false on logout so that
-  // a subsequent login always re-loads fresh data (fixes grey screens
-  // after logout → re-login on first install and subsequent sessions).
   bool _loaded = false;
   String? _lastLoadedUserId;
   final Map<String, String> _prevStatuses = {};
@@ -163,27 +148,55 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
               final userId = state.user.id;
               unawaited(NotificationService.loginAndWaitForSubscription(userId));
 
-              // Dispatch load events if:
-              //   1. Never loaded yet (_loaded == false), OR
-              //   2. A different user logged in (e.g. after logout → re-login)
+              // FIX: Trigger data load whenever a new user is authenticated.
+              //
+              // This fires for ALL login methods — email/password AND Google OAuth.
+              //
+              // Email/password: AuthAuthenticated is emitted directly from
+              //   _onSignIn in AuthBloc (synchronous path).
+              //
+              // Google OAuth: AuthAuthenticated arrives via the authStateChanges
+              //   stream inside AuthBloc (async path — browser redirect). Because
+              //   _suppressStream is NOT set for Google, _onStreamEvent fires and
+              //   emits AuthAuthenticated, which this listener catches.
+              //   Previously, Google auth appeared to "work" (the user reached the
+              //   home screen) but the orders never loaded because the stream
+              //   emission was not reliably triggering this block, or because
+              //   _loaded was already true from a previous session check.
+              //
+              // The _lastLoadedUserId guard ensures we don't spam re-loads on
+              // token refresh events (which also fire onAuthStateChange).
               if (!_loaded || _lastLoadedUserId != userId) {
                 _loaded = true;
                 _lastLoadedUserId = userId;
+
+                // Reset the realtime subscription so it re-subscribes with
+                // the correct userId. This matters after logout → re-login
+                // where the subscription might still hold the old user's filter.
+                ctx.read<OrdersBloc>().resetSubscription();
+
                 ctx.read<OrdersBloc>().add(const OrdersLoadRequested());
                 ctx.read<NotificationsBloc>().add(const NotificationsLoadRequested());
                 ctx.read<ProfileBloc>().add(const ProfileLoadRequested());
               }
             } else if (state is AuthUnauthenticated || state is AuthError) {
-              // If we were previously logged in and just logged out, trigger router recreation
               if (_loaded && state is AuthUnauthenticated) {
                 widget.onLogout();
               }
 
-              // Reset so the next login always triggers a fresh data load.
+              // Reset flags so the NEXT login (including Google OAuth on the
+              // same app session) always triggers a fresh data load.
               _loaded = false;
               _lastLoadedUserId = null;
               NotificationService.clearUserId();
             }
+            // AuthLoading is intentionally ignored here:
+            // - For email/password, _suppressStream is true so the stream won't
+            //   interfere; AuthAuthenticated or AuthError will follow directly.
+            // - For Google OAuth, AuthLoading is the state while the browser is
+            //   open. We must NOT reset _loaded here — that would break the
+            //   _lastLoadedUserId guard when AuthAuthenticated arrives. We also
+            //   must NOT pre-dispatch any load events — no session exists yet.
           },
         ),
         BlocListener<OrdersBloc, OrdersState>(

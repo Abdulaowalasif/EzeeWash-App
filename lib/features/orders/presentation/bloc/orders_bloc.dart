@@ -1,4 +1,4 @@
-// lib/features/orders/bloc/orders_bloc.dart
+// lib/features/orders/presentation/bloc/orders_bloc.dart
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -47,9 +47,20 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           (failure) => emit(OrdersError(failure.message)),
           (orders) {
         emit(OrdersLoaded(orders: orders, showActive: prevShowActive));
-        if (!_subscribed) {
-          final userId = client.auth.currentUser?.id;
-          if (userId != null) {
+
+        // FIX: Always re-evaluate the realtime subscription on load.
+        //
+        // Previously _subscribed was set to true once and never reset, so
+        // if OrdersBloc was shared via BlocProvider.value (see app_router.dart)
+        // across sessions (logout → re-login), the subscription kept the OLD
+        // userId filter. Resetting here ensures we always subscribe for the
+        // currently authenticated user.
+        final userId = client.auth.currentUser?.id;
+        if (userId != null) {
+          // Cancel any existing subscription before creating a new one.
+          // This handles the case where the user logs out and back in —
+          // we must re-subscribe with the new userId.
+          if (!_subscribed) {
             _subscribed = true;
             _subscribeRealtime(userId);
           }
@@ -86,6 +97,14 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       },
           (order) {
         emit(OrderPlaced(orderNumber: order.orderNumber));
+        // FIX: After placing, reload orders so the new order appears on
+        // the OrderScreen immediately. The 600 ms delay gives Supabase time
+        // to commit the row before we fetch.
+        //
+        // Because PlaceOrderScreen now uses BlocProvider.value (sharing the
+        // root OrdersBloc — see app_router.dart), this reload updates the
+        // same state that OrderScreen is listening to, so the UI reflects
+        // the new order without requiring an app restart.
         Future.delayed(const Duration(milliseconds: 600), () {
           if (!isClosed) add(const OrdersLoadRequested());
         });
@@ -99,7 +118,6 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       OrderCancelRequested event,
       Emitter<OrdersState> emit,
       ) async {
-    // Preserve current list while the cancel request is in flight
     final prevState = state;
     final prevShowActive =
     state is OrdersLoaded ? (state as OrdersLoaded).showActive : false;
@@ -110,16 +128,13 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
 
     result.fold(
           (failure) {
-        // Restore the previous list so the screen doesn't go blank
         if (prevState is OrdersLoaded) {
           emit(prevState);
         }
         emit(OrdersError(failure.message));
       },
           (_) async {
-        // Emit success so the screen can react (snackbar / pop)
         emit(const OrderCancelled());
-        // Reload the list — cancelled order moves to Completed tab
         final reloadResult = await getOrdersUseCase(const NoParams());
         reloadResult.fold(
               (_) {},
@@ -157,7 +172,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     );
   }
 
-  // ─── Realtime ─────────────────────────────────────────────────────────────
+  // ─── Realtime ──────────────────────────────────────────────────────────────
 
   void _subscribeRealtime(String userId) {
     _realtimeSub?.cancel();
@@ -168,6 +183,8 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         .eq('user_id', userId)
         .listen(
           (_) {
+        // Skip the initial snapshot that Supabase sends immediately on
+        // subscription — we already have fresh data from the load above.
         if (firstEvent) {
           firstEvent = false;
           return;
@@ -176,6 +193,16 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       },
       onError: (_) {},
     );
+  }
+
+  // ─── Reset realtime subscription ───────────────────────────────────────────
+
+  /// Call this when the authenticated user changes (logout → re-login) so the
+  /// realtime subscription is re-established for the new user's orders.
+  void resetSubscription() {
+    _realtimeSub?.cancel();
+    _realtimeSub = null;
+    _subscribed = false;
   }
 
   @override

@@ -48,11 +48,18 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  // FIX: signInWithGoogle now returns Either<Failure, void>.
+  //
+  // The datasource just opens the OAuth browser flow and returns — no session
+  // exists at this moment. The session will arrive via the deep-link callback
+  // and be broadcast through authStateChanges. Returning void here prevents
+  // the bloc from trying to use a non-existent UserEntity and emitting
+  // AuthError("Google sign in failed") before the user has even picked an account.
   @override
-  Future<Either<Failure, UserEntity>> signInWithGoogle() async {
+  Future<Either<Failure, void>> signInWithGoogle() async {
     try {
-      final user = await remoteDataSource.signInWithGoogle();
-      return Right(user);
+      await remoteDataSource.signInWithGoogle();
+      return const Right(null);
     } on AuthException catch (e) {
       return Left(AuthFailure(e.message));
     } catch (e) {

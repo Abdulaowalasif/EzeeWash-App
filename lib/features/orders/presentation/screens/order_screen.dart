@@ -968,15 +968,14 @@ class _ReorderSheetState extends State<_ReorderSheet> {
   void initState() {
     super.initState();
 
-    // Initialize Dates dynamically based on current time
-    _pickupDate = _minPickupDate;
-    _pickupTimes = _getPickupTimes(_pickupDate);
-    _pickupTime = _pickupTimes.isNotEmpty ? _pickupTimes.first : '08:00 AM';
+    // 1. Initialize variables with default/placeholder values to satisfy 'late' check
+    _pickupTime = 'Select time';
+    _deliveryTime = 'Select time';
+    _deliveryDate = DateTime.now();
 
-    DateTime minDelDate = _minDeliveryDate;
-    _deliveryDate = minDelDate;
-    _deliveryTimes = _getDeliveryTimes(_deliveryDate);
-    _deliveryTime = _deliveryTimes.isNotEmpty ? _deliveryTimes.first : '08:00 PM';
+    // 2. Perform actual logic initialization
+    _pickupDate = _minPickupDate;
+    _onPickupDateChanged(_pickupDate); // This also calls _syncDelivery and calculates times
   }
 
   // Calculate the absolute minimum valid pickup day based on 7 PM cutoff
@@ -1000,48 +999,55 @@ class _ReorderSheetState extends State<_ReorderSheet> {
   }
 
   int _parseHour(String timeStr) {
-    if (timeStr.isEmpty) return 8;
-    List<String> parts = timeStr.split(' ');
-    int h = int.parse(parts[0].split(':')[0]);
-    if (parts.length > 1) {
-      if (parts[1] == 'PM' && h != 12) h += 12;
-      if (parts[1] == 'AM' && h == 12) h = 0;
+    if (timeStr == 'Select time' || timeStr.isEmpty) return 8;
+    try {
+      List<String> parts = timeStr.split(' ');
+      int h = int.parse(parts[0].split(':')[0]);
+      if (parts.length > 1) {
+        if (parts[1] == 'PM' && h != 12) h += 12;
+        if (parts[1] == 'AM' && h == 12) h = 0;
+      }
+      return h;
+    } catch (_) {
+      return 8;
     }
-    return h;
   }
 
   List<String> _getPickupTimes(DateTime date) {
     final now = DateTime.now();
     int startHour = 8;
-    int endHour = 19; // Rider can pickup until 1 hour before 8pm close
+    int endHour = 19; // Latest pickup slot at 7 PM
 
-    // If selecting today, enforce current time + 1 hour minimum
+    // Rule: show from current + 1h
     if (date.year == now.year && date.month == now.month && date.day == now.day) {
       startHour = now.hour + 1;
       if (startHour < 8) startHour = 8;
     }
 
+    if (startHour > endHour) return [];
+
     List<String> times = [];
     for (int i = startHour; i <= endHour; i++) {
       times.add(_formatHour(i));
     }
-    return times.isNotEmpty ? times : [_formatHour(endHour)];
+    return times;
   }
 
   DateTime _getMinDeliveryDateTime(DateTime pDate, String pTime) {
     int pHour = _parseHour(pTime);
     DateTime current = DateTime(pDate.year, pDate.month, pDate.day, pHour);
 
-    // Express = 5 working hours minimum.
-    // Standard = 12 working hours (which equals 1 full business day later)
+    // Express = 5 working hours minimum (8am-8pm window).
+    // Standard = 12 working hours (effectively 24-hour turnaround).
     int hoursNeeded = _isExpress ? 5 : 12;
 
     while (hoursNeeded > 0) {
-      current = current.add(const Duration(hours: 1));
-      // Store business hours logic: 8:00 AM to 8:00 PM
-      if (current.hour > 8 && current.hour <= 20) {
-        hoursNeeded--;
+      // If we are at or after closing (8:00 PM), move to next day opening (8:00 AM)
+      if (current.hour >= 20) {
+        current = DateTime(current.year, current.month, current.day + 1, 8);
       }
+      current = current.add(const Duration(hours: 1));
+      hoursNeeded--;
     }
     return current;
   }
@@ -1051,58 +1057,59 @@ class _ReorderSheetState extends State<_ReorderSheet> {
     int startHour = 8;
     int endHour = 20;
 
-    // If they picked the absolute earliest possible delivery day, restrict the start time
-    if (dDate.year == minDelDateTime.year && dDate.month == minDelDateTime.month && dDate.day == minDelDateTime.day) {
+    bool isSameAsMinDay = dDate.year == minDelDateTime.year &&
+        dDate.month == minDelDateTime.month &&
+        dDate.day == minDelDateTime.day;
+
+    if (isSameAsMinDay) {
       startHour = minDelDateTime.hour;
+      if (startHour < 8) startHour = 8;
     }
+
+    if (startHour > endHour) return [];
 
     List<String> times = [];
     for (int i = startHour; i <= endHour; i++) {
       times.add(_formatHour(i));
     }
-    return times.isNotEmpty ? times : [_formatHour(endHour)];
+    return times;
   }
 
   void _onPickupDateChanged(DateTime d) {
     setState(() {
       _pickupDate = d;
       _pickupTimes = _getPickupTimes(d);
-      if (!_pickupTimes.contains(_pickupTime) && _pickupTimes.isNotEmpty) {
-        _pickupTime = _pickupTimes.first;
+      if (!_pickupTimes.contains(_pickupTime)) {
+        _pickupTime = _pickupTimes.isNotEmpty ? _pickupTimes.first : 'Select time';
       }
-
-      // Cascade restrict delivery dates
-      DateTime minDelDate = _minDeliveryDate;
-      if (_deliveryDate.isBefore(minDelDate)) _deliveryDate = minDelDate;
-
-      _deliveryTimes = _getDeliveryTimes(_deliveryDate);
-      if (!_deliveryTimes.contains(_deliveryTime) && _deliveryTimes.isNotEmpty) {
-        _deliveryTime = _deliveryTimes.first;
-      }
+      _syncDelivery();
     });
   }
 
   void _onPickupTimeChanged(String t) {
     setState(() {
       _pickupTime = t;
-
-      // Cascade restrict delivery dates when time shifts into the evening
-      DateTime minDelDate = _minDeliveryDate;
-      if (_deliveryDate.isBefore(minDelDate)) _deliveryDate = minDelDate;
-
-      _deliveryTimes = _getDeliveryTimes(_deliveryDate);
-      if (!_deliveryTimes.contains(_deliveryTime) && _deliveryTimes.isNotEmpty) {
-        _deliveryTime = _deliveryTimes.first;
-      }
+      _syncDelivery();
     });
+  }
+
+  void _syncDelivery() {
+    DateTime minD = _minDeliveryDate;
+    if (_deliveryDate.isBefore(minD)) {
+      _deliveryDate = minD;
+    }
+    _deliveryTimes = _getDeliveryTimes(_deliveryDate);
+    if (!_deliveryTimes.contains(_deliveryTime)) {
+      _deliveryTime = _deliveryTimes.isNotEmpty ? _deliveryTimes.first : 'Select time';
+    }
   }
 
   void _onDeliveryDateChanged(DateTime d) {
     setState(() {
       _deliveryDate = d;
       _deliveryTimes = _getDeliveryTimes(d);
-      if (!_deliveryTimes.contains(_deliveryTime) && _deliveryTimes.isNotEmpty) {
-        _deliveryTime = _deliveryTimes.first;
+      if (!_deliveryTimes.contains(_deliveryTime)) {
+        _deliveryTime = _deliveryTimes.isNotEmpty ? _deliveryTimes.first : 'Select time';
       }
     });
   }
@@ -1112,7 +1119,7 @@ class _ReorderSheetState extends State<_ReorderSheet> {
   InputDecoration _deco(String label, Color accent) => InputDecoration(
     labelText: label, filled: true,
     fillColor: widget.isDark ? AppColors.darkBackground : AppColors.lightBackground,
-    labelStyle: TextStyle(color: widget.isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+    labelStyle: GoogleFonts.alexandria(fontSize: 12, color: accent.withOpacity(0.8)),
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: widget.isDark ? AppColors.darkBorder : AppColors.lightBorder)),
     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: accent, width: 1.5)),
@@ -1121,6 +1128,11 @@ class _ReorderSheetState extends State<_ReorderSheet> {
   @override
   Widget build(BuildContext context) {
     final o = widget.order;
+    final bool canProceed = _pickupTime != 'Select time' &&
+        _deliveryTime != 'Select time' &&
+        _pickupTimes.isNotEmpty &&
+        _deliveryTimes.isNotEmpty;
+
     return Container(
       padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 24),
       decoration: BoxDecoration(color: widget.isDark ? AppColors.darkSurface : Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
@@ -1144,11 +1156,12 @@ class _ReorderSheetState extends State<_ReorderSheet> {
           ]),
         ),
         const SizedBox(height: 20),
-        Text('Pickup Schedule', style: GoogleFonts.alexandria(fontSize: 13, fontWeight: FontWeight.w600, color: widget.isDark ? Colors.white : AppColors.lightText)),
+        Text('Pickup Schedule (8 AM - 7 PM)', style: GoogleFonts.alexandria(fontSize: 13, fontWeight: FontWeight.w600, color: widget.isDark ? Colors.white : AppColors.lightText)),
         const SizedBox(height: 10),
         Row(children: [
           Expanded(child: TextFormField(
             controller: TextEditingController(text: _fmt(_pickupDate)), readOnly: true,
+            style: GoogleFonts.alexandria(fontSize: 13),
             decoration: _deco('Date', AppColors.primary).copyWith(suffixIcon: IconButton(
               icon: const Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 18),
               onPressed: () async {
@@ -1165,21 +1178,22 @@ class _ReorderSheetState extends State<_ReorderSheet> {
           )),
           const SizedBox(width: 12),
           Expanded(child: DropdownButtonFormField<String>(
-            value: _pickupTime, decoration: _deco('Time', AppColors.primary),
+            value: _pickupTime == 'Select time' ? null : _pickupTime,
+            hint: Text('Select time', style: GoogleFonts.alexandria(fontSize: 13)),
+            decoration: _deco('Time', AppColors.primary),
             icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
             items: _pickupTimes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: GoogleFonts.alexandria(fontSize: 13)))).toList(),
             onChanged: (v) { if (v != null) _onPickupTimeChanged(v); },
           )),
         ]),
         const SizedBox(height: 16),
-        Text('Delivery Schedule', style: GoogleFonts.alexandria(fontSize: 13, fontWeight: FontWeight.w600, color: widget.isDark ? Colors.white : AppColors.lightText)),
+        Text('Delivery Schedule (8 AM - 8 PM)', style: GoogleFonts.alexandria(fontSize: 13, fontWeight: FontWeight.w600, color: widget.isDark ? Colors.white : AppColors.lightText)),
         const SizedBox(height: 10),
         Row(children: [
           Expanded(child: TextFormField(
             controller: TextEditingController(text: _fmt(_deliveryDate)), readOnly: true,
-            decoration: _deco('Date', AppColors.success).copyWith(suffixIcon: _isExpress
-                ? const Icon(Icons.lock_outline_rounded, color: AppColors.warning, size: 18)
-                : IconButton(
+            style: GoogleFonts.alexandria(fontSize: 13),
+            decoration: _deco('Date', AppColors.success).copyWith(suffixIcon: IconButton(
               icon: const Icon(Icons.calendar_today_rounded, color: AppColors.success, size: 18),
               onPressed: () async {
                 final minDel = _minDeliveryDate;
@@ -1196,7 +1210,9 @@ class _ReorderSheetState extends State<_ReorderSheet> {
           )),
           const SizedBox(width: 12),
           Expanded(child: DropdownButtonFormField<String>(
-            value: _deliveryTime, decoration: _deco('Time', AppColors.success),
+            value: _deliveryTime == 'Select time' ? null : _deliveryTime,
+            hint: Text('Select time', style: GoogleFonts.alexandria(fontSize: 13)),
+            decoration: _deco('Time', AppColors.success),
             icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.success),
             items: _deliveryTimes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: GoogleFonts.alexandria(fontSize: 13)))).toList(),
             onChanged: (v) { if (v != null) setState(() => _deliveryTime = v); },
@@ -1204,11 +1220,16 @@ class _ReorderSheetState extends State<_ReorderSheet> {
         ]),
         const SizedBox(height: 24),
         SizedBox(width: double.infinity, child: Container(
-          decoration: BoxDecoration(gradient: AppColors.gradient, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]),
+          decoration: BoxDecoration(
+              gradient: canProceed ? AppColors.gradient : null,
+              color: canProceed ? null : (widget.isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: canProceed ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : []
+          ),
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-            onPressed: () => Navigator.pop(context, {'pickupDate': _pickupDate, 'pickupTime': _pickupTime, 'deliveryDate': _deliveryDate, 'deliveryTime': _deliveryTime}),
-            child: Text('Confirm & Reorder', style: GoogleFonts.alexandria(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+            onPressed: canProceed ? () => Navigator.pop(context, {'pickupDate': _pickupDate, 'pickupTime': _pickupTime, 'deliveryDate': _deliveryDate, 'deliveryTime': _deliveryTime}) : null,
+            child: Text('Confirm & Reorder', style: GoogleFonts.alexandria(color: canProceed ? Colors.white : Colors.grey.shade500, fontWeight: FontWeight.bold, fontSize: 15)),
           ),
         )),
       ]),
@@ -1371,7 +1392,7 @@ class _OrderCardState extends State<_OrderCard> {
                     onPressed: null,
                     icon: cancelling ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.cancel_outlined, color: Colors.white, size: 16),
                     label: Text(cancelling ? 'Cancelling…' : 'Cancel', style: GoogleFonts.alexandria(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, disabledBackgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, disabledBackgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                   ),
                 ),
               );

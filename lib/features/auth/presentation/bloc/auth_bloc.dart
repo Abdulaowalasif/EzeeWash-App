@@ -1,4 +1,4 @@
-// lib/features/auth/bloc/auth_bloc.dart
+// lib/features/auth/presentation/bloc/auth_bloc.dart
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
@@ -22,6 +22,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository authRepository;
 
   StreamSubscription<UserEntity?>? _authSub;
+
+  // Suppresses the authStateChanges stream during email/password flows where
+  // the bloc already emits AuthAuthenticated or AuthError directly. This
+  // prevents a duplicate AuthAuthenticated (or a race-condition AuthError)
+  // from being emitted by the stream at the same time.
+  //
+  // IMPORTANT: _suppressStream must remain FALSE for the Google OAuth flow.
+  // Google OAuth works entirely through the stream — the datasource just opens
+  // a browser and returns; it never hands us a UserEntity directly. If we
+  // suppressed the stream during Google sign-in, the AuthAuthenticated state
+  // would never arrive.
   bool _suppressStream = false;
 
   AuthBloc({
@@ -38,7 +49,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignOutRequested>(_onSignOut);
     on<AuthStreamChanged>(_onStreamEvent);
 
-    // Subscribe to Supabase auth state (session restore, token refresh, logout)
+    // Subscribe to Supabase auth state changes.
+    // This handles:
+    //   • Google OAuth callback  → emits AuthAuthenticated
+    //   • Session restore on cold start
+    //   • Token refresh
+    //   • Remote/token-expiry logout
     _authSub = authRepository.authStateChanges.listen((user) {
       if (!_suppressStream) add(AuthStreamChanged(user));
     });
@@ -93,30 +109,55 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           (f) => emit(AuthError(f.message)),
           (user) {
         if (user != null) {
-          // Email confirmation disabled — session exists, user is logged in.
           emit(AuthAuthenticated(user));
         } else {
-          // Email confirmation enabled — session is null.
-          // Show the "check your email" dialog in the screen.
           emit(AuthSignedUp(event.email));
         }
       },
     );
   }
 
+  // FIX: Google OAuth handler.
+  //
+  // Previous bug: after calling signInWithGoogle() the bloc tried to use a
+  // UserEntity that didn't exist yet (the browser hadn't even opened), emitting
+  // AuthError("Google sign in failed") immediately.
+  //
+  // Correct flow:
+  //   1. Emit AuthLoading so the UI shows a spinner.
+  //   2. Call authRepository.signInWithGoogle() — this merely opens the system
+  //      browser. It returns Either<Failure, void>, NOT a UserEntity.
+  //   3. If the repository itself threw (e.g. the OAuth URL couldn't be built),
+  //      emit AuthError.
+  //   4. Otherwise stay in AuthLoading — do NOT emit AuthAuthenticated here.
+  //   5. When the user selects their Google account and is redirected back, the
+  //      Supabase SDK fires onAuthStateChange. The _authSub listener above
+  //      (which is NOT suppressed for Google) dispatches AuthStreamChanged,
+  //      which calls _onStreamEvent → emits AuthAuthenticated.
+  //   6. The GoRouter refreshListenable picks up AuthAuthenticated and
+  //      redirects to the home screen.
   Future<void> _onGoogle(
       AuthGoogleSignInRequested event,
       Emitter<AuthState> emit,
       ) async {
+    // ✅ Do NOT set _suppressStream = true here.
+    // The Google session arrives via the stream; suppressing it would mean
+    // AuthAuthenticated is never emitted and the user stays stuck on the
+    // login screen after a successful OAuth.
     emit(const AuthLoading());
 
     final res = await authRepository.signInWithGoogle();
 
     res.fold(
-          (f) => emit(AuthError(f.message)),
+          (f) {
+        // Only reach here if signInWithOAuth itself threw (e.g. no internet,
+        // invalid OAuth config). Show the error to the user.
+        emit(AuthError(f.message));
+      },
           (_) {
-        // Do nothing
-        // Supabase authStateChanges stream will emit the authenticated user
+        // ✅ Browser launched successfully. Stay in AuthLoading.
+        // _authSub (stream) is not suppressed, so it will emit
+        // AuthAuthenticated once the OAuth callback completes.
       },
     );
   }

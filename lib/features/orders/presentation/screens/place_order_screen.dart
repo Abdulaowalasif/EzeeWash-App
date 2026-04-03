@@ -103,10 +103,12 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   int? _serviceIdx;
   int? _storeIdx;
   int _quantity = 1;
-  DateTime? _pickupDate;
-  String _pickupTime = 'Select time';
-  DateTime? _deliveryDate;
-  String _deliveryTime = 'Select time';
+
+  late DateTime _pickupDate;
+  late String _pickupTime;
+  late DateTime _deliveryDate;
+  late String _deliveryTime;
+
   final _addrCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   PaymentMethod _paymentMethod = PaymentMethod.cashOnDelivery;
@@ -114,8 +116,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   bool _stripeLoading = false;
   String? _stripeError;
 
-  late List<String> _pickupTimeSlots;
-  late List<String> _deliveryTimeSlots;
+  List<String> _pickupTimeSlots = [];
+  List<String> _deliveryTimeSlots = [];
 
   double get _perPcsPrice {
     final rp = widget.reorderParams;
@@ -130,8 +132,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   @override
   void initState() {
     super.initState();
-    _pickupTimeSlots = [];
-    _deliveryTimeSlots = [];
 
     final rp = widget.reorderParams;
     if (rp != null) {
@@ -147,13 +147,18 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           : PaymentMethod.cashOnDelivery;
       _step = 5;
       _dataLoading = false;
+      _refreshTimeSlots();
     } else {
+      _pickupDate = _minPickupDate;
+      _pickupTime = 'Select time';
+      _deliveryDate = _pickupDate.add(const Duration(days: 1)); // Initial placeholder
+      _deliveryTime = 'Select time';
       _loadData();
     }
     _addrCtrl.addListener(() => setState(() {}));
   }
 
-  // ─── LOGIC FIXES ───────────────────────────────────────────────────────────
+  // ─── LOGIC FIXES FOR BUSINESS HOUR TIMER ───────────────────────────────────
 
   bool get _isExpress =>
       _serviceIdx != null && _services[_serviceIdx!].category == 'Express';
@@ -165,15 +170,40 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     return now.hour >= 19 ? today.add(const Duration(days: 1)) : today;
   }
 
-  List<String> _generatePickupTimeSlots() {
-    if (_pickupDate == null) return [];
+  DateTime get _minDeliveryDate {
+    DateTime dt = _getMinDeliveryDateTime(_pickupDate, _pickupTime);
+    return DateTime(dt.year, dt.month, dt.day);
+  }
+
+  String _formatHour(int h) {
+    int displayHour = h > 12 ? h - 12 : (h == 0 ? 12 : h);
+    String amPm = h >= 12 ? 'PM' : 'AM';
+    String hourStr = displayHour.toString().padLeft(2, '0');
+    return '$hourStr:00 $amPm';
+  }
+
+  int _parseHour(String timeStr) {
+    if (timeStr.isEmpty || timeStr == 'Select time') return 8;
+    try {
+      List<String> parts = timeStr.split(' ');
+      int h = int.parse(parts[0].split(':')[0]);
+      if (parts.length > 1) {
+        if (parts[1] == 'PM' && h != 12) h += 12;
+        if (parts[1] == 'AM' && h == 12) h = 0;
+      }
+      return h;
+    } catch (_) {
+      return 8;
+    }
+  }
+
+  List<String> _getPickupTimes(DateTime date) {
     final now = DateTime.now();
     int startHour = 8;
-    int endHour = 19; // Latest pickup at 7 PM
+    int endHour = 19; // Latest pickup slot at 7 PM
 
-    if (_pickupDate!.year == now.year &&
-        _pickupDate!.month == now.month &&
-        _pickupDate!.day == now.day) {
+    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+      // Show from current + 1h
       startHour = now.hour + 1;
       if (startHour < 8) startHour = 8;
     }
@@ -191,40 +221,36 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     int pHour = _parseHour(pTime);
     DateTime current = DateTime(pDate.year, pDate.month, pDate.day, pHour);
 
-    // Express = 5 business hours gap. Standard = 12 business hours gap.
+    // Express = 5 business hours (8am-8pm window).
+    // Standard = 12 business hours (effectively 24 physical hours).
     int hoursNeeded = _isExpress ? 5 : 12;
 
     while (hoursNeeded > 0) {
-      current = current.add(const Duration(hours: 1));
-      // Store business hours logic: 8:00 AM to 8:00 PM
-      if (current.hour > 8 && current.hour <= 20) {
-        hoursNeeded--;
+      // If we are at or after closing (8:00 PM), move to next day opening (8:00 AM)
+      if (current.hour >= 20) {
+        current = DateTime(current.year, current.month, current.day + 1, 8);
       }
+
+      // Advance by one business hour
+      current = current.add(const Duration(hours: 1));
+      hoursNeeded--;
     }
+
     return current;
   }
 
-  DateTime get _minDeliveryDate {
-    if (_pickupDate == null || _pickupTime == 'Select time') return DateTime.now();
-    DateTime dt = _getMinDeliveryDateTime(_pickupDate!, _pickupTime);
-    return DateTime(dt.year, dt.month, dt.day);
-  }
-
-  List<String> _generateDeliveryTimeSlots() {
-    if (_deliveryDate == null || _pickupDate == null || _pickupTime == 'Select time') {
-      return [];
-    }
-
-    DateTime minDelDT = _getMinDeliveryDateTime(_pickupDate!, _pickupTime);
+  List<String> _getDeliveryTimes(DateTime dDate) {
+    DateTime minDelDateTime = _getMinDeliveryDateTime(_pickupDate, _pickupTime);
     int startHour = 8;
-    int endHour = 20;
+    int endHour = 20; // Delivery until 8 PM
 
-    bool isSameAsMinDay = _deliveryDate!.year == minDelDT.year &&
-        _deliveryDate!.month == minDelDT.month &&
-        _deliveryDate!.day == minDelDT.day;
+    bool isSameAsMinDay = dDate.year == minDelDateTime.year &&
+        dDate.month == minDelDateTime.month &&
+        dDate.day == minDelDateTime.day;
 
     if (isSameAsMinDay) {
-      startHour = minDelDT.hour;
+      startHour = minDelDateTime.hour;
+      if (startHour < 8) startHour = 8;
     }
 
     if (startHour > endHour) return [];
@@ -236,37 +262,32 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     return times;
   }
 
-  String _formatHour(int h) {
-    int displayHour = h > 12 ? h - 12 : (h == 0 ? 12 : h);
-    String amPm = h >= 12 ? 'PM' : 'AM';
-    return '${displayHour.toString().padLeft(2, '0')}:00 $amPm';
+  // ─── HANDLERS ─────────────────────────────────────────────────────────────
+
+  void _refreshTimeSlots() {
+    _pickupTimeSlots = _getPickupTimes(_pickupDate);
+    if (!_pickupTimeSlots.contains(_pickupTime)) {
+      _pickupTime = _pickupTimeSlots.isNotEmpty ? _pickupTimeSlots.first : 'Select time';
+    }
+
+    _syncDelivery();
   }
 
-  int _parseHour(String timeStr) {
-    if (timeStr == 'Select time' || timeStr.isEmpty) return 8;
-    try {
-      List<String> parts = timeStr.split(' ');
-      int h = int.parse(parts[0].split(':')[0]);
-      if (parts.length > 1) {
-        if (parts[1] == 'PM' && h != 12) h += 12;
-        if (parts[1] == 'AM' && h == 12) h = 0;
-      }
-      return h;
-    } catch (_) {
-      return 8;
+  void _syncDelivery() {
+    DateTime minD = _minDeliveryDate;
+    if (_deliveryDate.isBefore(minD)) {
+      _deliveryDate = minD;
+    }
+    _deliveryTimeSlots = _getDeliveryTimes(_deliveryDate);
+    if (!_deliveryTimeSlots.contains(_deliveryTime)) {
+      _deliveryTime = _deliveryTimeSlots.isNotEmpty ? _deliveryTimeSlots.first : 'Select time';
     }
   }
-
-  // ─── HANDLERS ─────────────────────────────────────────────────────────────
 
   void _handlePickupDateChanged(DateTime date) {
     setState(() {
       _pickupDate = date;
-      _pickupTimeSlots = _generatePickupTimeSlots();
-      if (!_pickupTimeSlots.contains(_pickupTime)) {
-        _pickupTime = _pickupTimeSlots.isNotEmpty ? _pickupTimeSlots.first : 'Select time';
-      }
-      _syncDelivery();
+      _refreshTimeSlots();
     });
   }
 
@@ -277,21 +298,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     });
   }
 
-  void _syncDelivery() {
-    DateTime minD = _minDeliveryDate;
-    if (_deliveryDate == null || _deliveryDate!.isBefore(minD)) {
-      _deliveryDate = minD;
-    }
-    _deliveryTimeSlots = _generateDeliveryTimeSlots();
-    if (!_deliveryTimeSlots.contains(_deliveryTime)) {
-      _deliveryTime = _deliveryTimeSlots.isNotEmpty ? _deliveryTimeSlots.first : 'Select time';
-    }
-  }
-
   void _handleDeliveryDateChanged(DateTime date) {
     setState(() {
       _deliveryDate = date;
-      _deliveryTimeSlots = _generateDeliveryTimeSlots();
+      _deliveryTimeSlots = _getDeliveryTimes(date);
       if (!_deliveryTimeSlots.contains(_deliveryTime)) {
         _deliveryTime = _deliveryTimeSlots.isNotEmpty ? _deliveryTimeSlots.first : 'Select time';
       }
@@ -338,7 +348,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           _stores = stores;
           _serviceIdx = preIdx;
           _dataLoading = false;
-          if (preIdx != null) _step = 2;
+          if (preIdx != null) {
+            _step = 2;
+            _refreshTimeSlots();
+          }
         });
       }
     } catch (e) {
@@ -350,8 +363,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     switch (_step) {
       case 1: return _serviceIdx != null;
       case 2: return _storeIdx != null;
-      case 3: return _pickupDate != null && _deliveryDate != null &&
-          _pickupTime != 'Select time' && _deliveryTime != 'Select time' &&
+      case 3: return _pickupTime != 'Select time' && _deliveryTime != 'Select time' &&
           _pickupTimeSlots.isNotEmpty && _deliveryTimeSlots.isNotEmpty;
       case 4: return _addrCtrl.text.trim().isNotEmpty;
       case 5: return true;
@@ -477,7 +489,13 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                     isLoading: context.watch<OrdersBloc>().state is OrderPlacing || _stripeLoading,
                     paymentMethod: _paymentMethod,
                     onBack: () { if (_step == 1 || (_step == 5 && widget.reorderParams != null)) context.pop(); else setState(() => _step--); },
-                    onNext: () { if (_step < 5) setState(() => _step++); else _onConfirm(); },
+                    onNext: () {
+                      if (_step == 2) {
+                        _refreshTimeSlots();
+                      }
+                      if (_step < 5) setState(() => _step++);
+                      else _onConfirm();
+                    },
                   ),
                 ],
               ),
@@ -520,7 +538,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           key: const ValueKey(5), selectedMethod: _paymentMethod, perPcsPrice: _perPcsPrice, quantity: _quantity, subtotal: _subtotal,
           serviceCharge: _kServiceCharge, totalPrice: _totalPrice, cardAvailable: _cardAvailable, isDark: isDark, stripeError: _stripeError,
           serviceName: widget.reorderParams?.serviceName ?? _services[_serviceIdx!].title, storeName: widget.reorderParams?.storeName ?? _stores[_storeIdx!].name,
-          pickupInfo: '${_fmtDate(_pickupDate!)} at $_pickupTime', deliveryInfo: '${_fmtDate(_deliveryDate!)} at $_deliveryTime',
+          pickupInfo: '${_fmtDate(_pickupDate)} at $_pickupTime', deliveryInfo: '${_fmtDate(_deliveryDate)} at $_deliveryTime',
           onMethodChanged: (m) => setState(() => _paymentMethod = m), onQuantityChanged: (q) => setState(() { _quantity = q; if (!_cardAvailable) _paymentMethod = PaymentMethod.cashOnDelivery; }),
         );
     }
@@ -532,7 +550,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
 // ─── Schedule Step Component ──────────────────────────────────────────────────
 
 class _ScheduleStep extends StatelessWidget {
-  final DateTime? pickupDate, deliveryDate, minDeliveryDate, maxDeliveryDate;
+  final DateTime pickupDate, deliveryDate;
+  final DateTime? minDeliveryDate, maxDeliveryDate;
   final DateTime minPickupDate;
   final String pickupTime, deliveryTime;
   final bool isDark, isExpress;
@@ -552,7 +571,9 @@ class _ScheduleStep extends StatelessWidget {
 
   static InputDecoration _deco(String label, Color accent, bool isDark) => InputDecoration(
     labelText: label, filled: true, fillColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+    labelStyle: GoogleFonts.alexandria(fontSize: 12, color: accent.withOpacity(0.8)),
     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: accent, width: 1.5)),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300)),
   );
 
   @override
@@ -570,7 +591,7 @@ class _ScheduleStep extends StatelessWidget {
           title: 'Delivery Schedule', icon: Iconsax.arrow_down_2, gradient: const LinearGradient(colors: [AppColors.success, Color(0xFF059669)]),
           accent: AppColors.success, date: deliveryDate, time: deliveryTime, times: deliveryTimeSlots, isDark: isDark, fmt: _fmt, deco: _deco,
           onDate: onDeliveryDate, onTime: onDeliveryTime, minDate: minDeliveryDate, maxDate: maxDeliveryDate,
-          noSlotsMessage: isExpress ? 'No slots available with 5h gap. Choose a later pickup time or next day.' : 'No delivery slots available for this date.',
+          noSlotsMessage: isExpress ? 'No same-day slots with 5h gap. Choose a later date.' : 'No delivery slots available for this date.',
         ),
       ],
     );
@@ -600,8 +621,8 @@ class _SchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // RangeError Prevention: check if list is empty
     final bool hasSlots = times.isNotEmpty;
+    final String currentDisplayTime = (hasSlots && times.contains(time)) ? time : (hasSlots ? times[0] : 'Select time');
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -623,6 +644,7 @@ class _SchCard extends StatelessWidget {
           const SizedBox(height: 18),
           TextFormField(
             controller: TextEditingController(text: fmt(date)), readOnly: true,
+            style: GoogleFonts.alexandria(fontSize: 14),
             decoration: deco('Date', accent, isDark).copyWith(
               suffixIcon: IconButton(
                 icon: Icon(Icons.calendar_today_rounded, color: accent, size: 20),
@@ -648,8 +670,8 @@ class _SchCard extends StatelessWidget {
             )
           else
             DropdownButtonFormField<String>(
-              // RangeError Prevention: check list before accessing index
-              value: (hasSlots && times.contains(time)) ? time : (hasSlots ? times[0] : null),
+              value: currentDisplayTime == 'Select time' ? null : currentDisplayTime,
+              hint: Text('Select time', style: GoogleFonts.alexandria(fontSize: 14, color: Colors.grey)),
               icon: Icon(Icons.keyboard_arrow_down_rounded, color: accent),
               decoration: deco('Time', accent, isDark),
               items: times.map((t) => DropdownMenuItem(value: t, child: Text(t, style: GoogleFonts.alexandria(fontSize: 14)))).toList(),

@@ -20,7 +20,15 @@ abstract class AuthRepository {
     required String password,
   });
 
-  Future<Either<Failure, UserEntity>> signInWithGoogle();
+  // FIX: Return type changed from Future<Either<Failure, UserEntity>> to
+  // Future<Either<Failure, void>>.
+  //
+  // signInWithOAuth (Google) only LAUNCHES the browser — it does not return
+  // a session. The session arrives asynchronously via the deep-link callback
+  // and is surfaced through the authStateChanges stream.
+  // Returning a UserEntity here was impossible without reading currentUser
+  // immediately (which was always null at that point, causing the AuthException).
+  Future<Either<Failure, void>> signInWithGoogle();
 
   Future<Either<Failure, void>> signOut();
 
