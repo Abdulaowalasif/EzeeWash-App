@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -29,6 +30,9 @@ import 'routes/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Request required permissions on app launch
+  await _requestAppPermissions();
 
   // 1. Load environment variables
   await dotenv.load(fileName: '.env');
@@ -54,6 +58,14 @@ void main() async {
   runApp(const EzeeWashApp());
 }
 
+// Helper function to request permissions using permission_handler
+Future<void> _requestAppPermissions() async {
+  await [
+    Permission.location,
+    Permission.notification,
+  ].request();
+}
+
 class EzeeWashApp extends StatefulWidget {
   const EzeeWashApp({super.key});
 
@@ -63,13 +75,22 @@ class EzeeWashApp extends StatefulWidget {
 
 class _EzeeWashAppState extends State<EzeeWashApp> {
   late final AuthBloc _authBloc;
-  late final GoRouter _router;
+  late GoRouter _router;
 
   @override
   void initState() {
     super.initState();
     _authBloc = sl<AuthBloc>()..add(const AuthCheckRequested());
     _router = createRouter(_authBloc);
+  }
+
+  // FIX: Recreating the GoRouter instance completely wipes out the routing state,
+  // including the cached StatefulShellRoute branches. This completely fixes the
+  // infamous "blank/grey screen after logout and relogin" bug in GoRouter.
+  void _recreateRouter() {
+    setState(() {
+      _router = createRouter(_authBloc);
+    });
   }
 
   @override
@@ -94,6 +115,7 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
         BlocProvider(create: (_) => sl<ProfileBloc>()),
       ],
       child: _AuthReactiveLoader(
+        onLogout: _recreateRouter, // Pass the reset callback here
         child: MaterialApp.router(
           debugShowCheckedModeBanner: false,
           title: AppConstants.appName,
@@ -111,14 +133,24 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
 
 class _AuthReactiveLoader extends StatefulWidget {
   final Widget child;
-  const _AuthReactiveLoader({required this.child});
+  final VoidCallback onLogout;
+
+  const _AuthReactiveLoader({
+    required this.child,
+    required this.onLogout,
+  });
 
   @override
   State<_AuthReactiveLoader> createState() => _AuthReactiveLoaderState();
 }
 
 class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
+  // Tracks whether we've already dispatched data-load events for the
+  // current authenticated session. Reset to false on logout so that
+  // a subsequent login always re-loads fresh data (fixes grey screens
+  // after logout → re-login on first install and subsequent sessions).
   bool _loaded = false;
+  String? _lastLoadedUserId;
   final Map<String, String> _prevStatuses = {};
 
   @override
@@ -130,14 +162,26 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
             if (state is AuthAuthenticated) {
               final userId = state.user.id;
               unawaited(NotificationService.loginAndWaitForSubscription(userId));
-              if (!_loaded) {
+
+              // Dispatch load events if:
+              //   1. Never loaded yet (_loaded == false), OR
+              //   2. A different user logged in (e.g. after logout → re-login)
+              if (!_loaded || _lastLoadedUserId != userId) {
                 _loaded = true;
+                _lastLoadedUserId = userId;
                 ctx.read<OrdersBloc>().add(const OrdersLoadRequested());
                 ctx.read<NotificationsBloc>().add(const NotificationsLoadRequested());
                 ctx.read<ProfileBloc>().add(const ProfileLoadRequested());
               }
             } else if (state is AuthUnauthenticated || state is AuthError) {
+              // If we were previously logged in and just logged out, trigger router recreation
+              if (_loaded && state is AuthUnauthenticated) {
+                widget.onLogout();
+              }
+
+              // Reset so the next login always triggers a fresh data load.
               _loaded = false;
+              _lastLoadedUserId = null;
               NotificationService.clearUserId();
             }
           },

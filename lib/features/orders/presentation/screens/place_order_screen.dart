@@ -993,15 +993,41 @@ class _AddressStepState extends State<_AddressStep> {
   final String _darkMapStyle =
       '[{"elementType": "geometry", "stylers": [{"color": "#212121"}]}, {"elementType": "labels.icon", "stylers": [{"visibility": "off"}]}, {"elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]}, {"elementType": "labels.text.stroke", "stylers": [{"color": "#212121"}]}, {"featureType": "poi", "elementType": "geometry", "stylers": [{"color": "#181818"}]}, {"featureType": "road", "elementType": "geometry.fill", "stylers": [{"color": "#2c2c2c"}]}, {"featureType": "water", "elementType": "geometry", "stylers": [{"color": "#000000"}]}]';
 
+  /// null = still requesting, true = granted, false = permanently denied.
+  /// When denied (not deniedForever) we request once; banner only for deniedForever.
+  bool? _locationPermissionGranted;
+
   @override
   void initState() {
     super.initState();
-    _getUserCurrentLocation();
+    _requestAndLocate();
   }
 
+  /// Requests location permission if not yet determined, then locates.
+  Future<void> _requestAndLocate() async {
+    LocationPermission status = await Geolocator.checkPermission();
+
+    // If never asked before, ask now (shows the OS dialog once)
+    if (status == LocationPermission.denied) {
+      status = await Geolocator.requestPermission();
+    }
+
+    if (!mounted) return;
+
+    if (status == LocationPermission.always ||
+        status == LocationPermission.whileInUse) {
+      setState(() => _locationPermissionGranted = true);
+      await _getUserCurrentLocation();
+    } else {
+      // deniedForever — can only fix in system settings
+      setState(() => _locationPermissionGranted = false);
+    }
+  }
+
+  /// Moves the map to the user's current position (permission already confirmed).
   Future<void> _getUserCurrentLocation() async {
     try {
-      Position position = await Geolocator.getCurrentPosition();
+      final position = await Geolocator.getCurrentPosition();
       final target = LatLng(position.latitude, position.longitude);
       _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(target, 16),
@@ -1053,7 +1079,7 @@ class _AddressStepState extends State<_AddressStep> {
                     target: _centerPosition,
                     zoom: 14,
                   ),
-                  myLocationEnabled: true,
+                  myLocationEnabled: _locationPermissionGranted == true,
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
                   style: widget.isDark ? _darkMapStyle : null,
@@ -1065,6 +1091,53 @@ class _AddressStepState extends State<_AddressStep> {
                     _getAddressFromLatLng(_centerPosition);
                   },
                 ),
+                              // Small banner — only shown when location permission is denied.
+                // The map remains fully visible and interactive so the user
+                // can still drag the pin to set their address manually.
+                if (_locationPermissionGranted == false)
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: widget.isDark
+                            ? const Color(0xCC1A2540)
+                            : Colors.white.withOpacity(0.92),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.12),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.location_off_rounded,
+                              size: 16,
+                              color: widget.isDark
+                                  ? Colors.white70
+                                  : AppColors.lightSubtext),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Location denied — enable in App Settings or drag the pin',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: widget.isDark
+                                    ? Colors.white70
+                                    : AppColors.lightSubtext,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 35),

@@ -34,8 +34,11 @@ GoRouter createRouter(AuthBloc authBloc) {
       final authState = authBloc.state;
       final isLogin = state.matchedLocation == RoutesName.login;
 
-      // Still loading — don't redirect yet
-      if (authState is AuthInitial || authState is AuthLoading) return null;
+      // Still loading — stay on login page to avoid grey/blank screen.
+      // If already on login, no redirect needed. Otherwise go to login.
+      if (authState is AuthInitial || authState is AuthLoading) {
+        return isLogin ? null : RoutesName.login;
+      }
 
       if (authState is AuthAuthenticated) {
         // Check for a pending deep-link from a notification

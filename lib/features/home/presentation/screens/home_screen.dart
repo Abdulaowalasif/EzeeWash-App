@@ -108,7 +108,7 @@ class _HomeSliverAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 270.0, // 👈 INCREASED HEIGHT TO FIT THE GLASS CARD
+      expandedHeight: 250,
       pinned: true,
       elevation: 0,
       backgroundColor: Colors.transparent,
@@ -168,7 +168,7 @@ class _HomeSliverAppBar extends StatelessWidget {
                 ),
               ),
               Text(
-                'Welcome 👋',
+                'Welcome',
                 style: GoogleFonts.alexandria(
                   color: Colors.white.withOpacity(0.85),
                   fontSize: 12,

@@ -137,20 +137,26 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   // After delivery → status == delivered  → rate the delivery rider
   // Checks SharedPreferences to ensure it only shows once per order phase.
   Future<void> _checkRating(BuildContext ctx, OrderEntity order, bool isDark) async {
+    // Guard: skip entirely if already shown this session — prevents
+    // BlocBuilder rebuilds from re-triggering a second sheet.
+    if (_ratingMem.shownForPickup && _ratingMem.shownForDelivery) return;
+
     final phase = order.status.phase;
+    final prefs = await SharedPreferences.getInstance();
 
     // 1. Check Pickup Rating
     if (phase == _OrderPhase.atStore &&
         !_ratingMem.shownForPickup &&
         (order.pickupRiderId ?? order.riderId) != null) {
 
-      _ratingMem.shownForPickup = true; // Lock for current session to prevent BLoC double-firing
-
-      final prefs = await SharedPreferences.getInstance();
       final hasHandled = prefs.getBool('rated_pickup_${order.id}') ?? false;
-
-      if (!hasHandled && ctx.mounted) {
-        _showRatingSheet(ctx, order, isDark, _RatingEvent.pickup);
+      if (!hasHandled) {
+        // Lock BEFORE the async gap so concurrent rebuilds cannot slip through
+        _ratingMem.shownForPickup = true;
+        if (ctx.mounted) _showRatingSheet(ctx, order, isDark, _RatingEvent.pickup);
+      } else {
+        // Already rated — mark session flag so we never check again
+        _ratingMem.shownForPickup = true;
       }
     }
 
@@ -159,28 +165,45 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
         !_ratingMem.shownForDelivery &&
         (order.deliveryRiderId ?? order.riderId) != null) {
 
-      _ratingMem.shownForDelivery = true; // Lock for current session
-
-      final prefs = await SharedPreferences.getInstance();
       final hasHandled = prefs.getBool('rated_delivery_${order.id}') ?? false;
-
-      if (!hasHandled && ctx.mounted) {
-        _showRatingSheet(ctx, order, isDark, _RatingEvent.delivery);
+      if (!hasHandled) {
+        _ratingMem.shownForDelivery = true;
+        if (ctx.mounted) _showRatingSheet(ctx, order, isDark, _RatingEvent.delivery);
+      } else {
+        _ratingMem.shownForDelivery = true;
       }
     }
   }
 
   void _showRatingSheet(
       BuildContext ctx, OrderEntity order, bool isDark, _RatingEvent evt) {
+    // Use the State's own context (this.context) — NOT the BlocBuilder's
+    // inner ctx — so the bottom sheet is anchored to the Scaffold navigator
+    // and Navigator.pop() reliably closes it.
+    final safeCtx = context;
+    if (!safeCtx.mounted) return;
     showModalBottomSheet(
-      context: ctx,
+      context: safeCtx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      isDismissible: false,
-      enableDrag: false,
-      builder: (_) =>
-          _RatingSheet(order: order, isDark: isDark, eventType: evt),
-    );
+      barrierColor: Colors.black54,
+      // Allow tap-outside and drag as a safety net in case pop fails
+      isDismissible: true,
+      enableDrag: true,
+      builder: (sheetCtx) => _RatingSheet(
+        order: order,
+        isDark: isDark,
+        eventType: evt,
+      ),
+    ).then((_) {
+      // Ensure the prefs key is written even if user dismisses by tapping outside
+      SharedPreferences.getInstance().then((p) {
+        final key = evt == _RatingEvent.pickup
+            ? 'rated_pickup_${order.id}'
+            : 'rated_delivery_${order.id}';
+        p.setBool(key, true);
+      });
+    });
   }
 }
 
@@ -1755,28 +1778,110 @@ class _MapViewState extends State<MapView> {
     );
   }
 
-  Widget _loadingOverlay() => Container(
-    color: widget.isDark
-        ? const Color(0xFF1A2540)
-        : const Color(0xFFE8F0FE),
-    child: Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const CircularProgressIndicator(
-            color: AppColors.primary, strokeWidth: 2.5),
-        const SizedBox(height: 14),
-        Text('Locating address…',
-            style: GoogleFonts.alexandria(fontSize: 13)),
-      ]),
-    ),
-  );
+  Widget _loadingOverlay() {
+    final bg = widget.isDark
+        ? Colors.black.withOpacity(0.55)
+        : Colors.white.withOpacity(0.72);
+    final textColor = widget.isDark ? Colors.white70 : AppColors.lightSubtext;
+    return Stack(
+      children: [
+        // Map renders beneath so tiles are visible while geocoding
+        GoogleMap(
+          initialCameraPosition: CameraPosition(target: _dhaka, zoom: 12),
+          onMapCreated: (ctrl) {
+            if (!_cc.isCompleted) _cc.complete(ctrl);
+            _mapCtrl = ctrl;
+            if (widget.isDark) ctrl.setMapStyle(AppConstants.darkMapStyle);
+          },
+          myLocationEnabled: false,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: false,
+          mapToolbarEnabled: false,
+          compassEnabled: false,
+          gestureRecognizers: {
+            Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer()),
+          },
+        ),
+        Positioned.fill(
+          child: Container(
+            color: bg,
+            child: Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const CircularProgressIndicator(
+                    color: AppColors.primary, strokeWidth: 2.5),
+                const SizedBox(height: 14),
+                Text('Locating address…',
+                    style: GoogleFonts.alexandria(
+                        fontSize: 13, color: textColor)),
+              ]),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-  Widget _deniedOverlay() => Container(
-    color: widget.isDark
-        ? const Color(0xFF1A2540)
-        : const Color(0xFFE8F0FE),
-    child: Center(
-        child: Text('Could not find address',
-            style: GoogleFonts.alexandria(fontSize: 13))),
+  Widget _deniedOverlay() => Stack(
+    children: [
+      // Map is still rendered underneath with fallback position
+      GoogleMap(
+        initialCameraPosition: CameraPosition(target: _dhaka, zoom: 12),
+        onMapCreated: (ctrl) {
+          if (!_cc.isCompleted) _cc.complete(ctrl);
+          _mapCtrl = ctrl;
+          if (widget.isDark) ctrl.setMapStyle(AppConstants.darkMapStyle);
+        },
+        myLocationEnabled: false,
+        myLocationButtonEnabled: false,
+        zoomControlsEnabled: false,
+        mapToolbarEnabled: false,
+        compassEnabled: false,
+        gestureRecognizers: {
+          Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer()),
+        },
+      ),
+      // Small non-blocking info banner at the top
+      Positioned(
+        top: 12,
+        left: 12,
+        right: 12,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: widget.isDark
+                ? const Color(0xCC1A2540)
+                : Colors.white.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.location_searching_rounded,
+                  size: 16,
+                  color: widget.isDark ? Colors.white70 : AppColors.lightSubtext),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Could not resolve delivery address',
+                  style: GoogleFonts.alexandria(
+                    fontSize: 12,
+                    color: widget.isDark
+                        ? Colors.white70
+                        : AppColors.lightSubtext,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
   );
 }
 
@@ -2909,11 +3014,11 @@ class _RatingSheetState extends State<_RatingSheet>
     setState(() => _loading = true);
 
     try {
-      final client   = Supabase.instance.client;
-      final riderId  = _targetRiderId;
-      final userId   = client.auth.currentUser?.id;
+      final client  = Supabase.instance.client;
+      final riderId = _targetRiderId;
+      final userId  = client.auth.currentUser?.id;
 
-      if (riderId != null) {
+      if (riderId != null && userId != null) {
         // 1. Update the rolling average in the riders table
         final res = await client
             .from('riders')
@@ -2923,41 +3028,50 @@ class _RatingSheetState extends State<_RatingSheet>
 
         if (res != null) {
           final cur   = (res['rating']      as num?)?.toDouble() ?? 5.0;
-          final trips = (res['total_trips'] as int?)          ?? 0;
+          final trips = (res['total_trips'] as int?)             ?? 0;
           final newT  = trips + 1;
           final newR  = double.parse(
               ((cur * trips + _stars) / newT).toStringAsFixed(2));
-
           await client
               .from('riders')
               .update({'rating': newR, 'total_trips': newT})
               .eq('id', riderId);
         }
 
-        // 2. Insert the specific review into the rider_ratings table
-        if (userId != null) {
-          await client.from('rider_ratings').insert({
-            'order_id':    widget.order.id,
-            'rider_id':    riderId,
-            'user_id':     userId,
-            'rating_type': widget.eventType == _RatingEvent.pickup ? 'pickup' : 'delivery',
-            'stars':       _stars,
-            'comment':     _comment.trim().isEmpty ? null : _comment.trim(),
-          });
-        } else {
-          debugPrint('Warning: Could not insert rating, user_id is null.');
-        }
+        // 2. Upsert into rider_ratings so duplicate submissions never throw
+        await client.from('rider_ratings').upsert({
+          'order_id':    widget.order.id,
+          'rider_id':    riderId,
+          'user_id':     userId,
+          'rating_type': widget.eventType == _RatingEvent.pickup
+              ? 'pickup' : 'delivery',
+          'stars':       _stars,
+          'comment':     _comment.trim().isEmpty ? null : _comment.trim(),
+        }, onConflict: 'order_id,user_id,rating_type');
       }
 
-      await _markAsHandled(); // Mark as completed to never show again
+      // Always mark handled so the sheet never re-appears
+      await _markAsHandled();
 
-      if (mounted) setState(() { _submitted = true; _loading = false; });
-      await Future.delayed(const Duration(milliseconds: 1400));
-      if (mounted) Navigator.pop(context); // Close the bottom sheet
+      if (!mounted) return;
+      setState(() { _submitted = true; _loading = false; });
+
+      // Show success state briefly then close
+      await Future.delayed(const Duration(milliseconds: 1200));
+      if (mounted) Navigator.pop(context);
 
     } catch (e) {
-      debugPrint('Error submitting rating: $e');
-      if (mounted) setState(() => _loading = false);
+      debugPrint('RatingSheet submit error: ${e}');
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not submit rating. Please try again.',
+            style: GoogleFonts.alexandria(fontSize: 13)),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
     }
   }
 
@@ -3103,7 +3217,7 @@ class _RatingSheetState extends State<_RatingSheet>
             Expanded(child: OutlinedButton(
               onPressed: _loading ? null : () async {
                 await _markAsHandled(); // Remember the skip so it doesn't show again
-                if (context.mounted) Navigator.pop(context); // Close the bottom sheet
+                if (context.mounted) Navigator.pop(context);
               },
               style: OutlinedButton.styleFrom(
                 side: BorderSide(

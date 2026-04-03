@@ -15,6 +15,8 @@ import '../../domain/entities/service_entity.dart';
 import '../bloc/service_bloc.dart';
 import '../bloc/service_event.dart';
 import '../bloc/service_state.dart';
+import '../../../orders/presentation/bloc/orders_bloc.dart';
+import '../../../orders/presentation/bloc/orders_state.dart';
 
 class ServiceScreen extends StatefulWidget {
   const ServiceScreen({super.key});
@@ -685,12 +687,24 @@ class _Review {
 
 class _ReviewBottomSheet {
   static void show(BuildContext context, ServiceEntity service, bool isDark) {
+    // Check if the user has a completed order for this service
+    bool hasCompleted = false;
+    final ordersState = context.read<OrdersBloc>().state;
+    if (ordersState is OrdersLoaded) {
+      hasCompleted = ordersState.orders.any(
+        (o) => o.serviceId == service.id && o.status == 'delivered',
+      );
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       enableDrag: true,
-      builder: (_) => _ReviewSheet(service: service, isDark: isDark),
+      builder: (_) => _ReviewSheet(
+        service: service,
+        isDark: isDark,
+        hasCompletedOrder: hasCompleted,
+      ),
     );
   }
 }
@@ -700,7 +714,12 @@ class _ReviewBottomSheet {
 class _ReviewSheet extends StatefulWidget {
   final ServiceEntity service;
   final bool isDark;
-  const _ReviewSheet({required this.service, required this.isDark});
+  final bool hasCompletedOrder;
+  const _ReviewSheet({
+    required this.service,
+    required this.isDark,
+    this.hasCompletedOrder = false,
+  });
 
   @override
   State<_ReviewSheet> createState() => _ReviewSheetState();
@@ -836,13 +855,17 @@ class _ReviewSheetState extends State<_ReviewSheet> {
 
                           const SizedBox(height: 14),
 
-                          // CTA or badge
-                          _alreadyReviewed
-                              ? _DoneChip(isDark: widget.isDark)
-                              : _WriteReviewCta(
-                            isDark: widget.isDark,
-                            onTap: _openWriteReview,
-                          ),
+                          // CTA or badge — only show write-review if user
+                          // has a completed (delivered) order for this service
+                          if (_alreadyReviewed)
+                            _DoneChip(isDark: widget.isDark)
+                          else if (widget.hasCompletedOrder)
+                            _WriteReviewCta(
+                              isDark: widget.isDark,
+                              onTap: _openWriteReview,
+                            )
+                          else
+                            _NoCompletedOrderChip(isDark: widget.isDark),
 
                           const SizedBox(height: 20),
 
@@ -1396,6 +1419,39 @@ class _DoneChip extends StatelessWidget {
                 fontSize: 13,
                 color: AppColors.success,
                 fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+}
+
+// ─── No completed order chip ─────────────────────────────────────────────────
+
+class _NoCompletedOrderChip extends StatelessWidget {
+  final bool isDark;
+  const _NoCompletedOrderChip({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: isDark ? Colors.white12 : Colors.grey.shade300),
+      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(Icons.lock_outline_rounded,
+            size: 16,
+            color: isDark ? Colors.white38 : Colors.grey.shade500),
+        const SizedBox(width: 8),
+        Text(
+          'Complete an order to leave a review',
+          style: GoogleFonts.alexandria(
+              fontSize: 13,
+              color: isDark ? Colors.white38 : Colors.grey.shade500),
+        ),
       ]),
     );
   }

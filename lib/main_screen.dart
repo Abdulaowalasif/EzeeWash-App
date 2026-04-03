@@ -32,19 +32,29 @@ class MainScreen extends StatelessWidget {
       buildWhen: (prev, curr) =>
       (prev is AuthAuthenticated) != (curr is AuthAuthenticated),
       builder: (context, authState) {
-        if (authState is! AuthAuthenticated) {
-          // GoRouter is about to redirect to /login — show a blank
-          // background-coloured screen instead of a black flash.
-          return Scaffold(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          );
-        }
+        final isAuthenticated = authState is AuthAuthenticated;
+
         return Scaffold(
-          body: navigationShell,
-          bottomNavigationBar: _BottomNav(
+          // FIX: We use a Stack to ensure navigationShell is NEVER removed
+          // from the widget tree. Removing it causes GoRouter's StatefulShellRoute
+          // to lose its internal navigators, resulting in a blank/gray screen on re-login.
+          body: Stack(
+            children: [
+              navigationShell,
+              if (!isAuthenticated)
+                Positioned.fill(
+                  child: Container(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                  ),
+                ),
+            ],
+          ),
+          bottomNavigationBar: isAuthenticated
+              ? _BottomNav(
             currentIndex: navigationShell.currentIndex,
             onTap: _onTap,
-          ),
+          )
+              : null,
         );
       },
     );
