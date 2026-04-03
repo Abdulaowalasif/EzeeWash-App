@@ -1,10 +1,13 @@
-// lib/features/profile/screens/settings/terms_policy_screen.dart
+// lib/features/profile/presentation/screens/terms_policy_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/constants/app_color.dart';
-import '../../core/utils/responsive.dart';
+import '../../../../core/constants/app_color.dart';
+import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/common_widgets.dart';
+import '../../../../core/widgets/gradient_app_bar.dart';
 
 class TermsPolicyScreen extends StatelessWidget {
   const TermsPolicyScreen({super.key});
@@ -58,7 +61,7 @@ class TermsPolicyScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      appBar: _GradientAppBar(title: 'Terms & Policy'),
+      appBar: GradientAppBar(title: 'Terms & Policy'),
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
@@ -71,17 +74,8 @@ class TermsPolicyScreen extends StatelessWidget {
                 const SizedBox(height: 10),
 
                 // ── Intro card ─────────────────────────────────────────
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-                    boxShadow: isDark
-                        ? []
-                        : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 6))],
-                  ),
+                AppCard(
+                  isDark: isDark,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -136,14 +130,7 @@ class TermsPolicyScreen extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                Text(
-                  '📜 Service Policies',
-                  style: GoogleFonts.alexandria(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : AppColors.lightText,
-                  ),
-                ),
+                AppSectionLabel(text: '📜 Service Policies', isDark: isDark),
 
                 const SizedBox(height: 14),
 
@@ -176,41 +163,6 @@ class TermsPolicyScreen extends StatelessWidget {
   }
 }
 
-class _GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String title;
-  const _GradientAppBar({required this.title});
-
-  @override
-  Size get preferredSize => const Size.fromHeight(100);
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Container(
-        margin: EdgeInsets.fromLTRB(
-            Responsive.horizontalPadding(context), 10, Responsive.horizontalPadding(context), 10),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          gradient: AppColors.gradient,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 5))
-          ],
-        ),
-        child: Row(children: [
-          GestureDetector(
-            onTap: () => context.pop(),
-            child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
-          ),
-          const SizedBox(width: 16),
-          Text(title,
-              style: GoogleFonts.alexandria(
-                  color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-        ]),
-      ),
-    );
-  }
-}
 
 class _PolicyTile extends StatelessWidget {
   final String title;

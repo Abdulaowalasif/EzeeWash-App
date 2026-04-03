@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../domain/entities/notification_entity.dart';
@@ -19,23 +20,16 @@ class NotificationScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor:
       isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      // Replaced standard AppBar with a Column layout to use custom header
       body: Column(
         children: [
-          // 🚀 Fixed Custom Header matching Home, Service, and Order screens
           _NotificationsAppBar(isDark: isDark),
 
           Expanded(
             child: BlocBuilder<NotificationsBloc, NotificationsState>(
               builder: (context, state) {
-                // ── Initial / Loading ────────────────────────────────────────────
+                // ── Loading Shimmer ──────────────────────────────────────────────
                 if (state is NotificationsInitial || state is NotificationsLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 2.5,
-                    ),
-                  );
+                  return _NotificationsShimmer(isDark: isDark);
                 }
 
                 // ── Error ────────────────────────────────────────────────────────
@@ -141,7 +135,6 @@ class NotificationScreen extends StatelessWidget {
 
                   return ListView.separated(
                     physics: const BouncingScrollPhysics(),
-                    // Manually control padding to prevent automatic SafeArea gap
                     padding: EdgeInsets.fromLTRB(
                       Responsive.horizontalPadding(context),
                       16,
@@ -156,7 +149,7 @@ class NotificationScreen extends StatelessWidget {
                         notification: notif,
                         isDark: isDark,
                         onTap: notif.isRead
-                            ? null // already read — no action needed
+                            ? null
                             : () => context
                             .read<NotificationsBloc>()
                             .add(NotificationMarkReadRequested(notif.id)),
@@ -170,6 +163,38 @@ class NotificationScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Shimmer Loader ───────────────────────────────────────────────────────────
+
+class _NotificationsShimmer extends StatelessWidget {
+  final bool isDark;
+  const _NotificationsShimmer({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+      highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+      child: ListView.separated(
+        padding: EdgeInsets.fromLTRB(
+          Responsive.horizontalPadding(context),
+          16,
+          Responsive.horizontalPadding(context),
+          30,
+        ),
+        itemCount: 6,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, __) => Container(
+          height: 90,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
       ),
     );
   }
@@ -212,7 +237,6 @@ class _NotificationsAppBar extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              // Mark All Read button — only shown when there are unread
               BlocBuilder<NotificationsBloc, NotificationsState>(
                 builder: (context, state) {
                   if (state is NotificationsLoaded && state.hasUnread) {
@@ -316,7 +340,6 @@ class _NotificationCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -326,7 +349,6 @@ class _NotificationCard extends StatelessWidget {
               child: Icon(_icon, color: _iconColor, size: 20),
             ),
             const SizedBox(width: 14),
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,7 +371,6 @@ class _NotificationCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Unread dot
                       if (isUnread)
                         Container(
                           width: 8,

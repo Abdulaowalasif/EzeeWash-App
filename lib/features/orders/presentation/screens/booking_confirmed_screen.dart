@@ -1,11 +1,12 @@
-// lib/features/orders/screens/booking_confirmed_screen.dart
+// lib/features/orders/presentation/screens/booking_confirmed_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
-import '../../../routes/routes_name.dart';
-import '../../core/constants/app_color.dart';
-import '../../core/utils/responsive.dart';
+import '../../../../routes/routes_name.dart';
+import '../../../../core/constants/app_color.dart';
+import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/widgets.dart';
 
 class BookingConfirmedScreen extends StatelessWidget {
   final String orderNumber;

@@ -5,24 +5,24 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/di/injection_container.dart';
+import '../core/screens/error_screen.dart';
 import '../core/service/notification_service.dart';
+import '../features/address/presentation/screens/address_screen.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/notifications/presentation/screens/notification_screen.dart';
 import '../features/orders/presentation/bloc/orders_bloc.dart';
+import '../features/orders/presentation/screens/booking_confirmed_screen.dart';
 import '../features/orders/presentation/screens/order_screen.dart';
 import '../features/orders/presentation/screens/order_screen.dart'
     show ReorderParams;
 import '../features/orders/presentation/screens/place_order_screen.dart';
-import '../features/profile/presentation/presentation/profile_screen.dart';
-import '../features/screens/address_screen.dart';
-import '../features/screens/booking_confirmed_screen.dart';
-import '../features/screens/chat_bot_screen.dart';
-import '../features/screens/error_screen.dart';
-import '../features/screens/help_support_screen.dart';
-import '../features/screens/terms_policy_screen.dart';
-import '../features/screens/track_order_screens.dart';
+import '../features/orders/presentation/screens/track_order_screen.dart';
+import '../features/profile/presentation/screens/chat_bot_screen.dart';
+import '../features/profile/presentation/screens/help_support_screen.dart';
+import '../features/profile/presentation/screens/profile_screen.dart';
+import '../features/profile/presentation/screens/terms_policy_screen.dart';
 import '../features/services/presentation/screens/service_screen.dart';
 import '../main_screen.dart';
 import 'routes_name.dart';
@@ -95,8 +95,8 @@ GoRouter createRouter(AuthBloc authBloc) {
                       final screen = extra is ReorderParams
                           ? PlaceOrderScreen(reorderParams: extra)
                           : PlaceOrderScreen(
-                              preSelectedServiceId: extra as String?,
-                            );
+                        preSelectedServiceId: extra as String?,
+                      );
                       return _slide(
                         BlocProvider(
                           create: (_) => sl<OrdersBloc>(),

@@ -5,9 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/app_color.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
@@ -38,8 +40,6 @@ class _ServiceScreenState extends State<ServiceScreen> {
 
   @override
   void dispose() {
-    // Reset search & filter when leaving the service screen so returning
-    // to it starts fresh and home screen is never affected.
     final bloc = context.read<ServicesBloc>();
     if (bloc.state is ServicesLoaded) {
       bloc.add(const ServicesFilterChanged('All Services'));
@@ -54,18 +54,15 @@ class _ServiceScreenState extends State<ServiceScreen> {
     return Scaffold(
       backgroundColor:
       isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      // Removed SafeArea from the body root so the custom app bar
-      // can draw its gradient fully behind the status bar.
       body: Column(
         children: [
-          // 🚀 Fixed (Non-Sliver) App Bar containing the Search Box
           _ServicesAppBar(isDark: isDark),
 
           Expanded(
             child: BlocBuilder<ServicesBloc, ServicesState>(
               builder: (context, state) {
                 if (state is ServicesLoading) {
-                  return const Center(child: CircularProgressIndicator());
+                  return _ServicesShimmer(isDark: isDark);
                 }
                 if (state is ServicesError) {
                   return Center(
@@ -103,6 +100,38 @@ class _ServiceScreenState extends State<ServiceScreen> {
   }
 }
 
+// ─── Shimmer Loader ───────────────────────────────────────────────────────────
+
+class _ServicesShimmer extends StatelessWidget {
+  final bool isDark;
+  const _ServicesShimmer({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+      highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+      child: ListView.separated(
+        padding: EdgeInsets.fromLTRB(
+          Responsive.horizontalPadding(context),
+          16,
+          Responsive.horizontalPadding(context),
+          30,
+        ),
+        itemCount: 5,
+        separatorBuilder: (_, __) => const SizedBox(height: 16),
+        itemBuilder: (_, __) => Container(
+          height: 280, // Approximate height of a service card
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Unified Custom App Bar ───────────────────────────────────────────────────
 
 class _ServicesAppBar extends StatelessWidget {
@@ -125,7 +154,7 @@ class _ServicesAppBar extends StatelessWidget {
         ],
       ),
       child: SafeArea(
-        bottom: false, // Ensures we only pad the top (status bar)
+        bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
           child: Column(
@@ -155,7 +184,6 @@ class _ServicesAppBar extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 20),
-              // Moved SearchBar here from the body content
               _SearchBar(isDark: isDark),
             ],
           ),
@@ -243,9 +271,9 @@ class _ServicesContent extends StatelessWidget {
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
         Responsive.horizontalPadding(context),
-        16, // Top padding just below the app bar
+        16,
         Responsive.horizontalPadding(context),
-        30, // Bottom padding to ensure scroll clearance
+        30,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -278,10 +306,8 @@ class _ServicesContent extends StatelessWidget {
                 ),
               ),
 
-              // 🚀 FIX: Reduced manual gap
               const SizedBox(height: 20),
 
-              // Services list
               if (state.filtered.isEmpty)
                 Center(
                   child: Padding(
@@ -300,7 +326,6 @@ class _ServicesContent extends StatelessWidget {
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  // 🚀 FIX: Kill automatic Safe Area padding added by ListView
                   padding: EdgeInsets.zero,
                   itemCount: state.filtered.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 16),
@@ -431,16 +456,10 @@ class _ServiceCard extends StatelessWidget {
                   ? CachedNetworkImage(
                 imageUrl: service.imageUrl!,
                 fit: BoxFit.cover,
-                placeholder: (_, __) => Container(
-                  color: isDark
-                      ? AppColors.primary.withOpacity(0.15)
-                      : AppColors.primary.withOpacity(0.08),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.primary.withOpacity(0.4),
-                    ),
-                  ),
+                placeholder: (_, __) => Shimmer.fromColors(
+                  baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                  highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+                  child: Container(color: Colors.white),
                 ),
                 errorWidget: (_, __, ___) =>
                     _ServiceImageFallback(isDark: isDark),
@@ -687,12 +706,11 @@ class _Review {
 
 class _ReviewBottomSheet {
   static void show(BuildContext context, ServiceEntity service, bool isDark) {
-    // Check if the user has a completed order for this service
     bool hasCompleted = false;
     final ordersState = context.read<OrdersBloc>().state;
     if (ordersState is OrdersLoaded) {
       hasCompleted = ordersState.orders.any(
-        (o) => o.serviceId == service.id && o.status == 'delivered',
+            (o) => o.serviceId == service.id && o.status == 'delivered',
       );
     }
     showModalBottomSheet(
@@ -814,17 +832,12 @@ class _ReviewSheetState extends State<_ReviewSheet> {
         ),
         child: Column(
           children: [
-            // ── Drag handle ─────────────────────────────────────────────────
-            _Handle(isDark: widget.isDark),
-
-            // ── Fixed header (always visible) ────────────────────────────────
+            AppSheetHandle(isDark: widget.isDark),
             _SheetHeader(
               service: widget.service,
               isDark: widget.isDark,
               onClose: () => Navigator.pop(context),
             ),
-
-            // ── Scrollable body ─────────────────────────────────────────────
             Expanded(
               child: _loading
                   ? const Center(
@@ -845,18 +858,13 @@ class _ReviewSheetState extends State<_ReviewSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Rating summary bar
                           _SummaryBar(
                             avg: _avg,
                             count: _reviews.length,
                             dist: _dist,
                             isDark: widget.isDark,
                           ),
-
                           const SizedBox(height: 14),
-
-                          // CTA or badge — only show write-review if user
-                          // has a completed (delivered) order for this service
                           if (_alreadyReviewed)
                             _DoneChip(isDark: widget.isDark)
                           else if (widget.hasCompletedOrder)
@@ -866,11 +874,9 @@ class _ReviewSheetState extends State<_ReviewSheet> {
                             )
                           else
                             _NoCompletedOrderChip(isDark: widget.isDark),
-
                           const SizedBox(height: 20),
-
                           if (_reviews.isNotEmpty) ...[
-                            _SectionLabel(
+                            AppSectionLabel(
                               text:
                               '${_reviews.length} Review${_reviews.length == 1 ? '' : 's'}',
                               isDark: widget.isDark,
@@ -881,11 +887,9 @@ class _ReviewSheetState extends State<_ReviewSheet> {
                       ),
                     ),
                   ),
-
-                  // Review list
                   _reviews.isEmpty
                       ? SliverFillRemaining(
-                      child: _EmptyState(isDark: widget.isDark))
+                      child: AppEmptyState(message: 'No reviews yet. Be the first to review!', isDark: widget.isDark))
                       : SliverPadding(
                     padding: const EdgeInsets.fromLTRB(
                         20, 0, 20, 32),
@@ -981,7 +985,6 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
     final bg = widget.isDark ? AppColors.darkSurface : Colors.white;
 
     return Padding(
-      // Push sheet above keyboard
       padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
       child: Container(
         decoration: BoxDecoration(
@@ -997,9 +1000,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _Handle(isDark: widget.isDark),
-
-            // Header
+            AppSheetHandle(isDark: widget.isDark),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 8, 0),
               child: Row(children: [
@@ -1029,19 +1030,16 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
                 ),
               ]),
             ),
-
             Divider(
                 height: 1,
                 color: widget.isDark
                     ? AppColors.darkBorder
                     : AppColors.lightBorder),
-
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Star picker ─────────────────────────────────────────────
                   Center(
                     child: Column(children: [
                       Row(
@@ -1087,10 +1085,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
                       ),
                     ]),
                   ),
-
                   const SizedBox(height: 20),
-
-                  // ── Comment field ────────────────────────────────────────────
                   TextField(
                     controller: _ctrl,
                     maxLines: 4,
@@ -1131,8 +1126,6 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
                           widget.isDark ? Colors.white30 : Colors.black38),
                     ),
                   ),
-
-                  // Error
                   if (_error != null) ...[
                     const SizedBox(height: 8),
                     Row(children: [
@@ -1145,10 +1138,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
                                   color: AppColors.error, fontSize: 12))),
                     ]),
                   ],
-
                   const SizedBox(height: 16),
-
-                  // Submit
                   SizedBox(
                     width: double.infinity,
                     child: DecoratedBox(
@@ -1268,7 +1258,6 @@ class _SummaryBar extends StatelessWidget {
         border: Border.all(color: AppColors.primary.withOpacity(0.15)),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        // Big avg pill
         Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           ShaderMask(
             shaderCallback: (b) => AppColors.gradient.createShader(b),
@@ -1289,15 +1278,12 @@ class _SummaryBar extends StatelessWidget {
                 color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext),
           ),
         ]),
-
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           width: 1,
           height: 60,
           color: AppColors.primary.withOpacity(0.15),
         ),
-
-        // Distribution bars
         Expanded(
           child: Column(
             children: [5, 4, 3, 2, 1].map((star) {
@@ -1457,23 +1443,6 @@ class _NoCompletedOrderChip extends StatelessWidget {
   }
 }
 
-// ─── Section label ────────────────────────────────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  final bool isDark;
-  const _SectionLabel({required this.text, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: GoogleFonts.alexandria(
-        fontWeight: FontWeight.bold,
-        fontSize: 15,
-        color: isDark ? Colors.white : AppColors.lightText),
-  );
-}
-
 // ─── Review tile ──────────────────────────────────────────────────────────────
 
 class _ReviewTile extends StatelessWidget {
@@ -1506,7 +1475,6 @@ class _ReviewTile extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 14),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Avatar
             Container(
               width: 38,
               height: 38,
@@ -1531,14 +1499,11 @@ class _ReviewTile extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                           fontSize: 15))),
             ),
-
             const SizedBox(width: 12),
-
             Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Name + time
                     Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -1556,10 +1521,7 @@ class _ReviewTile extends StatelessWidget {
                                       ? AppColors.darkSubtext
                                       : AppColors.lightSubtext)),
                         ]),
-
                     const SizedBox(height: 3),
-
-                    // Stars + numeric
                     Row(children: [
                       _StarRow(rating: review.rating, size: 13),
                       const SizedBox(width: 5),
@@ -1569,7 +1531,6 @@ class _ReviewTile extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                               color: const Color(0xFFFBBF24))),
                     ]),
-
                     if (review.comment.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(review.comment,
@@ -1621,33 +1582,6 @@ class _StarRow extends StatelessWidget {
   }
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
-
-class _EmptyState extends StatelessWidget {
-  final bool isDark;
-  const _EmptyState({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(Iconsax.star,
-          size: 52, color: isDark ? Colors.white12 : Colors.black12),
-      const SizedBox(height: 14),
-      Text('No reviews yet',
-          style: GoogleFonts.alexandria(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white38 : Colors.black38)),
-      const SizedBox(height: 4),
-      Text('Be the first to share your experience!',
-          style: GoogleFonts.alexandria(
-              fontSize: 12,
-              color:
-              isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
-    ]),
-  );
-}
-
 // ─── Error state ──────────────────────────────────────────────────────────────
 
 class _ErrorState extends StatelessWidget {
@@ -1684,26 +1618,6 @@ class _ErrorState extends StatelessWidget {
   );
 }
 
-// ─── Drag handle ──────────────────────────────────────────────────────────────
-
-class _Handle extends StatelessWidget {
-  final bool isDark;
-  const _Handle({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Container(
-      margin: const EdgeInsets.only(top: 10, bottom: 6),
-      width: 36,
-      height: 4,
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white24 : Colors.black12,
-        borderRadius: BorderRadius.circular(4),
-      ),
-    ),
-  );
-}
-
 // ─── Sheet header ─────────────────────────────────────────────────────────────
 
 class _SheetHeader extends StatelessWidget {
@@ -1720,7 +1634,6 @@ class _SheetHeader extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 4, 8, 12),
         child: Row(children: [
-          // Service icon pill
           Container(
             padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(

@@ -1,11 +1,12 @@
 // lib/features/home/presentation/screens/home_screen.dart
-import 'dart:ui'; // 👈 ADDED FOR GLASS BLUR EFFECT
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/utils/responsive.dart';
@@ -13,11 +14,11 @@ import '../../../../routes/routes_name.dart';
 import '../../../notifications/presentation/bloc/notifications_bloc.dart';
 import '../../../orders/presentation/bloc/orders_bloc.dart';
 import '../../../orders/presentation/bloc/orders_state.dart';
+import '../../../orders/presentation/screens/track_order_screen.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
 import '../../../profile/presentation/bloc/profile_state.dart';
 import '../../../services/presentation/bloc/service_bloc.dart';
 import '../../../services/presentation/bloc/service_state.dart';
-import '../../../screens/track_order_screens.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -108,13 +109,12 @@ class _HomeSliverAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 250,
+      expandedHeight: 250.0,
       pinned: true,
       elevation: 0,
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       automaticallyImplyLeading: false,
-      // Gradient background wrapper with curved bottom edges
       flexibleSpace: Container(
         decoration: BoxDecoration(
           gradient: AppColors.gradient,
@@ -128,16 +128,14 @@ class _HomeSliverAppBar extends StatelessWidget {
           ],
         ),
         child: FlexibleSpaceBar(
-          // Fades out the search bar & glass card as it collapses
           collapseMode: CollapseMode.parallax,
           background: SafeArea(
             child: Padding(
-              // Added top padding to prevent overlapping with the pinned title
               padding: const EdgeInsets.fromLTRB(20, 65, 20, 20),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  const _UserProfileGlassCard(), // 👈 NEW GLASS CARD WIDGET
+                  const _UserProfileGlassCard(),
                   const SizedBox(height: 16),
                   _SearchBox(
                     isDark: isDark,
@@ -149,7 +147,6 @@ class _HomeSliverAppBar extends StatelessWidget {
           ),
         ),
       ),
-      // Pinned Title (Name and Greeting)
       title: BlocBuilder<ProfileBloc, ProfileState>(
         builder: (context, state) {
           final name = state is ProfileLoaded
@@ -178,7 +175,6 @@ class _HomeSliverAppBar extends StatelessWidget {
           );
         },
       ),
-      // Pinned Actions (Notification Bell)
       actions: [
         GestureDetector(
           onTap: () => context.go(RoutesName.alerts),
@@ -238,7 +234,7 @@ class _HomeSliverAppBar extends StatelessWidget {
   }
 }
 
-// ===== NEW: Transparent Glass Profile Card =====
+// ===== Transparent Glass Profile Card =====
 class _UserProfileGlassCard extends StatelessWidget {
   const _UserProfileGlassCard();
 
@@ -246,10 +242,23 @@ class _UserProfileGlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ProfileBloc, ProfileState>(
       builder: (context, state) {
+        if (state is ProfileInitial || state is ProfileLoading) {
+          return Shimmer.fromColors(
+            baseColor: Colors.white24,
+            highlightColor: Colors.white60,
+            child: Container(
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+          );
+        }
+
         if (state is ProfileLoaded) {
           final p = state.profile;
 
-          // Format address nicely
           String location = '';
           if (p.address != null && p.address!.isNotEmpty) location += p.address!;
           if (p.city != null && p.city!.isNotEmpty) {
@@ -259,7 +268,7 @@ class _UserProfileGlassCard extends StatelessWidget {
           return ClipRRect(
             borderRadius: BorderRadius.circular(18),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12), // Glass Blur
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
@@ -269,20 +278,17 @@ class _UserProfileGlassCard extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    // Profile Avatar
                     CircleAvatar(
                       radius: 26,
                       backgroundColor: Colors.white.withOpacity(0.2),
-                      backgroundImage: p.avatarUrl != null
+                      backgroundImage: p.avatarUrl != null && p.avatarUrl!.isNotEmpty
                           ? CachedNetworkImageProvider(p.avatarUrl!)
                           : null,
-                      child: p.avatarUrl == null
+                      child: p.avatarUrl == null || p.avatarUrl!.isEmpty
                           ? const Icon(Iconsax.user, color: Colors.white)
                           : null,
                     ),
                     const SizedBox(width: 14),
-
-                    // Profile Details
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -558,20 +564,24 @@ class _ServicesGrid extends StatelessWidget {
   }
 
   Widget _buildShimmerGrid() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.78,
-      ),
-      itemCount: 4,
-      itemBuilder: (_, __) => Container(
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(20),
+    return Shimmer.fromColors(
+      baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+      highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: crossAxisCount > 2 ? 0.9 : 0.78,
+        ),
+        itemCount: 4,
+        itemBuilder: (_, __) => Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
         ),
       ),
     );
@@ -656,15 +666,10 @@ class _ServiceCardState extends State<_ServiceCard> {
                       ? CachedNetworkImage(
                     imageUrl: widget.imageUrl!,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primary.withOpacity(0.5),
-                        ),
-                      ),
+                    placeholder: (_, __) => Shimmer.fromColors(
+                      baseColor: widget.isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                      highlightColor: widget.isDark ? Colors.grey[700]! : Colors.grey[100]!,
+                      child: Container(color: Colors.white),
                     ),
                     errorWidget: (_, __, ___) => Container(
                       decoration: BoxDecoration(
@@ -839,10 +844,20 @@ class _RecentOrdersList extends StatelessWidget {
     return BlocBuilder<OrdersBloc, OrdersState>(
       builder: (context, state) {
         if (state is OrdersInitial || state is OrdersLoading) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: CircularProgressIndicator(),
+          return Shimmer.fromColors(
+            baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+            highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+            child: Column(
+              children: List.generate(2, (index) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+              )),
             ),
           );
         }
@@ -1035,19 +1050,14 @@ class _ServiceImage extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: imageUrl != null
+        child: imageUrl != null && imageUrl!.isNotEmpty
             ? CachedNetworkImage(
           imageUrl: imageUrl!,
           fit: BoxFit.cover,
-          placeholder: (_, __) => Center(
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.primary.withOpacity(0.5),
-              ),
-            ),
+          placeholder: (_, __) => Shimmer.fromColors(
+            baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+            highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+            child: Container(color: Colors.white),
           ),
           errorWidget: (_, __, ___) => Container(
             decoration: BoxDecoration(

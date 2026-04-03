@@ -1,10 +1,11 @@
-// lib/features/error/screens/error_screen.dart
+// lib/core/screens/error_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../routes/routes_name.dart';
-import '../../core/constants/app_color.dart';
-import '../../core/utils/responsive.dart';
+import '../../routes/routes_name.dart';
+import '../constants/app_color.dart';
+import '../utils/responsive.dart';
+import '../widgets/widgets.dart';
 
 class ErrorScreen extends StatelessWidget {
   final Exception? error;
@@ -74,45 +75,18 @@ class ErrorScreen extends StatelessWidget {
                   const SizedBox(height: 40),
 
                   // ── Go back ───────────────────────────────────────────
-                  SizedBox(
-                    width: double.infinity,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: AppColors.gradient,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          if (context.canPop()) {
-                            context.pop();
-                          } else {
-                            context.go(RoutesName.main);
-                          }
-                        },
-                        icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-                        label: Text(
-                          'Go Back',
-                          style: GoogleFonts.alexandria(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        ),
-                      ),
-                    ),
+                  AppGradientButton(
+                    label: 'Go Back',
+                    icon: Icons.arrow_back_rounded,
+                    verticalPadding: 16,
+                    borderRadius: 16,
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go(RoutesName.main);
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 12),

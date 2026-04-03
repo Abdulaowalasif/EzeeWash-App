@@ -18,17 +18,20 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
   final SupabaseClient _client;
   OrdersRemoteDataSourceImpl(this._client);
 
-  // Join riders directly via orders.rider_id (current assigned rider).
-  // Also join rider_locations for live lat/lng (separate table, keyed by rider_id).
+  // FIX: Join the riders table three times using the foreign key names
   static const _select =
       '*, services(title,category,image_url), stores(name), order_timelines(*),'
       ' riders:rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
-      ' rider_locations!rider_locations_order_id_fkey(latitude,longitude,updated_at)';
+      ' pickup_rider:pickup_rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
+      ' delivery_rider:delivery_rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
+      ' rider_locations(latitude,longitude,updated_at)'; // Note: Removed foreign key hint here as Supabase usually infers it if there's only one. If it throws an error, revert to 'rider_locations!rider_locations_order_id_fkey(...)'
 
   static const _selectNoTimeline =
       '*, services(title,category,image_url), stores(name),'
       ' riders:rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
-      ' rider_locations!rider_locations_order_id_fkey(latitude,longitude,updated_at)';
+      ' pickup_rider:pickup_rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
+      ' delivery_rider:delivery_rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
+      ' rider_locations(latitude,longitude,updated_at)';
 
   @override
   Future<List<OrderModel>> getOrders(String userId) async {
@@ -39,9 +42,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      // The OrderModel.fromJson we updated earlier will now find
-      // the coordinates in this list of maps.
-      return (data as List).map((e) => OrderModel.fromJson(e)).toList();
+      return (data as List).map((e) => OrderModel.fromJson(e as Map<String, dynamic>)).toList();
     } catch (e) {
       throw ServerException(e.toString());
     }
@@ -69,7 +70,6 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       }
 
-      // Ensure profile exists (FK guard)
       await _client.from('profiles').upsert({'id': userId}, onConflict: 'id');
 
       final row = await _client
@@ -90,12 +90,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         'status': AppConstants.orderPending,
         'progress': 0.0,
         'payment_method': params.paymentMethod.value,
-        // For Stripe, placeOrder is only called AFTER presentPaymentSheet()
-        // succeeds, so the payment is already confirmed at this point.
-        // For COD the payment is collected later, so it stays 'pending'.
-        'payment_status': params.paymentMethod == PaymentMethod.stripe
-            ? 'paid'
-            : 'pending',
+        'payment_status': params.paymentMethod == PaymentMethod.stripe ? 'paid' : 'pending',
       })
           .select(_selectNoTimeline)
           .single();

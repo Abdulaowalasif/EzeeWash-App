@@ -77,11 +77,21 @@ class OrderModel extends OrderEntity {
       ..sort((a, b) => a.stepOrder.compareTo(b.stepOrder));
 
     final serviceMap = j['services'] as Map?;
+    final status = j['status'] as String? ?? 'pending';
 
-    // ── Rider profile joined directly from orders.rider_id → riders ──────────
-    // The select query aliases 'riders:rider_id(...)' so Supabase returns it
-    // as the key 'riders' in the row.
-    final riderData = j['riders'] as Map<String, dynamic>?;
+    // ── FIX: Determine the active rider data based on status phase ──────────
+    // This perfectly matches the UI logic so the map receives the correct profile immediately.
+    Map<String, dynamic>? activeRiderData;
+
+    if (status == 'confirmed' || status == 'pending') {
+      activeRiderData = j['pickup_rider'] as Map<String, dynamic>? ?? j['riders'] as Map<String, dynamic>?;
+    } else if (status == 'ready' || status == 'out_for_delivery' || status == 'delivered') {
+      activeRiderData = j['delivery_rider'] as Map<String, dynamic>? ?? j['riders'] as Map<String, dynamic>?;
+    } else {
+      activeRiderData = j['pickup_rider'] as Map<String, dynamic>? ??
+          j['delivery_rider'] as Map<String, dynamic>? ??
+          j['riders'] as Map<String, dynamic>?;
+    }
 
     // ── rider_locations: live lat/lng for the map ────────────────────────────
     final riderLocs = j['rider_locations'] as List?;
@@ -98,7 +108,7 @@ class OrderModel extends OrderEntity {
       serviceImageUrl: serviceMap?['image_url'] as String?,
       storeId: j['store_id'] as String,
       storeName: (j['stores'] as Map?)?['name'] as String? ?? 'Unknown',
-      status: j['status'] as String? ?? 'pending',
+      status: status,
       itemCount: j['item_count'] as int? ?? 1,
       totalPrice: (j['total_price'] as num?)?.toDouble() ?? 0.0,
       pickupAddress: j['pickup_address'] as String? ?? '',
@@ -122,25 +132,26 @@ class OrderModel extends OrderEntity {
       stripePaymentIntentId: j['stripe_payment_intent_id'] as String?,
 
       // ── Live rider lat/lng from rider_locations ───────────────────────────
-      // Falls back to riders.current_lat/lng if no active location row exists.
       riderLat: locData != null
           ? (locData['latitude']  as num).toDouble()
-          : (riderData?['current_lat'] as num?)?.toDouble(),
+          : (activeRiderData?['current_lat'] as num?)?.toDouble(),
       riderLng: locData != null
           ? (locData['longitude'] as num).toDouble()
-          : (riderData?['current_lng'] as num?)?.toDouble(),
+          : (activeRiderData?['current_lng'] as num?)?.toDouble(),
 
-      // ── Rider profile from orders.rider_id → riders ───────────────────────
+      // ── Rider profile mapped to entity ────────────────────────────────────
       riderId:           j['rider_id']              as String?,
       pickupRiderId:     j['pickup_rider_id']       as String?,
       deliveryRiderId:   j['delivery_rider_id']     as String?,
-      riderName:         riderData?['full_name']     as String?,
-      riderPhone:        riderData?['phone']         as String?,
-      riderAvatarUrl:    riderData?['avatar_url']    as String?,
-      riderVehicleType:  riderData?['vehicle_type']  as String?,
-      riderVehiclePlate: riderData?['vehicle_plate'] as String?,
-      riderRating:       (riderData?['rating'] as num?)?.toDouble(),
-      riderIsOnline:     riderData?['is_online']     as bool? ?? false,
+
+      // Use the dynamically resolved activeRiderData
+      riderName:         activeRiderData?['full_name']     as String?,
+      riderPhone:        activeRiderData?['phone']         as String?,
+      riderAvatarUrl:    activeRiderData?['avatar_url']    as String?,
+      riderVehicleType:  activeRiderData?['vehicle_type']  as String?,
+      riderVehiclePlate: activeRiderData?['vehicle_plate'] as String?,
+      riderRating:       (activeRiderData?['rating'] as num?)?.toDouble(),
+      riderIsOnline:     activeRiderData?['is_online']     as bool? ?? false,
     );
   }
 
@@ -167,7 +178,7 @@ class OrderModel extends OrderEntity {
     'progress': progress,
     'payment_method': paymentMethod,
     'payment_status': paymentStatus,
-    'rider_latitude': riderLat, // Optionally include coordinates in JSON exports
+    'rider_latitude': riderLat,
     'rider_longitude': riderLng,
   };
 }

@@ -15,6 +15,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_color.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
@@ -154,96 +155,101 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     _addrCtrl.addListener(() => setState(() {}));
   }
 
-  // ─── Schedule Helpers ────────────────────────────────────────────────────
+  // ─── Real-Life Schedule Logic & Business Hours ───────────────────────────
 
   bool get _isExpress =>
       _serviceIdx != null &&
           _services[_serviceIdx!].category == 'Express';
 
-  /// Pickup cutoff: Express = 6:00 PM, Others = 7:30 PM
-  DateTime _pickupCutoff(DateTime forDate) {
-    if (_isExpress) {
-      return DateTime(forDate.year, forDate.month, forDate.day, 18, 0);
-    }
-    return DateTime(forDate.year, forDate.month, forDate.day, 20, 0);
-  }
-
-  /// Returns true if today is too late to start a pickup order (< 1hr before cutoff)
-  bool get _todayOrderingClosed {
+  DateTime get _minPickupDate {
     final now = DateTime.now();
-    final cutoff = _pickupCutoff(now);
-    return now.isAfter(cutoff.subtract(const Duration(hours: 1)));
+    final today = DateTime(now.year, now.month, now.day);
+    // Cutoff at 7:00 PM (19:00) because riders need 1h before 8:00 PM close
+    return now.hour >= 19 ? today.add(const Duration(days: 1)) : today;
   }
 
-  /// Pickup slots: every 30 min from 7:00 AM up to cutoff.
-  /// Today: start = now + 1 hour, rounded up to next 30-min mark.
+  String _formatHour(int h) {
+    int displayHour = h > 12 ? h - 12 : (h == 0 ? 12 : h);
+    String amPm = h >= 12 ? 'PM' : 'AM';
+    String hourStr = displayHour.toString().padLeft(2, '0');
+    return '$hourStr:00 $amPm';
+  }
+
+  int _parseHour(String timeStr) {
+    if (timeStr.isEmpty || timeStr == 'Select time') return 8;
+    List<String> parts = timeStr.split(' ');
+    int h = int.parse(parts[0].split(':')[0]);
+    if (parts.length > 1) {
+      if (parts[1] == 'PM' && h != 12) h += 12;
+      if (parts[1] == 'AM' && h == 12) h = 0;
+    }
+    return h;
+  }
+
   List<String> _generatePickupTimeSlots() {
-    final List<String> slots = ['Select time'];
-    if (_pickupDate == null) return slots;
-
+    if (_pickupDate == null) return ['Select time'];
     final now = DateTime.now();
-    final isToday = DateUtils.isSameDay(_pickupDate, now);
-    final cutoff = _pickupCutoff(_pickupDate!);
+    int startHour = 8;
+    int endHour = 19; // Rider can pickup until 1 hour before 8pm close
 
-    DateTime start;
-    if (isToday) {
-      final earliest = now.add(const Duration(hours: 1));
-      final m = earliest.minute;
-      if (m == 0) {
-        start = DateTime(_pickupDate!.year, _pickupDate!.month, _pickupDate!.day, earliest.hour, 0);
-      } else if (m <= 30) {
-        start = DateTime(_pickupDate!.year, _pickupDate!.month, _pickupDate!.day, earliest.hour, 30);
-      } else {
-        start = DateTime(_pickupDate!.year, _pickupDate!.month, _pickupDate!.day, earliest.hour + 1, 0);
+    // If selecting today, enforce current time + 1 hour minimum
+    if (_pickupDate!.year == now.year && _pickupDate!.month == now.month && _pickupDate!.day == now.day) {
+      startHour = now.hour + 1;
+      if (startHour < 8) startHour = 8;
+    }
+
+    List<String> times = [];
+    for (int i = startHour; i <= endHour; i++) {
+      times.add(_formatHour(i));
+    }
+    return times.isNotEmpty ? times : [_formatHour(endHour)];
+  }
+
+  DateTime _getMinDeliveryDateTime(DateTime pDate, String pTime) {
+    int pHour = _parseHour(pTime);
+    DateTime current = DateTime(pDate.year, pDate.month, pDate.day, pHour);
+
+    // Express = 5 working hours minimum.
+    // Standard = 12 working hours (which equals 1 full business day later)
+    int hoursNeeded = _isExpress ? 5 : 12;
+
+    while (hoursNeeded > 0) {
+      current = current.add(const Duration(hours: 1));
+      // Store business hours logic: 8:00 AM to 8:00 PM
+      if (current.hour > 8 && current.hour <= 20) {
+        hoursNeeded--;
       }
-    } else {
-      start = DateTime(_pickupDate!.year, _pickupDate!.month, _pickupDate!.day, 8, 0);
     }
-
-    DateTime slot = start;
-    while (!slot.isAfter(cutoff)) {
-      slots.add(DateFormat('h:mm a').format(slot));
-      slot = slot.add(const Duration(minutes: 30));
-    }
-    return slots;
+    return current;
   }
 
-  /// Delivery slots: every 30 min from 7:00 AM to 8:00 PM.
-  /// Express same-day: enforce minimum 5-hour gap after pickup time.
+  DateTime get _minDeliveryDate {
+    if (_pickupDate == null) return DateTime.now();
+    DateTime dt = _getMinDeliveryDateTime(_pickupDate!, _pickupTime);
+    return DateTime(dt.year, dt.month, dt.day);
+  }
+
   List<String> _generateDeliveryTimeSlots() {
-    final List<String> slots = ['Select time'];
-    if (_deliveryDate == null) return slots;
+    if (_deliveryDate == null || _pickupDate == null) return ['Select time'];
+    DateTime minDelDateTime = _getMinDeliveryDateTime(_pickupDate!, _pickupTime);
+    int startHour = 8;
+    int endHour = 20;
 
-    final base = _deliveryDate!;
-    final endSlot = DateTime(base.year, base.month, base.day, 20, 0);
-    DateTime start = DateTime(base.year, base.month, base.day, 8, 0);
-
-    // Express same-day: min 5h gap from pickup time
-    if (_isExpress &&
-        _pickupDate != null &&
-        DateUtils.isSameDay(_pickupDate, _deliveryDate) &&
-        _pickupTime != 'Select time') {
-      try {
-        final parsed = DateFormat('h:mm a').parse(_pickupTime);
-        final minDelivery = DateTime(
-          base.year, base.month, base.day, parsed.hour, parsed.minute,
-        ).add(const Duration(hours: 5));
-        if (minDelivery.isAfter(start)) start = minDelivery;
-      } catch (_) {}
+    // If they picked the absolute earliest possible delivery day, restrict the start time
+    if (_deliveryDate!.year == minDelDateTime.year && _deliveryDate!.month == minDelDateTime.month && _deliveryDate!.day == minDelDateTime.day) {
+      startHour = minDelDateTime.hour;
     }
 
-    // Round start UP to next 30-min mark
-    if (start.minute != 0 && start.minute != 30) {
-      start = start.add(Duration(minutes: 30 - (start.minute % 30)));
+    List<String> times = [];
+    for (int i = startHour; i <= endHour; i++) {
+      times.add(_formatHour(i));
     }
-
-    DateTime slot = start;
-    while (!slot.isAfter(endSlot)) {
-      slots.add(DateFormat('h:mm a').format(slot));
-      slot = slot.add(const Duration(minutes: 30));
-    }
-    return slots;
+    return times.isNotEmpty ? times : [_formatHour(endHour)];
   }
+
+  DateTime? get _maxDeliveryDate => null;
+
+  // ─── End Schedule Helpers ──────────────────────────────────────────────────
 
   @override
   void dispose() {
@@ -301,34 +307,49 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     setState(() {
       _pickupDate = date;
       _pickupTimeSlots = _generatePickupTimeSlots();
-      // Reset pickup time if it's no longer in the valid slots
-      if (!_pickupTimeSlots.contains(_pickupTime)) _pickupTime = 'Select time';
-
-      // Auto-set delivery date based on service type:
-      // Express → same day allowed; Others → always next day (forced)
-      if (_isExpress) {
-        _deliveryDate = date; // Express defaults to same day
-      } else {
-        // Default to next day, but user can choose any date after pickup
-        _deliveryDate = date.add(const Duration(days: 1));
+      if (!_pickupTimeSlots.contains(_pickupTime) && _pickupTimeSlots.isNotEmpty) {
+        _pickupTime = _pickupTimeSlots.first;
       }
 
-      // Reset delivery time since date or pickup time changed
-      _deliveryTime = 'Select time';
+      // Cascade constraints for delivery
+      DateTime minDelDate = _minDeliveryDate;
+      if (_deliveryDate == null || _deliveryDate!.isBefore(minDelDate)) {
+        _deliveryDate = minDelDate;
+      }
+
       _deliveryTimeSlots = _generateDeliveryTimeSlots();
+      if (!_deliveryTimeSlots.contains(_deliveryTime) && _deliveryTimeSlots.isNotEmpty) {
+        _deliveryTime = _deliveryTimeSlots.first;
+      }
     });
   }
 
-  /// Min delivery date: Express = same day as pickup; Others = strictly next day.
-  DateTime get _minDeliveryDate {
-    if (_pickupDate == null) return DateTime.now();
-    if (_isExpress) return _pickupDate!;
-    return _pickupDate!.add(const Duration(days: 1));
+  void _handlePickupTimeChanged(String time) {
+    setState(() {
+      _pickupTime = time;
+
+      // Cascade constraints for delivery since it relies on pickup time
+      DateTime minDelDate = _minDeliveryDate;
+      if (_deliveryDate == null || _deliveryDate!.isBefore(minDelDate)) {
+        _deliveryDate = minDelDate;
+      }
+
+      _deliveryTimeSlots = _generateDeliveryTimeSlots();
+      if (!_deliveryTimeSlots.contains(_deliveryTime) && _deliveryTimeSlots.isNotEmpty) {
+        _deliveryTime = _deliveryTimeSlots.first;
+      }
+    });
   }
 
-  /// Max delivery date: no upper limit for any service type.
-  /// User can pick any date on or after the min delivery date.
-  DateTime? get _maxDeliveryDate => null;
+  void _handleDeliveryDateChanged(DateTime date) {
+    setState(() {
+      _deliveryDate = date;
+      _deliveryTimeSlots = _generateDeliveryTimeSlots();
+      if (!_deliveryTimeSlots.contains(_deliveryTime) && _deliveryTimeSlots.isNotEmpty) {
+        _deliveryTime = _deliveryTimeSlots.first;
+      }
+    });
+  }
 
   bool get _canProceed {
     switch (_step) {
@@ -341,8 +362,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             _deliveryDate != null &&
             _pickupTime != 'Select time' &&
             _deliveryTime != 'Select time' &&
-            _pickupTimeSlots.length > 1 &&
-            _deliveryTimeSlots.length > 1;
+            _pickupTimeSlots.isNotEmpty &&
+            _deliveryTimeSlots.isNotEmpty;
       case 4:
         return _addrCtrl.text.trim().isNotEmpty;
       case 5:
@@ -430,7 +451,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           setState(() {
             _stripeError = e.error.localizedMessage;
           });
-        _showSnack(e.error.localizedMessage ?? 'Payment failed');
+        AppSnackBar.show(context, e.error.localizedMessage ?? 'Payment failed', isError: true);
       }
     } catch (e) {
       if (mounted)
@@ -438,23 +459,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           _stripeLoading = false;
           _stripeError = e.toString();
         });
-      _showSnack('Payment setup failed. Please try again.');
+      AppSnackBar.show(context, 'Payment setup failed. Please try again.', isError: true);
     }
   }
 
-  void _showSnack(String msg, {bool isError = true}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: GoogleFonts.alexandria(fontSize: 13)),
-        backgroundColor: isError ? AppColors.error : AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -479,7 +487,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           );
         else if (state is OrdersError) {
           setState(() => _stripeLoading = false);
-          _showSnack(state.message);
+          AppSnackBar.show(context, state.message, isError: true);
         }
       },
       child: Scaffold(
@@ -640,6 +648,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       case 3:
         return _ScheduleStep(
           key: const ValueKey(3),
+          minPickupDate: _minPickupDate,
           pickupDate: _pickupDate,
           pickupTime: _pickupTime,
           deliveryDate: _deliveryDate,
@@ -649,25 +658,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           pickupTimeSlots: _pickupTimeSlots,
           deliveryTimeSlots: _deliveryTimeSlots,
           onPickupDate: _handlePickupDateChanged,
-          onPickupTime: (t) {
-            setState(() {
-              _pickupTime = t;
-              // Refresh delivery slots since 5h gap depends on pickup time
-              _deliveryTimeSlots = _generateDeliveryTimeSlots();
-              if (!_deliveryTimeSlots.contains(_deliveryTime)) {
-                _deliveryTime = 'Select time';
-              }
-            });
-          },
-          onDeliveryDate: (d) {
-            setState(() {
-              _deliveryDate = d;
-              _deliveryTimeSlots = _generateDeliveryTimeSlots();
-              if (!_deliveryTimeSlots.contains(_deliveryTime)) {
-                _deliveryTime = 'Select time';
-              }
-            });
-          },
+          onPickupTime: _handlePickupTimeChanged,
+          onDeliveryDate: _handleDeliveryDateChanged,
           onDeliveryTime: (t) => setState(() => _deliveryTime = t),
           minDeliveryDate: _minDeliveryDate,
           maxDeliveryDate: _maxDeliveryDate,
@@ -716,6 +708,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
 
 class _ScheduleStep extends StatelessWidget {
   final DateTime? pickupDate, deliveryDate, minDeliveryDate, maxDeliveryDate;
+  final DateTime minPickupDate;
   final String pickupTime, deliveryTime;
   final bool isDark, isExpress;
   final List<String> pickupTimeSlots, deliveryTimeSlots;
@@ -724,6 +717,7 @@ class _ScheduleStep extends StatelessWidget {
 
   const _ScheduleStep({
     super.key,
+    required this.minPickupDate,
     required this.pickupDate,
     required this.deliveryDate,
     required this.pickupTime,
@@ -757,14 +751,6 @@ class _ScheduleStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Cutoff info label
-    final cutoffLabel = isExpress
-        ? 'Express: pickup must be before 6:00 PM'
-        : 'Pickup must be before 8:00 PM';
-    final deliveryLabel = isExpress
-        ? 'Same-day delivery · min 5h after pickup'
-        : 'Delivery must be at least the next day';
-
     return Column(
       children: [
 
@@ -781,7 +767,7 @@ class _ScheduleStep extends StatelessWidget {
           deco: _deco,
           onDate: onPickupDate,
           onTime: onPickupTime,
-          minDate: DateTime.now(),
+          minDate: minPickupDate,
           maxDate: null,
           noSlotsMessage: 'No pickup slots available today. Please choose another date.',
         ),
@@ -846,7 +832,7 @@ class _SchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool noSlotsAvailable = times.length <= 1;
+    final bool noSlotsAvailable = times.length <= 1 && times.contains('Select time');
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -1091,7 +1077,7 @@ class _AddressStepState extends State<_AddressStep> {
                     _getAddressFromLatLng(_centerPosition);
                   },
                 ),
-                              // Small banner — only shown when location permission is denied.
+                // Small banner — only shown when location permission is denied.
                 // The map remains fully visible and interactive so the user
                 // can still drag the pin to set their address manually.
                 if (_locationPermissionGranted == false)

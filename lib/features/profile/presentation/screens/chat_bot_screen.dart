@@ -1,11 +1,12 @@
-// lib/features/profile/screens/settings/chat_bot_screen.dart
+// lib/features/profile/presentation/screens/chat_bot_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
-import '../../core/constants/app_color.dart';
-import '../../core/utils/responsive.dart';
+import '../../../../../core/constants/app_color.dart';
+import '../../../../../core/utils/responsive.dart';
+import '../../../../../core/widgets/widgets.dart';
 
 class ChatBotScreen extends StatelessWidget {
   const ChatBotScreen({super.key});
@@ -15,7 +16,23 @@ class ChatBotScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      appBar: _GradientAppBar(),
+      appBar: GradientAppBar(
+      title: 'Bubble Bot',
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.success.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.success.withOpacity(0.4)),
+        ),
+        child: Row(children: [
+          Container(width: 6, height: 6,
+            decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
+          const SizedBox(width: 5),
+          Text('Soon', style: GoogleFonts.alexandria(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.bold)),
+        ]),
+      ),
+    ),
       body: Padding(
         padding: EdgeInsets.fromLTRB(
           Responsive.horizontalPadding(context), 0,
@@ -96,42 +113,6 @@ class ChatBotScreen extends StatelessWidget {
   }
 }
 
-class _GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _GradientAppBar();
-  @override
-  Size get preferredSize => const Size.fromHeight(100);
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Container(
-        margin: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 10, Responsive.horizontalPadding(context), 10),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: AppColors.gradient,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 5))],
-        ),
-        child: Row(children: [
-          GestureDetector(onTap: () => context.pop(), child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20)),
-          const SizedBox(width: 14),
-          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle), child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 20)),
-          const SizedBox(width: 12),
-          Text('Bubble Bot', style: GoogleFonts.alexandria(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(color: AppColors.success.withOpacity(0.2), borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.success.withOpacity(0.4))),
-            child: Row(children: [
-              Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
-              const SizedBox(width: 5),
-              Text('Soon', style: GoogleFonts.alexandria(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.bold)),
-            ]),
-          ),
-        ]),
-      ),
-    );
-  }
-}
 
 class _FeaturePill extends StatelessWidget {
   final String label;

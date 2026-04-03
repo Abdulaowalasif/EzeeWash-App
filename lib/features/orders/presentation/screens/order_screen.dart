@@ -5,7 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:shimmer/shimmer.dart';
+
 import '../../../../core/constants/app_color.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
 import '../../domain/entities/order_entity.dart';
@@ -165,27 +168,17 @@ class _OrderScreenState extends State<OrderScreen> {
               listenWhen: (_, s) => s is OrderCancelled || s is OrdersError,
               listener: (context, state) {
                 if (state is OrderCancelled) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Order cancelled.', style: GoogleFonts.alexandria(fontSize: 13)),
-                    backgroundColor: AppColors.success,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    margin: const EdgeInsets.all(16),
-                  ));
+                  AppSnackBar.show(context, 'Order cancelled.', isError: false);
                 } else if (state is OrdersError) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(state.message, style: GoogleFonts.alexandria(fontSize: 13)),
-                    backgroundColor: AppColors.error,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    margin: const EdgeInsets.all(16),
-                  ));
+                  AppSnackBar.show(context, state.message, isError: true);
                 }
               },
               builder: (context, state) {
+                // ── Shimmer Skeleton Loader ──
                 if (state is OrdersInitial || state is OrdersLoading) {
-                  return const Center(child: CircularProgressIndicator());
+                  return _OrdersShimmer(isDark: isDark);
                 }
+
                 if (state is OrdersError) {
                   return Center(
                     child: Padding(
@@ -240,6 +233,62 @@ class _OrderScreenState extends State<OrderScreen> {
     );
   }
 }
+
+// ─── Shimmer Loader ───────────────────────────────────────────────────────────
+
+class _OrdersShimmer extends StatelessWidget {
+  final bool isDark;
+  const _OrdersShimmer({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        Responsive.horizontalPadding(context), 16,
+        Responsive.horizontalPadding(context), 10,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
+          child: Shimmer.fromColors(
+            baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+            highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+            child: Column(
+              children: [
+                // Toggle Bar Shimmer
+                Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Orders List Shimmer
+                Expanded(
+                  child: ListView.separated(
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    itemCount: 4,
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemBuilder: (_, __) => Container(
+                      height: 160,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 // ─── Custom App Bar ───────────────────────────────────────────────────────────
 
@@ -390,7 +439,7 @@ class _OrdersBody extends StatelessWidget {
             const SizedBox(height: 8),
             Expanded(
               child: displayed.isEmpty
-                  ? _EmptyState(showActive: state.showActive, isDark: isDark, isFiltered: filter.isActive)
+                  ? _OrderEmptyState(showActive: state.showActive, isDark: isDark, isFiltered: filter.isActive)
                   : ListView.separated(
                 physics: const BouncingScrollPhysics(),
                 padding: EdgeInsets.zero,
@@ -400,7 +449,7 @@ class _OrdersBody extends StatelessWidget {
                   final order = displayed[i];
                   final tab = state.showActive ? 'a' : 'h';
                   return _OrderCard(
-                    key: ValueKey('${tab}_${order.id}_${order.status}'),
+                    key: ValueKey('${tab}_${order.id}'),
                     order: order,
                     isHistory: !state.showActive,
                     isDark: isDark,
@@ -600,12 +649,10 @@ class _FilterSheetState extends State<_FilterSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // 🚀 We use DraggableScrollableSheet so it's draggable up/down
-    // and correctly hosts the internal ScrollView
     return DraggableScrollableSheet(
-      initialChildSize: 0.65, // Starts at 65% of screen height
-      minChildSize: 0.40,     // Can drag down to 40%
-      maxChildSize: 0.90,     // Can drag up to 90%
+      initialChildSize: 0.65,
+      minChildSize: 0.40,
+      maxChildSize: 0.90,
       expand: false,
       builder: (context, scrollController) {
         return Container(
@@ -649,7 +696,7 @@ class _FilterSheetState extends State<_FilterSheet> {
               // ── Scrollable Body ──────────────────────────────────────────────
               Expanded(
                 child: SingleChildScrollView(
-                  controller: scrollController, // 👈 Hooked up to the drag sheet
+                  controller: scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   physics: const BouncingScrollPhysics(),
                   child: Column(
@@ -811,9 +858,9 @@ class _DateButton extends StatelessWidget {
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
-class _EmptyState extends StatelessWidget {
+class _OrderEmptyState extends StatelessWidget {
   final bool showActive, isDark, isFiltered;
-  const _EmptyState({required this.showActive, required this.isDark, required this.isFiltered});
+  const _OrderEmptyState({required this.showActive, required this.isDark, required this.isFiltered});
 
   @override
   Widget build(BuildContext context) => Center(
@@ -896,7 +943,7 @@ class _ToggleItem extends StatelessWidget {
   );
 }
 
-// ─── All existing widgets below (unchanged) ───────────────────────────────────
+// ─── DYNAMIC LOGIC REORDER SHEET ──────────────────────────────────────────────────────────────
 
 class _ReorderSheet extends StatefulWidget {
   final OrderEntity order;
@@ -907,28 +954,158 @@ class _ReorderSheet extends StatefulWidget {
 }
 
 class _ReorderSheetState extends State<_ReorderSheet> {
-  static const _times = ['10:00 AM','12:00 PM','02:00 PM','04:00 PM','06:00 PM'];
   late DateTime _pickupDate;
   late String _pickupTime;
   late DateTime _deliveryDate;
   late String _deliveryTime;
+
+  List<String> _pickupTimes = [];
+  List<String> _deliveryTimes = [];
+
   bool get _isExpress => widget.order.serviceName.toLowerCase().contains('express');
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    _pickupDate = (widget.order.pickupDate != null && widget.order.pickupDate!.isAfter(today.subtract(const Duration(days: 1)))) ? widget.order.pickupDate! : today;
-    _pickupTime = (widget.order.pickupTime != null && _times.contains(widget.order.pickupTime)) ? widget.order.pickupTime! : _times.first;
-    _deliveryDate = _isExpress ? _pickupDate : _pickupDate.add(const Duration(days: 1));
-    _deliveryTime = (widget.order.deliveryTime != null && _times.contains(widget.order.deliveryTime)) ? widget.order.deliveryTime! : _times.last;
+
+    // Initialize Dates dynamically based on current time
+    _pickupDate = _minPickupDate;
+    _pickupTimes = _getPickupTimes(_pickupDate);
+    _pickupTime = _pickupTimes.isNotEmpty ? _pickupTimes.first : '08:00 AM';
+
+    DateTime minDelDate = _minDeliveryDate;
+    _deliveryDate = minDelDate;
+    _deliveryTimes = _getDeliveryTimes(_deliveryDate);
+    _deliveryTime = _deliveryTimes.isNotEmpty ? _deliveryTimes.first : '08:00 PM';
   }
 
-  void _onPickupDateChanged(DateTime d) => setState(() {
-    _pickupDate = d;
-    _deliveryDate = _isExpress ? d : d.add(const Duration(days: 2));
-  });
+  // Calculate the absolute minimum valid pickup day based on 7 PM cutoff
+  DateTime get _minPickupDate {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return now.hour >= 19 ? today.add(const Duration(days: 1)) : today;
+  }
+
+  // Extract the exact day we can deliver on based on business hours calculation
+  DateTime get _minDeliveryDate {
+    DateTime dt = _getMinDeliveryDateTime(_pickupDate, _pickupTime);
+    return DateTime(dt.year, dt.month, dt.day);
+  }
+
+  String _formatHour(int h) {
+    int displayHour = h > 12 ? h - 12 : (h == 0 ? 12 : h);
+    String amPm = h >= 12 ? 'PM' : 'AM';
+    String hourStr = displayHour.toString().padLeft(2, '0');
+    return '$hourStr:00 $amPm';
+  }
+
+  int _parseHour(String timeStr) {
+    if (timeStr.isEmpty) return 8;
+    List<String> parts = timeStr.split(' ');
+    int h = int.parse(parts[0].split(':')[0]);
+    if (parts.length > 1) {
+      if (parts[1] == 'PM' && h != 12) h += 12;
+      if (parts[1] == 'AM' && h == 12) h = 0;
+    }
+    return h;
+  }
+
+  List<String> _getPickupTimes(DateTime date) {
+    final now = DateTime.now();
+    int startHour = 8;
+    int endHour = 19; // Rider can pickup until 1 hour before 8pm close
+
+    // If selecting today, enforce current time + 1 hour minimum
+    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+      startHour = now.hour + 1;
+      if (startHour < 8) startHour = 8;
+    }
+
+    List<String> times = [];
+    for (int i = startHour; i <= endHour; i++) {
+      times.add(_formatHour(i));
+    }
+    return times.isNotEmpty ? times : [_formatHour(endHour)];
+  }
+
+  DateTime _getMinDeliveryDateTime(DateTime pDate, String pTime) {
+    int pHour = _parseHour(pTime);
+    DateTime current = DateTime(pDate.year, pDate.month, pDate.day, pHour);
+
+    // Express = 5 working hours minimum.
+    // Standard = 12 working hours (which equals 1 full business day later)
+    int hoursNeeded = _isExpress ? 5 : 12;
+
+    while (hoursNeeded > 0) {
+      current = current.add(const Duration(hours: 1));
+      // Store business hours logic: 8:00 AM to 8:00 PM
+      if (current.hour > 8 && current.hour <= 20) {
+        hoursNeeded--;
+      }
+    }
+    return current;
+  }
+
+  List<String> _getDeliveryTimes(DateTime dDate) {
+    DateTime minDelDateTime = _getMinDeliveryDateTime(_pickupDate, _pickupTime);
+    int startHour = 8;
+    int endHour = 20;
+
+    // If they picked the absolute earliest possible delivery day, restrict the start time
+    if (dDate.year == minDelDateTime.year && dDate.month == minDelDateTime.month && dDate.day == minDelDateTime.day) {
+      startHour = minDelDateTime.hour;
+    }
+
+    List<String> times = [];
+    for (int i = startHour; i <= endHour; i++) {
+      times.add(_formatHour(i));
+    }
+    return times.isNotEmpty ? times : [_formatHour(endHour)];
+  }
+
+  void _onPickupDateChanged(DateTime d) {
+    setState(() {
+      _pickupDate = d;
+      _pickupTimes = _getPickupTimes(d);
+      if (!_pickupTimes.contains(_pickupTime) && _pickupTimes.isNotEmpty) {
+        _pickupTime = _pickupTimes.first;
+      }
+
+      // Cascade restrict delivery dates
+      DateTime minDelDate = _minDeliveryDate;
+      if (_deliveryDate.isBefore(minDelDate)) _deliveryDate = minDelDate;
+
+      _deliveryTimes = _getDeliveryTimes(_deliveryDate);
+      if (!_deliveryTimes.contains(_deliveryTime) && _deliveryTimes.isNotEmpty) {
+        _deliveryTime = _deliveryTimes.first;
+      }
+    });
+  }
+
+  void _onPickupTimeChanged(String t) {
+    setState(() {
+      _pickupTime = t;
+
+      // Cascade restrict delivery dates when time shifts into the evening
+      DateTime minDelDate = _minDeliveryDate;
+      if (_deliveryDate.isBefore(minDelDate)) _deliveryDate = minDelDate;
+
+      _deliveryTimes = _getDeliveryTimes(_deliveryDate);
+      if (!_deliveryTimes.contains(_deliveryTime) && _deliveryTimes.isNotEmpty) {
+        _deliveryTime = _deliveryTimes.first;
+      }
+    });
+  }
+
+  void _onDeliveryDateChanged(DateTime d) {
+    setState(() {
+      _deliveryDate = d;
+      _deliveryTimes = _getDeliveryTimes(d);
+      if (!_deliveryTimes.contains(_deliveryTime) && _deliveryTimes.isNotEmpty) {
+        _deliveryTime = _deliveryTimes.first;
+      }
+    });
+  }
 
   String _fmt(DateTime d) => '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
 
@@ -975,7 +1152,13 @@ class _ReorderSheetState extends State<_ReorderSheet> {
             decoration: _deco('Date', AppColors.primary).copyWith(suffixIcon: IconButton(
               icon: const Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 18),
               onPressed: () async {
-                final p = await showDatePicker(context: context, initialDate: _pickupDate, firstDate: DateTime.now(), lastDate: DateTime(2100), builder: (ctx, child) => Theme(data: Theme.of(ctx).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primary)), child: child!));
+                final p = await showDatePicker(
+                    context: context,
+                    initialDate: _pickupDate,
+                    firstDate: _minPickupDate,
+                    lastDate: DateTime(2100),
+                    builder: (ctx, child) => Theme(data: Theme.of(ctx).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primary)), child: child!)
+                );
                 if (p != null) _onPickupDateChanged(p);
               },
             )),
@@ -984,8 +1167,8 @@ class _ReorderSheetState extends State<_ReorderSheet> {
           Expanded(child: DropdownButtonFormField<String>(
             value: _pickupTime, decoration: _deco('Time', AppColors.primary),
             icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
-            items: _times.map((t) => DropdownMenuItem(value: t, child: Text(t, style: GoogleFonts.alexandria(fontSize: 13)))).toList(),
-            onChanged: (v) { if (v != null) setState(() => _pickupTime = v); },
+            items: _pickupTimes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: GoogleFonts.alexandria(fontSize: 13)))).toList(),
+            onChanged: (v) { if (v != null) _onPickupTimeChanged(v); },
           )),
         ]),
         const SizedBox(height: 16),
@@ -999,9 +1182,15 @@ class _ReorderSheetState extends State<_ReorderSheet> {
                 : IconButton(
               icon: const Icon(Icons.calendar_today_rounded, color: AppColors.success, size: 18),
               onPressed: () async {
-                final min = _pickupDate.add(const Duration(days: 2));
-                final p = await showDatePicker(context: context, initialDate: _deliveryDate.isBefore(min) ? min : _deliveryDate, firstDate: min, lastDate: DateTime(2100), builder: (ctx, child) => Theme(data: Theme.of(ctx).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.success)), child: child!));
-                if (p != null) setState(() => _deliveryDate = p);
+                final minDel = _minDeliveryDate;
+                final p = await showDatePicker(
+                    context: context,
+                    initialDate: _deliveryDate.isBefore(minDel) ? minDel : _deliveryDate,
+                    firstDate: minDel,
+                    lastDate: DateTime(2100),
+                    builder: (ctx, child) => Theme(data: Theme.of(ctx).copyWith(colorScheme: const ColorScheme.light(primary: AppColors.success)), child: child!)
+                );
+                if (p != null) _onDeliveryDateChanged(p);
               },
             )),
           )),
@@ -1009,7 +1198,7 @@ class _ReorderSheetState extends State<_ReorderSheet> {
           Expanded(child: DropdownButtonFormField<String>(
             value: _deliveryTime, decoration: _deco('Time', AppColors.success),
             icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.success),
-            items: _times.map((t) => DropdownMenuItem(value: t, child: Text(t, style: GoogleFonts.alexandria(fontSize: 13)))).toList(),
+            items: _deliveryTimes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: GoogleFonts.alexandria(fontSize: 13)))).toList(),
             onChanged: (v) { if (v != null) setState(() => _deliveryTime = v); },
           )),
         ]),
@@ -1243,7 +1432,11 @@ class _ServiceImage extends StatelessWidget {
     child: ClipRRect(borderRadius: BorderRadius.circular(16),
       child: imageUrl != null
           ? CachedNetworkImage(imageUrl: imageUrl!, fit: BoxFit.cover,
-        placeholder: (_, __) => Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary.withOpacity(0.5)))),
+        placeholder: (_, __) => Shimmer.fromColors(
+          baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+          highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+          child: Container(color: Colors.white),
+        ),
         errorWidget: (_, __, ___) => Container(decoration: BoxDecoration(gradient: AppColors.gradient, borderRadius: BorderRadius.circular(16)), child: const Icon(Icons.local_laundry_service, color: Colors.white, size: 28)),
       )
           : const Icon(Icons.local_laundry_service, color: Colors.white, size: 28),
