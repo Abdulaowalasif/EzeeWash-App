@@ -21,7 +21,7 @@ import '../features/orders/presentation/screens/place_order_screen.dart';
 import '../features/orders/presentation/screens/track_order_screen.dart';
 import '../features/profile/presentation/screens/chat_bot_screen.dart';
 import '../features/profile/presentation/screens/help_support_screen.dart';
-import '../features/profile/presentation/screens/profile_screen.dart';
+import '../features/profile/presentation/screens/settings_screen.dart';
 import '../features/profile/presentation/screens/terms_policy_screen.dart';
 import '../features/services/presentation/screens/service_screen.dart';
 import '../main_screen.dart';
@@ -42,7 +42,7 @@ GoRouter createRouter(AuthBloc authBloc) {
       if (authState is AuthAuthenticated) {
         final pendingRoute = NotificationService.consumePendingRoute();
         if (pendingRoute != null) return pendingRoute;
-        if (isLogin) return RoutesName.main;
+        if (isLogin) return RoutesName.home;
         return null;
       }
 
@@ -63,14 +63,7 @@ GoRouter createRouter(AuthBloc authBloc) {
       StatefulShellRoute.indexedStack(
         builder: (c, s, shell) => MainScreen(navigationShell: shell),
         branches: [
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: RoutesName.main,
-                pageBuilder: (c, s) => _slide(const HomeScreen(), s),
-              ),
-            ],
-          ),
+          //services
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -79,6 +72,8 @@ GoRouter createRouter(AuthBloc authBloc) {
               ),
             ],
           ),
+
+          //order
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -95,26 +90,9 @@ GoRouter createRouter(AuthBloc authBloc) {
                         preSelectedServiceId: extra as String?,
                       );
 
-                      // FIX: Use BlocProvider.value instead of BlocProvider(create: ...).
-                      //
-                      // Previously, BlocProvider(create: (_) => sl<OrdersBloc>())
-                      // created a BRAND NEW, ISOLATED OrdersBloc instance for
-                      // PlaceOrderScreen. When the order was placed successfully,
-                      // _onPlace emitted OrderPlaced and then dispatched
-                      // OrdersLoadRequested — but only into this isolated bloc.
-                      // The ROOT OrdersBloc (provided in main.dart and used by
-                      // OrderScreen) never received the reload, so the newly
-                      // placed order was written to the DB but the UI stayed stale
-                      // until the app was restarted.
-                      //
-                      // BlocProvider.value passes the SAME root OrdersBloc instance
-                      // down. When PlaceOrderScreen dispatches OrderPlaceRequested
-                      // and the subsequent OrdersLoadRequested fires, it updates the
-                      // shared state that OrderScreen is already listening to —
-                      // so the new order appears on the UI immediately.
                       return _slide(
                         BlocProvider.value(
-                          value: c.read<OrdersBloc>(), // ✅ share the root bloc
+                          value: c.read<OrdersBloc>(),
                           child: screen,
                         ),
                         s,
@@ -142,37 +120,52 @@ GoRouter createRouter(AuthBloc authBloc) {
               ),
             ],
           ),
+
+          //main
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutesName.home,
+                pageBuilder: (c, s) => _slide(const HomeScreen(), s),
+              routes: [
+                GoRoute(
+                  path: RoutesName.address,
+                  pageBuilder: (c, s) => _slide(const AddressScreen(), s),
+                ),
+                GoRoute(
+                  path: RoutesName.helpSupport,
+                  pageBuilder: (c, s) => _slide(const HelpSupportScreen(), s),
+                ),
+                GoRoute(
+                  path: RoutesName.termsPolicy,
+                  pageBuilder: (c, s) => _slide(const TermsPolicyScreen(), s),
+                ),
+                GoRoute(
+                  path: RoutesName.settings,
+                  pageBuilder: (c, s) => _slide(const SettingsScreen(), s),
+                ),
+              ]
+
+              ),
+            ],
+          ),
+
+          //bot
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutesName.chatBot,
+                pageBuilder: (c, s) => _slide(const ChatBotScreen(), s),
+              ),
+            ],
+          ),
+
+         //notification
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: RoutesName.alerts,
                 pageBuilder: (c, s) => _slide(const NotificationScreen(), s),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: RoutesName.profile,
-                pageBuilder: (c, s) => _slide(const ProfileScreen(), s),
-                routes: [
-                  GoRoute(
-                    path: RoutesName.address,
-                    pageBuilder: (c, s) => _slide(const AddressScreen(), s),
-                  ),
-                  GoRoute(
-                    path: RoutesName.helpSupport,
-                    pageBuilder: (c, s) => _slide(const HelpSupportScreen(), s),
-                  ),
-                  GoRoute(
-                    path: RoutesName.termsPolicy,
-                    pageBuilder: (c, s) => _slide(const TermsPolicyScreen(), s),
-                  ),
-                  GoRoute(
-                    path: RoutesName.chatBot,
-                    pageBuilder: (c, s) => _slide(const ChatBotScreen(), s),
-                  ),
-                ],
               ),
             ],
           ),

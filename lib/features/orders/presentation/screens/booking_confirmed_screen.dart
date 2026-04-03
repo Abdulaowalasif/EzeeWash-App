@@ -147,7 +147,7 @@ class BookingConfirmedScreen extends StatelessWidget {
                         ],
                       ),
                       child: ElevatedButton.icon(
-                        onPressed: () => context.go(RoutesName.main),
+                        onPressed: () => context.go(RoutesName.home),
                         icon: const Icon(
                           Icons.home_rounded,
                           color: Colors.white,

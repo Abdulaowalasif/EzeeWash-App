@@ -172,15 +172,6 @@ class _ServicesAppBar extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Iconsax.category,
-                        color: Colors.white, size: 20),
-                  ),
                 ],
               ),
               const SizedBox(height: 20),

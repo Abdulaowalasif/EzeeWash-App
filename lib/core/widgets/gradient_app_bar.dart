@@ -22,6 +22,8 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// Optional widget placed at the trailing end of the bar.
   final Widget? trailing;
 
+  final bool? backEnabled;
+
   /// Extra height for bars that need more space (e.g. with subtitles).
   final double height;
 
@@ -31,6 +33,7 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.leading,
     this.trailing,
     this.height = 100,
+    this.backEnabled = true,
   });
 
   @override
@@ -38,33 +41,34 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hPad = Responsive.horizontalPadding(context);
-    return SafeArea(
-      child: Container(
-        margin: EdgeInsets.fromLTRB(hPad, 10, hPad, 10),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          gradient: AppColors.gradient,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: AppColors.gradient,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: SafeArea(
         child: Row(
           children: [
-            GestureDetector(
-              onTap: () => context.pop(),
-              child: leading ??
-                  const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-            ),
+            backEnabled == true
+                ? GestureDetector(
+                    onTap: () => context.pop(),
+                    child:
+                        leading ??
+                        const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                  )
+                : SizedBox(),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
@@ -77,10 +81,7 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (trailing != null) ...[
-              const SizedBox(width: 8),
-              trailing!,
-            ],
+            if (trailing != null) ...[const SizedBox(width: 8), trailing!],
           ],
         ),
       ),

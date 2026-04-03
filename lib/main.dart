@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ─── NEW IMPORT
 
 import 'core/constants/app_constants.dart';
 import 'core/di/injection_container.dart';
@@ -28,8 +29,28 @@ import 'features/store/presentation/bloc/stores_event.dart';
 import 'firebase_options.dart';
 import 'routes/app_router.dart';
 
+// ─── Global Theme Notifier ───────────────────────────────────────────────────
+final ValueNotifier<ThemeMode> appThemeNotifier = ValueNotifier(ThemeMode.system);
+
+// ─── Helper method to save and update theme globally ─────────────────────────
+Future<void> saveThemeMode(ThemeMode mode) async {
+  appThemeNotifier.value = mode; // Instantly update UI
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('theme_mode', mode.name); // Save to storage
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ─── Load Saved Theme on App Start ─────────────────────────────────────────
+  final prefs = await SharedPreferences.getInstance();
+  final savedTheme = prefs.getString('theme_mode');
+  if (savedTheme != null) {
+    appThemeNotifier.value = ThemeMode.values.firstWhere(
+          (e) => e.name == savedTheme,
+      orElse: () => ThemeMode.system,
+    );
+  }
 
   await _requestAppPermissions();
 
@@ -105,13 +126,18 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
       ],
       child: _AuthReactiveLoader(
         onLogout: _recreateRouter,
-        child: MaterialApp.router(
-          debugShowCheckedModeBanner: false,
-          title: AppConstants.appName,
-          theme: AppTheme.light(),
-          darkTheme: AppTheme.dark(),
-          themeMode: ThemeMode.system,
-          routerConfig: _router,
+        child: ValueListenableBuilder<ThemeMode>(
+          valueListenable: appThemeNotifier,
+          builder: (context, currentMode, child) {
+            return MaterialApp.router(
+              debugShowCheckedModeBanner: false,
+              title: AppConstants.appName,
+              theme: AppTheme.light(),
+              darkTheme: AppTheme.dark(),
+              themeMode: currentMode,
+              routerConfig: _router,
+            );
+          },
         ),
       ),
     );
@@ -148,31 +174,10 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
               final userId = state.user.id;
               unawaited(NotificationService.loginAndWaitForSubscription(userId));
 
-              // FIX: Trigger data load whenever a new user is authenticated.
-              //
-              // This fires for ALL login methods — email/password AND Google OAuth.
-              //
-              // Email/password: AuthAuthenticated is emitted directly from
-              //   _onSignIn in AuthBloc (synchronous path).
-              //
-              // Google OAuth: AuthAuthenticated arrives via the authStateChanges
-              //   stream inside AuthBloc (async path — browser redirect). Because
-              //   _suppressStream is NOT set for Google, _onStreamEvent fires and
-              //   emits AuthAuthenticated, which this listener catches.
-              //   Previously, Google auth appeared to "work" (the user reached the
-              //   home screen) but the orders never loaded because the stream
-              //   emission was not reliably triggering this block, or because
-              //   _loaded was already true from a previous session check.
-              //
-              // The _lastLoadedUserId guard ensures we don't spam re-loads on
-              // token refresh events (which also fire onAuthStateChange).
               if (!_loaded || _lastLoadedUserId != userId) {
                 _loaded = true;
                 _lastLoadedUserId = userId;
 
-                // Reset the realtime subscription so it re-subscribes with
-                // the correct userId. This matters after logout → re-login
-                // where the subscription might still hold the old user's filter.
                 ctx.read<OrdersBloc>().resetSubscription();
 
                 ctx.read<OrdersBloc>().add(const OrdersLoadRequested());
@@ -184,19 +189,10 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
                 widget.onLogout();
               }
 
-              // Reset flags so the NEXT login (including Google OAuth on the
-              // same app session) always triggers a fresh data load.
               _loaded = false;
               _lastLoadedUserId = null;
               NotificationService.clearUserId();
             }
-            // AuthLoading is intentionally ignored here:
-            // - For email/password, _suppressStream is true so the stream won't
-            //   interfere; AuthAuthenticated or AuthError will follow directly.
-            // - For Google OAuth, AuthLoading is the state while the browser is
-            //   open. We must NOT reset _loaded here — that would break the
-            //   _lastLoadedUserId guard when AuthAuthenticated arrives. We also
-            //   must NOT pre-dispatch any load events — no session exists yet.
           },
         ),
         BlocListener<OrdersBloc, OrdersState>(

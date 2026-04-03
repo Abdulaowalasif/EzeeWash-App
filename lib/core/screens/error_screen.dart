@@ -84,7 +84,7 @@ class ErrorScreen extends StatelessWidget {
                       if (context.canPop()) {
                         context.pop();
                       } else {
-                        context.go(RoutesName.main);
+                        context.go(RoutesName.home);
                       }
                     },
                   ),
@@ -95,7 +95,7 @@ class ErrorScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => context.go(RoutesName.main),
+                      onPressed: () => context.go(RoutesName.home),
                       icon: const Icon(Icons.home_rounded, color: AppColors.primary, size: 20),
                       label: Text(
                         'Back to Home',

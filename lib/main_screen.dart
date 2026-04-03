@@ -23,11 +23,6 @@ class MainScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // When the user logs out, AuthUnauthenticated fires and GoRouter
-    // schedules a redirect to /login. During the 280ms slide transition
-    // the shell is still in the tree and renders a black frame.
-    // We intercept that with a BlocBuilder that shows a blank scaffold
-    // the instant we're no longer authenticated.
     return BlocBuilder<AuthBloc, AuthState>(
       buildWhen: (prev, curr) =>
       (prev is AuthAuthenticated) != (curr is AuthAuthenticated),
@@ -35,9 +30,6 @@ class MainScreen extends StatelessWidget {
         final isAuthenticated = authState is AuthAuthenticated;
 
         return Scaffold(
-          // FIX: We use a Stack to ensure navigationShell is NEVER removed
-          // from the widget tree. Removing it causes GoRouter's StatefulShellRoute
-          // to lose its internal navigators, resulting in a blank/gray screen on re-login.
           body: Stack(
             children: [
               navigationShell,
@@ -72,13 +64,14 @@ class _BottomNav extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final icons = [
-      [Iconsax.home5, Iconsax.home],
-      [Iconsax.heart5, Iconsax.heart],
+      [Iconsax.heart, Iconsax.heart],
       [Iconsax.truck_fast, Iconsax.truck_fast],
-      [Iconsax.notification5, Iconsax.notification],
-      [Iconsax.user4, Iconsax.user],
+      [Iconsax.home, Iconsax.home],
+      [Icons.smart_toy_outlined, Icons.smart_toy_outlined],
+      [Iconsax.notification, Iconsax.notification],
     ];
-    final labels = ['Home', 'Services', 'Orders', 'Alerts', 'Profile'];
+
+    final labels = ['Services', 'Orders', 'Home', 'Bot', 'Alerts'];
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -116,7 +109,7 @@ class _BottomNav extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Badge on alerts icon
-                    i == 3
+                    i == 4
                         ? BlocBuilder<NotificationsBloc, NotificationsState>(
                       builder: (context, state) {
                         final unread = state is NotificationsLoaded
