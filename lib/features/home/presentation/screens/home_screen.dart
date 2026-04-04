@@ -177,7 +177,7 @@ class _HomeSliverAppBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'EZZE WASH',
+                'Ezze Wash',
                 style: GoogleFonts.pacifico(
                   color: Colors.white,
                   fontSize: 22,
@@ -185,7 +185,7 @@ class _HomeSliverAppBar extends StatelessWidget {
                 ),
               ),
               Text(
-                'Welcome, $name',
+                'Welcome',
                 style: GoogleFonts.alexandria(
                   color: Colors.white.withOpacity(0.85),
                   fontSize: 12,

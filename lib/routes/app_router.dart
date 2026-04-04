@@ -1,5 +1,6 @@
 // lib/routes/app_router.dart
 
+import 'package:ezzewash/features/auth/presentation/screens/change_password_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -7,11 +8,13 @@ import 'package:go_router/go_router.dart';
 import '../core/di/injection_container.dart';
 import '../core/screens/error_screen.dart';
 import '../core/service/notification_service.dart';
+import '../core/utils/onboarding_prefs.dart'; // ← NEW
 import '../features/address/presentation/screens/address_screen.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/notifications/presentation/screens/notification_screen.dart';
+import '../features/onboarding/presentation/screen/onboarding_screen.dart';
 import '../features/orders/presentation/bloc/orders_bloc.dart';
 import '../features/orders/presentation/screens/booking_confirmed_screen.dart';
 import '../features/orders/presentation/screens/order_screen.dart';
@@ -30,40 +33,63 @@ import 'routes_name.dart';
 GoRouter createRouter(AuthBloc authBloc) {
   final router = GoRouter(
     initialLocation: RoutesName.login,
-    redirect: (context, state) {
+    redirect: (context, state) async {
       final authState = authBloc.state;
-      final isLogin = state.matchedLocation == RoutesName.login;
+      final location = state.matchedLocation;
 
-      // Still loading — stay on login page to avoid grey/blank screen.
+      final isOnboarding = location == RoutesName.onboarding;
+      final isLogin = location == RoutesName.login;
+
+      // ── Still loading auth — hold on login to avoid blank screen ──────────
+      // NOTE: GoRouter's refreshListenable no longer fires on AuthLoading /
+      // AuthInitial, so this branch is only hit on cold-start before the first
+      // AuthCheckRequested completes. It is kept as a safety net.
       if (authState is AuthInitial || authState is AuthLoading) {
         return isLogin ? null : RoutesName.login;
       }
 
+      // ── Authenticated ─────────────────────────────────────────────────────
       if (authState is AuthAuthenticated) {
         final pendingRoute = NotificationService.consumePendingRoute();
         if (pendingRoute != null) return pendingRoute;
-        if (isLogin) return RoutesName.home;
+        if (isLogin || isOnboarding) return RoutesName.home;
         return null;
       }
 
-      // Unauthenticated — send to login
+      // ── Unauthenticated ───────────────────────────────────────────────────
+      // If the user is on the onboarding screen, let them stay.
+      if (isOnboarding) return null;
+
+      // If the user hasn't seen onboarding yet, send them there first.
+      // OnboardingPrefs caches the value in-memory (and markOnboardingSeen()
+      // updates the cache immediately), so this is safe to call on every redirect.
+      final seen = await OnboardingPrefs.hasSeenOnboarding();
+      if (!seen) return RoutesName.onboarding;
+
+      // Otherwise guard all non-login routes behind login.
       if (!isLogin) return RoutesName.login;
       return null;
     },
     refreshListenable: _AuthStateListenable(authBloc),
 
     routes: [
-      // Login
+      // ── Onboarding (unauthenticated, shown once) ─────────────────────────
+      GoRoute(
+        path: RoutesName.onboarding,
+        pageBuilder: (c, s) => _fade(const OnboardingScreen(), s),
+      ),
+
+      // ── Login ─────────────────────────────────────────────────────────────
       GoRoute(
         path: RoutesName.login,
         pageBuilder: (c, s) => _fade(const LoginScreen(), s),
       ),
 
-      // Main shell (authenticated)
+      // ── Main shell (authenticated) ────────────────────────────────────────
       StatefulShellRoute.indexedStack(
         builder: (c, s, shell) => MainScreen(navigationShell: shell),
         branches: [
-          //services
+          // services
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -73,7 +99,7 @@ GoRouter createRouter(AuthBloc authBloc) {
             ],
           ),
 
-          //order
+          // orders
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -89,7 +115,6 @@ GoRouter createRouter(AuthBloc authBloc) {
                           : PlaceOrderScreen(
                         preSelectedServiceId: extra as String?,
                       );
-
                       return _slide(
                         BlocProvider.value(
                           value: c.read<OrdersBloc>(),
@@ -121,36 +146,42 @@ GoRouter createRouter(AuthBloc authBloc) {
             ],
           ),
 
-          //main
+          // home
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: RoutesName.home,
                 pageBuilder: (c, s) => _slide(const HomeScreen(), s),
-              routes: [
-                GoRoute(
-                  path: RoutesName.address,
-                  pageBuilder: (c, s) => _slide(const AddressScreen(), s),
-                ),
-                GoRoute(
-                  path: RoutesName.helpSupport,
-                  pageBuilder: (c, s) => _slide(const HelpSupportScreen(), s),
-                ),
-                GoRoute(
-                  path: RoutesName.termsPolicy,
-                  pageBuilder: (c, s) => _slide(const TermsPolicyScreen(), s),
-                ),
-                GoRoute(
-                  path: RoutesName.settings,
-                  pageBuilder: (c, s) => _slide(const SettingsScreen(), s),
-                ),
-              ]
-
+                routes: [
+                  GoRoute(
+                    path: RoutesName.changePassword,
+                    pageBuilder: (c, s) =>
+                        _slide(const ChangePasswordScreen(), s),
+                  ),
+                  GoRoute(
+                    path: RoutesName.address,
+                    pageBuilder: (c, s) => _slide(const AddressScreen(), s),
+                  ),
+                  GoRoute(
+                    path: RoutesName.helpSupport,
+                    pageBuilder: (c, s) =>
+                        _slide(const HelpSupportScreen(), s),
+                  ),
+                  GoRoute(
+                    path: RoutesName.termsPolicy,
+                    pageBuilder: (c, s) =>
+                        _slide(const TermsPolicyScreen(), s),
+                  ),
+                  GoRoute(
+                    path: RoutesName.settings,
+                    pageBuilder: (c, s) => _slide(const SettingsScreen(), s),
+                  ),
+                ],
               ),
             ],
           ),
 
-          //bot
+          // chat bot
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -160,12 +191,13 @@ GoRouter createRouter(AuthBloc authBloc) {
             ],
           ),
 
-         //notification
+          // notifications
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: RoutesName.alerts,
-                pageBuilder: (c, s) => _slide(const NotificationScreen(), s),
+                pageBuilder: (c, s) =>
+                    _slide(const NotificationScreen(), s),
               ),
             ],
           ),
@@ -180,10 +212,24 @@ GoRouter createRouter(AuthBloc authBloc) {
   return router;
 }
 
-// Bridges AuthBloc state changes into GoRouter's refresh mechanism
+// ── Bridges AuthBloc state changes into GoRouter's refresh mechanism ─────────
+//
+// FIX: Only notify GoRouter on *terminal* auth states — not on AuthLoading.
+//
+// Previously, notifyListeners() was called on every state including AuthLoading.
+// GoRouter reacts by re-running redirect(), which returns null (stay on login)
+// while loading, causing the login screen widget tree to be rebuilt from scratch.
+// That rebuild kills the BlocConsumer listener before it can set _loading = true,
+// so the button spinner never appears.
+//
+// By skipping AuthLoading (and AuthInitial) we let the login screen stay alive
+// and handle those transient states itself via its own BlocConsumer listener.
 class _AuthStateListenable extends ChangeNotifier {
   _AuthStateListenable(AuthBloc bloc) {
-    bloc.stream.listen((_) => notifyListeners());
+    bloc.stream.listen((state) {
+      if (state is AuthLoading || state is AuthInitial) return;
+      notifyListeners();
+    });
   }
 }
 

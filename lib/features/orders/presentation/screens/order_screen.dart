@@ -1292,7 +1292,11 @@ class _OrderReviewSheetState extends State<_OrderReviewSheet> with SingleTickerP
         'comment': comment,
       });
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+        // Show success snackbar following the pattern used for cancellations
+        AppSnackBar.show(context, 'Review submitted successfully!', isError: false);
+      }
     } catch (e) {
       setState(() {
         _submitting = false;

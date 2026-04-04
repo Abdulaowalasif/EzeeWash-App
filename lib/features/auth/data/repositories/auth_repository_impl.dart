@@ -90,6 +90,18 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, void>> changePassword(String newPassword) async {
+    try {
+      await remoteDataSource.changePassword(newPassword);
+      return const Right(null);
+    } on AuthException catch (e) {
+      return Left(AuthFailure(e.message));
+    } catch (e) {
+      return Left(UnexpectedFailure(e.toString()));
+    }
+  }
+
+  @override
   Stream<UserEntity?> get authStateChanges =>
       remoteDataSource.authStateChanges;
 

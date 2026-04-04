@@ -2,8 +2,9 @@
 import 'package:get_it/get_it.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
-import '../../features/auth/data/repositories/auth_repository_impl.dart' hide AuthRemoteDataSource, AuthRemoteDataSourceImpl;
+import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
+import '../../features/auth/domain/usecase/change_password_usecase.dart';
 import '../../features/auth/domain/usecase/current_user_usecase.dart';
 import '../../features/auth/domain/usecase/sign_in_usecase.dart';
 import '../../features/auth/domain/usecase/sign_out_usecase.dart';
@@ -42,23 +43,30 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
 
   // ─── AUTH ──────────────────────────────────────────────────────────────────
-  sl.registerLazySingleton<AuthRemoteDataSource>(
-    () => AuthRemoteDataSourceImpl(sl()),
-  );
-  sl.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(sl()));
-  sl.registerLazySingleton(() => SignInUseCase(sl()));
-  sl.registerLazySingleton(() => SignUpUseCase(sl()));
-  sl.registerLazySingleton(() => SignOutUseCase(sl()));
-  sl.registerLazySingleton(() => GetCurrentUserUseCase(sl()));
-
   sl.registerFactory(
     () => AuthBloc(
       signInUseCase: sl(),
       signUpUseCase: sl(),
       signOutUseCase: sl(),
       getCurrentUserUseCase: sl(),
+      changePasswordUseCase: sl(),
       authRepository: sl(),
     ),
+  );
+
+  // Use cases
+  sl.registerLazySingleton(() => SignInUseCase(sl()));
+  sl.registerLazySingleton(() => SignUpUseCase(sl()));
+  sl.registerLazySingleton(() => SignOutUseCase(sl()));
+  sl.registerLazySingleton(() => GetCurrentUserUseCase(sl()));
+  sl.registerLazySingleton(() => ChangePasswordUseCase(sl())); // Added
+
+  // Repository
+  sl.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(sl()));
+
+  // Data sources
+  sl.registerLazySingleton<AuthRemoteDataSource>(
+    () => AuthRemoteDataSourceImpl(sl()),
   );
 
   // ─── SERVICES ─────────────────────────────────────────────────────────────

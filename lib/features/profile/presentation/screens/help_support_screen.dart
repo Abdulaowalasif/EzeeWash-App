@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/utils/responsive.dart';
@@ -35,6 +36,21 @@ class HelpSupportScreen extends StatelessWidget {
     'We take utmost care of all garments. In rare cases, please contact us within 24 hours of delivery and we\'ll resolve the issue promptly.'
     ),
   ];
+
+  Future<void> _launchUrl(String urlString) async {
+    final Uri uri = Uri.parse(urlString);
+
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        // Fallback: sometimes canLaunchUrl returns false but launchUrl still works
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('Could not launch $uri: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +135,7 @@ class HelpSupportScreen extends StatelessWidget {
                         label: 'Email',
                         value: 'support@ezeewash.com',
                         isDark: isDark,
+                        onTap: () => _launchUrl('mailto:support@ezeewash.com'),
                       ),
                       const SizedBox(height: 16),
                       _ContactRow(
@@ -127,6 +144,7 @@ class HelpSupportScreen extends StatelessWidget {
                         label: 'Phone',
                         value: '+880-1516-503532',
                         isDark: isDark,
+                        onTap: () => _launchUrl('tel:+8801516503532'),
                       ),
                       const SizedBox(height: 16),
                       _ContactRow(
@@ -174,9 +192,6 @@ class HelpSupportScreen extends StatelessWidget {
 // ──────────────────────────────────────────────────────────────────────────────
 // Shared sub-widgets
 // ──────────────────────────────────────────────────────────────────────────────
-
-
-
 
 class _FaqTile extends StatelessWidget {
   final String q;
@@ -228,33 +243,40 @@ class _ContactRow extends StatelessWidget {
   final String label;
   final String value;
   final bool isDark;
+  final VoidCallback? onTap;
+
   const _ContactRow({
     required this.icon,
     required this.color,
     required this.label,
     required this.value,
     required this.isDark,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
-        child: Icon(icon, size: 18, color: color),
-      ),
-      const SizedBox(width: 14),
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
-            style: GoogleFonts.alexandria(
-                fontSize: 11, color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
-        Text(value,
-            style: GoogleFonts.alexandria(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : AppColors.lightText)),
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Row(children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(width: 14),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label,
+              style: GoogleFonts.alexandria(
+                  fontSize: 11, color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
+          Text(value,
+              style: GoogleFonts.alexandria(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : AppColors.lightText)),
+        ]),
       ]),
-    ]);
+    );
   }
 }

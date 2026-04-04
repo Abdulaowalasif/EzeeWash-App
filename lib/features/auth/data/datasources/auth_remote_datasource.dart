@@ -16,6 +16,7 @@ abstract class AuthRemoteDataSource {
   Future<UserModel?> getCurrentUser();
   Stream<UserModel?> get authStateChanges;
   Future<void> resetPassword({required String email});
+  Future<void> changePassword(String newPassword);
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -151,6 +152,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
+  // forget password
+  @override
+  Future<void> changePassword(String newPassword) async {
+    try {
+      await _client.auth.updateUser(
+        supa.UserAttributes(password: newPassword),
+      );
+    } on supa.AuthApiException catch (e) {
+      throw AuthException(_friendly(e.message));
+    } catch (e) {
+      throw AuthException(e.toString());
+    }
+  }
   // ─── Auth state stream ─────────────────────────────────────────────────────
 
   @override

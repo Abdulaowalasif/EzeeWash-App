@@ -218,9 +218,6 @@ class _SettingsContent extends StatefulWidget {
 
 class _SettingsContentState extends State<_SettingsContent> {
   bool _editing = false;
-  bool _notifOrders = true;
-  bool _notifPromos = false;
-  bool _notifUpdates = true;
 
   late final _nameCtrl =
   TextEditingController(text: widget.profile.fullName ?? '');
@@ -330,15 +327,8 @@ class _SettingsContentState extends State<_SettingsContent> {
                       label: 'Change Password',
                       isDark: isDark,
                       onTap: () {
-                        // TODO: navigate to change password
+                        context.push(RoutesName.changePasswordNavigate);
                       },
-                    ),
-                    _MenuTile(
-                      icon: Iconsax.location,
-                      label: 'Saved Addresses',
-                      isDark: isDark,
-                      onTap: () =>
-                          context.push(RoutesName.addressNavigate),
                     ),
                     _SwitchTile(
                       icon: Iconsax.moon,
@@ -347,41 +337,6 @@ class _SettingsContentState extends State<_SettingsContent> {
                       value: isDark,
                       onChanged: (v) =>
                           saveThemeMode(v ? ThemeMode.dark : ThemeMode.light),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // ── Notifications Section ─────────────────────────────────
-                _SectionLabel(label: 'Notifications', isDark: isDark),
-                const SizedBox(height: 10),
-                _MenuCard(
-                  isDark: isDark,
-                  items: [
-                    _SwitchTile(
-                      icon: Iconsax.bag_tick,
-                      label: 'Order Updates',
-                      isDark: isDark,
-                      value: _notifOrders,
-                      onChanged: (v) =>
-                          setState(() => _notifOrders = v),
-                    ),
-                    _SwitchTile(
-                      icon: Iconsax.discount_shape,
-                      label: 'Promotions & Offers',
-                      isDark: isDark,
-                      value: _notifPromos,
-                      onChanged: (v) =>
-                          setState(() => _notifPromos = v),
-                    ),
-                    _SwitchTile(
-                      icon: Iconsax.notification_bing,
-                      label: 'App Updates',
-                      isDark: isDark,
-                      value: _notifUpdates,
-                      onChanged: (v) =>
-                          setState(() => _notifUpdates = v),
                     ),
                   ],
                 ),
@@ -415,15 +370,7 @@ class _SettingsContentState extends State<_SettingsContent> {
                       onTap: () {
                         // TODO: launch URL
                       },
-                    ),
-                    _MenuTile(
-                      icon: Iconsax.star,
-                      label: 'Rate the App',
-                      isDark: isDark,
-                      onTap: () {
-                        // TODO: launch store review
-                      },
-                    ),
+                    )
                   ],
                 ),
 
@@ -433,23 +380,6 @@ class _SettingsContentState extends State<_SettingsContent> {
                 _LogoutButton(isDark: isDark),
 
                 const SizedBox(height: 12),
-
-                _DeleteAccountButton(isDark: isDark),
-
-                const SizedBox(height: 8),
-
-                // ── App version hint ──────────────────────────────────────
-                Center(
-                  child: Text(
-                    'Version 1.0.0',
-                    style: GoogleFonts.alexandria(
-                      fontSize: 12,
-                      color: isDark
-                          ? AppColors.darkSubtext
-                          : AppColors.lightSubtext,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

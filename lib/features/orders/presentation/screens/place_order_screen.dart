@@ -1480,6 +1480,8 @@ class _PaymentStep extends StatelessWidget {
               ),
             ),
           ),
+
+        const SizedBox(height: 20,)
       ],
     );
   }

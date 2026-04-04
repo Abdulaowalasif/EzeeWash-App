@@ -42,7 +42,10 @@ final class AuthSignedUp extends AuthState {
   @override
   List<Object> get props => [email];
 }
-
+// ... existing states
+class AuthPasswordChanged extends AuthState {
+  const AuthPasswordChanged();
+}
 /// Password reset email was sent successfully.
 final class AuthPasswordResetSent extends AuthState {
   const AuthPasswordResetSent();
