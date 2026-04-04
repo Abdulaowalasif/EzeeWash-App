@@ -48,6 +48,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthGoogleSignInRequested>(_onGoogle);
     on<AuthSignOutRequested>(_onSignOut);
     on<AuthStreamChanged>(_onStreamEvent);
+    on<AuthForgotPasswordRequested>(_onForgotPassword);
 
     // Subscribe to Supabase auth state changes.
     // This handles:
@@ -109,7 +110,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           (f) => emit(AuthError(f.message)),
           (user) {
         if (user != null) {
-          emit(AuthAuthenticated(user));
+          emit(AuthAuthenticated(user, fromSignUp: true));
         } else {
           emit(AuthSignedUp(event.email));
         }
@@ -159,6 +160,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         // _authSub (stream) is not suppressed, so it will emit
         // AuthAuthenticated once the OAuth callback completes.
       },
+    );
+  }
+
+  Future<void> _onForgotPassword(
+      AuthForgotPasswordRequested event,
+      Emitter<AuthState> emit,
+      ) async {
+    emit(const AuthLoading());
+    final res = await authRepository.resetPassword(email: event.email);
+    res.fold(
+          (f) => emit(AuthError(f.message)),
+          (_) => emit(const AuthPasswordResetSent()),
     );
   }
 

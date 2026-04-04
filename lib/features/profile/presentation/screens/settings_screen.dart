@@ -1,4 +1,4 @@
-// lib/features/profile/presentation/screens/profile_screen.dart
+// lib/features/profile/presentation/screens/settings_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,7 +8,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../../../../main.dart'; // To access saveThemeMode
+import '../../../../main.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
@@ -26,9 +26,8 @@ class SettingsScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark
-          ? AppColors.darkBackground
-          : AppColors.lightBackground,
+      backgroundColor:
+      isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: BlocConsumer<ProfileBloc, ProfileState>(
         listener: (ctx, state) {
           if (state is ProfileError) {
@@ -49,23 +48,22 @@ class SettingsScreen extends StatelessWidget {
         },
         builder: (ctx, state) {
           if (state is ProfileLoading || state is ProfileInitial) {
-            return _ProfileContentShimmer(isDark: isDark);
+            return _SettingsShimmer(isDark: isDark);
           }
 
           if (state is ProfileLoaded || state is ProfileUpdating) {
             final profile = state is ProfileLoaded
                 ? (state as ProfileLoaded).profile
                 : (state as ProfileUpdating).profile;
-            return _ProfileContent(
+            return _SettingsContent(
               profile: profile,
               isDark: isDark,
               isUpdating: state is ProfileUpdating,
             );
           }
 
-          if (state is ProfileError &&
-              (state as ProfileError).profile != null) {
-            return _ProfileContent(
+          if (state is ProfileError && (state as ProfileError).profile != null) {
+            return _SettingsContent(
               profile: (state as ProfileError).profile!,
               isDark: isDark,
             );
@@ -73,27 +71,24 @@ class SettingsScreen extends StatelessWidget {
 
           return Column(
             children: [
-              const _CustomAppBar(),
+              const _SettingsAppBar(),
               Expanded(
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: AppColors.error,
-                        size: 48,
-                      ),
+                      const Icon(Icons.error_outline,
+                          color: AppColors.error, size: 48),
                       const SizedBox(height: 12),
                       Text(
-                        'Could not load profile',
+                        'Could not load settings',
                         style: GoogleFonts.alexandria(color: AppColors.error),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () => ctx.read<ProfileBloc>().add(
-                          const ProfileLoadRequested(),
-                        ),
+                        onPressed: () => ctx
+                            .read<ProfileBloc>()
+                            .add(const ProfileLoadRequested()),
                         child: const Text('Retry'),
                       ),
                     ],
@@ -108,59 +103,10 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-class _ProfileContentShimmer extends StatelessWidget {
-  final bool isDark;
+// ─── App Bar ─────────────────────────────────────────────────────────────────
 
-  const _ProfileContentShimmer({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const _CustomAppBar(),
-        Expanded(
-          child: Shimmer.fromColors(
-            baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-            highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Container(
-                    height: 110,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    height: 140,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CustomAppBar extends StatelessWidget {
-  const _CustomAppBar();
+class _SettingsAppBar extends StatelessWidget {
+  const _SettingsAppBar();
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +114,8 @@ class _CustomAppBar extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: AppColors.gradient,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+        borderRadius:
+        const BorderRadius.vertical(bottom: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withOpacity(0.3),
@@ -185,15 +132,10 @@ class _CustomAppBar extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: () {
-                  if (context.canPop()) {
-                    context.pop();
-                  }
+                  if (context.canPop()) context.pop();
                 },
-                icon: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white, size: 20),
               ),
               const SizedBox(width: 8),
               Text(
@@ -212,32 +154,80 @@ class _CustomAppBar extends StatelessWidget {
   }
 }
 
-class _ProfileContent extends StatefulWidget {
+// ─── Shimmer ─────────────────────────────────────────────────────────────────
+
+class _SettingsShimmer extends StatelessWidget {
+  final bool isDark;
+  const _SettingsShimmer({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const _SettingsAppBar(),
+        Expanded(
+          child: Shimmer.fromColors(
+            baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+            highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  _shimmerBox(110),
+                  const SizedBox(height: 20),
+                  _shimmerBox(160),
+                  const SizedBox(height: 20),
+                  _shimmerBox(220),
+                  const SizedBox(height: 20),
+                  _shimmerBox(130),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _shimmerBox(double h) => Container(
+    height: h,
+    margin: const EdgeInsets.only(bottom: 4),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+    ),
+  );
+}
+
+// ─── Main Content ─────────────────────────────────────────────────────────────
+
+class _SettingsContent extends StatefulWidget {
   final ProfileEntity profile;
   final bool isDark;
   final bool isUpdating;
 
-  const _ProfileContent({
+  const _SettingsContent({
     required this.profile,
     required this.isDark,
     this.isUpdating = false,
   });
 
   @override
-  State<_ProfileContent> createState() => _ProfileContentState();
+  State<_SettingsContent> createState() => _SettingsContentState();
 }
 
-class _ProfileContentState extends State<_ProfileContent> {
+class _SettingsContentState extends State<_SettingsContent> {
   bool _editing = false;
-  late final _nameCtrl = TextEditingController(
-    text: widget.profile.fullName ?? '',
-  );
-  late final _phoneCtrl = TextEditingController(
-    text: widget.profile.phone ?? '',
-  );
-  late final _addrCtrl = TextEditingController(
-    text: widget.profile.address ?? '',
-  );
+  bool _notifOrders = true;
+  bool _notifPromos = false;
+  bool _notifUpdates = true;
+
+  late final _nameCtrl =
+  TextEditingController(text: widget.profile.fullName ?? '');
+  late final _phoneCtrl =
+  TextEditingController(text: widget.profile.phone ?? '');
+  late final _addrCtrl =
+  TextEditingController(text: widget.profile.address ?? '');
 
   @override
   void dispose() {
@@ -250,9 +240,15 @@ class _ProfileContentState extends State<_ProfileContent> {
   void _save() {
     context.read<ProfileBloc>().add(
       ProfileUpdateRequested(
-        fullName: _nameCtrl.text.trim().isEmpty ? null : _nameCtrl.text.trim(),
-        phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
-        address: _addrCtrl.text.trim().isEmpty ? null : _addrCtrl.text.trim(),
+        fullName: _nameCtrl.text.trim().isEmpty
+            ? null
+            : _nameCtrl.text.trim(),
+        phone: _phoneCtrl.text.trim().isEmpty
+            ? null
+            : _phoneCtrl.text.trim(),
+        address: _addrCtrl.text.trim().isEmpty
+            ? null
+            : _addrCtrl.text.trim(),
       ),
     );
     setState(() => _editing = false);
@@ -261,7 +257,8 @@ class _ProfileContentState extends State<_ProfileContent> {
         content: Text('Profile updated!', style: GoogleFonts.alexandria()),
         backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
       ),
     );
@@ -269,14 +266,12 @@ class _ProfileContentState extends State<_ProfileContent> {
 
   Future<void> _pickAvatar() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-    );
+    final picked =
+    await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (picked == null || !mounted) return;
-    context.read<ProfileBloc>().add(
-      ProfileAvatarUpdateRequested(File(picked.path)),
-    );
+    context
+        .read<ProfileBloc>()
+        .add(ProfileAvatarUpdateRequested(File(picked.path)));
   }
 
   @override
@@ -286,7 +281,7 @@ class _ProfileContentState extends State<_ProfileContent> {
 
     return Column(
       children: [
-        const _CustomAppBar(),
+        const _SettingsAppBar(),
         Expanded(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
@@ -297,8 +292,10 @@ class _ProfileContentState extends State<_ProfileContent> {
               30,
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _UserInfoCard(
+                // ── Profile Card ──────────────────────────────────────────
+                _ProfileCard(
                   profile: p,
                   isDark: isDark,
                   isUpdating: widget.isUpdating,
@@ -307,9 +304,9 @@ class _ProfileContentState extends State<_ProfileContent> {
                   onPickAvatar: _pickAvatar,
                 ),
 
-                const SizedBox(height: 20),
-
+                // ── Edit Form ────────────────────────────────────────────
                 if (_editing) ...[
+                  const SizedBox(height: 16),
                   _EditCard(
                     nameCtrl: _nameCtrl,
                     phoneCtrl: _phoneCtrl,
@@ -318,64 +315,141 @@ class _ProfileContentState extends State<_ProfileContent> {
                     onSave: _save,
                     onCancel: () => setState(() => _editing = false),
                   ),
-                  const SizedBox(height: 16),
                 ],
 
-                _MenuSection(
-                  title: 'Account',
+                const SizedBox(height: 24),
+
+                // ── Account Section ───────────────────────────────────────
+                _SectionLabel(label: 'Account', isDark: isDark),
+                const SizedBox(height: 10),
+                _MenuCard(
                   isDark: isDark,
                   items: [
-                    _MenuItem(
+                    _MenuTile(
                       icon: Iconsax.lock,
-                      label: 'Change password',
+                      label: 'Change Password',
                       isDark: isDark,
                       onTap: () {
-                        // TODO: Implement change password navigation
+                        // TODO: navigate to change password
                       },
                     ),
-                    _MenuSwitchItem(
+                    _MenuTile(
+                      icon: Iconsax.location,
+                      label: 'Saved Addresses',
+                      isDark: isDark,
+                      onTap: () =>
+                          context.push(RoutesName.addressNavigate),
+                    ),
+                    _SwitchTile(
                       icon: Iconsax.moon,
                       label: 'Dark Mode',
                       isDark: isDark,
                       value: isDark,
-                      onChanged: (value) {
-                        // ─── Call the new save function instead! ───────────────
-                        saveThemeMode(value ? ThemeMode.dark : ThemeMode.light);
-                      },
+                      onChanged: (v) =>
+                          saveThemeMode(v ? ThemeMode.dark : ThemeMode.light),
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 24),
 
-                _MenuSection(
-                  title: 'Support',
+                // ── Notifications Section ─────────────────────────────────
+                _SectionLabel(label: 'Notifications', isDark: isDark),
+                const SizedBox(height: 10),
+                _MenuCard(
                   isDark: isDark,
                   items: [
-                    _MenuItem(
+                    _SwitchTile(
+                      icon: Iconsax.bag_tick,
+                      label: 'Order Updates',
+                      isDark: isDark,
+                      value: _notifOrders,
+                      onChanged: (v) =>
+                          setState(() => _notifOrders = v),
+                    ),
+                    _SwitchTile(
+                      icon: Iconsax.discount_shape,
+                      label: 'Promotions & Offers',
+                      isDark: isDark,
+                      value: _notifPromos,
+                      onChanged: (v) =>
+                          setState(() => _notifPromos = v),
+                    ),
+                    _SwitchTile(
+                      icon: Iconsax.notification_bing,
+                      label: 'App Updates',
+                      isDark: isDark,
+                      value: _notifUpdates,
+                      onChanged: (v) =>
+                          setState(() => _notifUpdates = v),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // ── Support Section ───────────────────────────────────────
+                _SectionLabel(label: 'Support', isDark: isDark),
+                const SizedBox(height: 10),
+                _MenuCard(
+                  isDark: isDark,
+                  items: [
+                    _MenuTile(
                       icon: Iconsax.message_question,
-                      label: 'Help & support',
+                      label: 'Help & Support',
                       isDark: isDark,
-                      onTap: () => context.push(RoutesName.helpSupportNavigate),
+                      onTap: () =>
+                          context.push(RoutesName.helpSupportNavigate),
                     ),
-                    _MenuItem(
+                    _MenuTile(
                       icon: Iconsax.document_text_1,
-                      label: 'Terms & policy',
+                      label: 'Terms & Policy',
                       isDark: isDark,
-                      onTap: () => context.push(RoutesName.termsPolicyNavigate),
+                      onTap: () =>
+                          context.push(RoutesName.termsPolicyNavigate),
                     ),
-                    _MenuItem(
+                    _MenuTile(
                       icon: Iconsax.global,
                       label: 'Visit Website',
                       isDark: isDark,
                       onTap: () {
-                        // TODO: Implement URL launch
+                        // TODO: launch URL
+                      },
+                    ),
+                    _MenuTile(
+                      icon: Iconsax.star,
+                      label: 'Rate the App',
+                      isDark: isDark,
+                      onTap: () {
+                        // TODO: launch store review
                       },
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
 
-                _LogoutBtn(isDark: isDark),
+                const SizedBox(height: 32),
+
+                // ── Danger Zone ───────────────────────────────────────────
+                _LogoutButton(isDark: isDark),
+
+                const SizedBox(height: 12),
+
+                _DeleteAccountButton(isDark: isDark),
+
+                const SizedBox(height: 8),
+
+                // ── App version hint ──────────────────────────────────────
+                Center(
+                  child: Text(
+                    'Version 1.0.0',
+                    style: GoogleFonts.alexandria(
+                      fontSize: 12,
+                      color: isDark
+                          ? AppColors.darkSubtext
+                          : AppColors.lightSubtext,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -385,15 +459,14 @@ class _ProfileContentState extends State<_ProfileContent> {
   }
 }
 
-class _UserInfoCard extends StatelessWidget {
-  final ProfileEntity profile;
-  final bool isDark;
-  final bool isUpdating;
-  final bool isEditing;
-  final VoidCallback onEditToggle;
-  final VoidCallback onPickAvatar;
+// ─── Profile Card ─────────────────────────────────────────────────────────────
 
-  const _UserInfoCard({
+class _ProfileCard extends StatelessWidget {
+  final ProfileEntity profile;
+  final bool isDark, isUpdating, isEditing;
+  final VoidCallback onEditToggle, onPickAvatar;
+
+  const _ProfileCard({
     required this.profile,
     required this.isDark,
     required this.isUpdating,
@@ -407,10 +480,11 @@ class _UserInfoCard extends StatelessWidget {
     child: Center(
       child: Text(
         ((profile.fullName?.isNotEmpty == true
-                ? profile.fullName![0]
-                : profile.email?[0] ?? 'U'))
+            ? profile.fullName![0]
+            : profile.email?[0] ?? 'U'))
             .toUpperCase(),
-        style: GoogleFonts.pacifico(color: AppColors.primary, fontSize: 28),
+        style:
+        GoogleFonts.pacifico(color: AppColors.primary, fontSize: 28),
       ),
     ),
   );
@@ -437,15 +511,16 @@ class _UserInfoCard extends StatelessWidget {
                   height: 70,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.primary, width: 2),
+                    border:
+                    Border.all(color: AppColors.primary, width: 2),
                   ),
                   child: ClipOval(
                     child: profile.avatarUrl != null
                         ? Image.network(
-                            profile.avatarUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _avatarFallback(),
-                          )
+                      profile.avatarUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _avatarFallback(),
+                    )
                         : _avatarFallback(),
                   ),
                 ),
@@ -460,14 +535,10 @@ class _UserInfoCard extends StatelessWidget {
                           : AppColors.lightBackground,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppColors.primary.withOpacity(0.3),
-                      ),
+                          color: AppColors.primary.withOpacity(0.3)),
                     ),
-                    child: const Icon(
-                      Icons.camera_alt_rounded,
-                      color: AppColors.primary,
-                      size: 14,
-                    ),
+                    child: const Icon(Icons.camera_alt_rounded,
+                        color: AppColors.primary, size: 14),
                   ),
                 ),
               ],
@@ -520,9 +591,7 @@ class _UserInfoCard extends StatelessWidget {
               width: 22,
               height: 22,
               child: CircularProgressIndicator(
-                color: AppColors.primary,
-                strokeWidth: 2,
-              ),
+                  color: AppColors.primary, strokeWidth: 2),
             )
           else
             GestureDetector(
@@ -546,6 +615,8 @@ class _UserInfoCard extends StatelessWidget {
   }
 }
 
+// ─── Edit Card ────────────────────────────────────────────────────────────────
+
 class _EditCard extends StatelessWidget {
   final TextEditingController nameCtrl, phoneCtrl, addrCtrl;
   final bool isDark;
@@ -560,32 +631,33 @@ class _EditCard extends StatelessWidget {
     required this.onCancel,
   });
 
-  InputDecoration _deco(
-    String hint,
-    IconData icon,
-    bool isDark,
-  ) => InputDecoration(
-    hintText: hint,
-    hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-    prefixIcon: Icon(icon, color: AppColors.primary.withOpacity(0.7), size: 20),
-    filled: true,
-    fillColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-    contentPadding: const EdgeInsets.all(16),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide.none,
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide(
-        color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-      ),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-    ),
-  );
+  InputDecoration _deco(String hint, IconData icon, bool isDark) =>
+      InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        prefixIcon: Icon(icon,
+            color: AppColors.primary.withOpacity(0.7), size: 20),
+        filled: true,
+        fillColor:
+        isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        contentPadding: const EdgeInsets.all(16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color:
+            isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide:
+          const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) => Container(
@@ -594,10 +666,10 @@ class _EditCard extends StatelessWidget {
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       borderRadius: BorderRadius.circular(24),
       border: Border.all(
-        color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-      ),
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
     ),
     child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Edit Profile',
@@ -625,7 +697,8 @@ class _EditCard extends StatelessWidget {
           controller: addrCtrl,
           style: GoogleFonts.alexandria(fontSize: 14),
           maxLines: 2,
-          decoration: _deco('Address', Icons.location_on_outlined, isDark),
+          decoration:
+          _deco('Address', Icons.location_on_outlined, isDark),
         ),
         const SizedBox(height: 18),
         Row(
@@ -635,12 +708,13 @@ class _EditCard extends StatelessWidget {
                 onPressed: onCancel,
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(
-                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                    color: isDark
+                        ? Colors.white24
+                        : Colors.grey.shade300,
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: Text(
                   'Cancel',
@@ -669,10 +743,10 @@ class _EditCard extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    padding:
+                    const EdgeInsets.symmetric(vertical: 13),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: Text(
                     'Save',
@@ -691,74 +765,83 @@ class _EditCard extends StatelessWidget {
   );
 }
 
-class _MenuSection extends StatelessWidget {
-  final String title;
-  final List<Widget> items;
+// ─── Section Label ────────────────────────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  final String label;
   final bool isDark;
 
-  const _MenuSection({
-    required this.title,
-    required this.items,
-    required this.isDark,
-  });
+  const _SectionLabel({required this.label, required this.isDark});
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 10),
-        child: Text(
-          title,
-          style: GoogleFonts.alexandria(
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-            color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
-          ),
-        ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(left: 4),
+    child: Text(
+      label.toUpperCase(),
+      style: GoogleFonts.alexandria(
+        fontWeight: FontWeight.bold,
+        fontSize: 11,
+        letterSpacing: 1.2,
+        color:
+        isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
       ),
-      Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          ),
-        ),
-        child: Column(
-          children: List.generate(
-            items.length,
-            (i) => Column(
-              children: [
-                items[i],
-                if (i < items.length - 1)
-                  Divider(
-                    height: 1,
-                    color: isDark
-                        ? AppColors.darkBorder
-                        : AppColors.lightBorder,
-                    indent: 56,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ],
+    ),
   );
 }
 
-class _MenuItem extends StatelessWidget {
+// ─── Menu Card (container for tiles) ─────────────────────────────────────────
+
+class _MenuCard extends StatelessWidget {
+  final List<Widget> items;
+  final bool isDark;
+
+  const _MenuCard({required this.items, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(
+        color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+      ),
+    ),
+    child: Column(
+      children: List.generate(
+        items.length,
+            (i) => Column(
+          children: [
+            items[i],
+            if (i < items.length - 1)
+              Divider(
+                height: 1,
+                color: isDark
+                    ? AppColors.darkBorder
+                    : AppColors.lightBorder,
+                indent: 56,
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+// ─── Menu Tile (with arrow) ───────────────────────────────────────────────────
+
+class _MenuTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final bool isDark;
+  final Widget? trailing;
 
-  const _MenuItem({
+  const _MenuTile({
     required this.icon,
     required this.label,
     required this.onTap,
     required this.isDark,
+    this.trailing,
   });
 
   @override
@@ -780,23 +863,24 @@ class _MenuItem extends StatelessWidget {
         color: isDark ? Colors.white : AppColors.lightText,
       ),
     ),
-    trailing: const Icon(
-      Icons.arrow_forward_ios_rounded,
-      size: 14,
-      color: Colors.grey,
-    ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    trailing: trailing ??
+        const Icon(Icons.arrow_forward_ios_rounded,
+            size: 14, color: Colors.grey),
+    contentPadding:
+    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
   );
 }
 
-class _MenuSwitchItem extends StatelessWidget {
+// ─── Switch Tile ──────────────────────────────────────────────────────────────
+
+class _SwitchTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
   final bool isDark;
 
-  const _MenuSwitchItem({
+  const _SwitchTile({
     required this.icon,
     required this.label,
     required this.value,
@@ -828,60 +912,22 @@ class _MenuSwitchItem extends StatelessWidget {
       activeColor: Colors.white,
       activeTrackColor: AppColors.primary,
     ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    contentPadding:
+    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
   );
 }
 
-class _LogoutBtn extends StatelessWidget {
-  final bool isDark;
+// ─── Logout Button ────────────────────────────────────────────────────────────
 
-  const _LogoutBtn({required this.isDark});
+class _LogoutButton extends StatelessWidget {
+  final bool isDark;
+  const _LogoutButton({required this.isDark});
 
   @override
   Widget build(BuildContext context) => SizedBox(
     width: double.infinity,
     child: OutlinedButton.icon(
-      onPressed: () => showDialog(
-        context: context,
-        builder: (dialogCtx) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            'Sign Out?',
-            style: GoogleFonts.alexandria(fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            'Are you sure you want to sign out?',
-            style: GoogleFonts.alexandria(fontSize: 14),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogCtx).pop(),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.alexandria(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogCtx).pop();
-                context.read<AuthBloc>().add(const AuthSignOutRequested());
-              },
-              child: Text(
-                'Sign Out',
-                style: GoogleFonts.alexandria(
-                  color: AppColors.error,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      onPressed: () => _showLogoutDialog(context),
       icon: const Icon(Icons.logout_rounded, color: AppColors.error),
       label: Text(
         'Sign Out',
@@ -893,8 +939,118 @@ class _LogoutBtn extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         side: BorderSide(color: AppColors.error.withOpacity(0.5)),
         padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16)),
       ),
     ),
   );
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text('Sign Out?',
+            style: GoogleFonts.alexandria(fontWeight: FontWeight.bold)),
+        content: Text(
+          'Are you sure you want to sign out?',
+          style: GoogleFonts.alexandria(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.alexandria(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              context
+                  .read<AuthBloc>()
+                  .add(const AuthSignOutRequested());
+            },
+            child: Text(
+              'Sign Out',
+              style: GoogleFonts.alexandria(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Delete Account Button ────────────────────────────────────────────────────
+
+class _DeleteAccountButton extends StatelessWidget {
+  final bool isDark;
+  const _DeleteAccountButton({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: double.infinity,
+    child: TextButton(
+      onPressed: () => _showDeleteDialog(context),
+      child: Text(
+        'Delete Account',
+        style: GoogleFonts.alexandria(
+          color: isDark
+              ? AppColors.darkSubtext
+              : AppColors.lightSubtext,
+          fontSize: 13,
+        ),
+      ),
+    ),
+  );
+
+  void _showDeleteDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text('Delete Account?',
+            style: GoogleFonts.alexandria(
+                fontWeight: FontWeight.bold, color: AppColors.error)),
+        content: Text(
+          'This action is permanent and cannot be undone. All your data will be erased.',
+          style: GoogleFonts.alexandria(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.alexandria(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              // TODO: implement account deletion
+            },
+            child: Text(
+              'Delete',
+              style: GoogleFonts.alexandria(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

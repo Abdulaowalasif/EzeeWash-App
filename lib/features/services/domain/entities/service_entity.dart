@@ -11,6 +11,7 @@ class ServiceEntity extends Equatable {
   final String? imageUrl;
   final List<String> tags;
   final bool isActive;
+  final double rating;
 
   const ServiceEntity({
     required this.id,
@@ -22,8 +23,9 @@ class ServiceEntity extends Equatable {
     this.imageUrl,
     this.tags = const [],
     this.isActive = true,
+    this.rating = 0.0,
   });
 
   @override
-  List<Object?> get props => [id, category, title, price, isActive];
+  List<Object?> get props => [id, category, title, price, isActive, rating];
 }

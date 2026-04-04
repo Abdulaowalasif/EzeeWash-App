@@ -1,13 +1,25 @@
 // lib/features/orders/presentation/screens/order_screen.dart
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_color.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/constants/order_status.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
@@ -16,7 +28,7 @@ import '../bloc/order_event.dart';
 import '../bloc/orders_bloc.dart';
 import '../bloc/orders_state.dart';
 
-// ─── Filter model (pure local, no bloc changes needed) ───────────────────────
+// ─── Filter model ─────────────────────────────────────────────────────────────
 
 enum _DateRange { all, today, last7, last30, custom }
 
@@ -24,10 +36,10 @@ class _OrderFilter {
   final _DateRange dateRange;
   final DateTime? customStart;
   final DateTime? customEnd;
-  final String? storeId;     // null = all
-  final String? serviceName; // null = all
-  final String? status;      // null = all
-  final String? sortBy;      // 'newest' | 'oldest' | 'price_asc' | 'price_desc'
+  final String? storeId;
+  final String? serviceName;
+  final String? status;
+  final String? sortBy;
 
   const _OrderFilter({
     this.dateRange = _DateRange.all,
@@ -64,58 +76,64 @@ class _OrderFilter {
     Object? serviceName = _sentinel,
     Object? status = _sentinel,
     String? sortBy,
-  }) =>
-      _OrderFilter(
-        dateRange: dateRange ?? this.dateRange,
-        customStart: customStart ?? this.customStart,
-        customEnd: customEnd ?? this.customEnd,
-        storeId: storeId == _sentinel ? this.storeId : storeId as String?,
-        serviceName: serviceName == _sentinel ? this.serviceName : serviceName as String?,
-        status: status == _sentinel ? this.status : status as String?,
-        sortBy: sortBy ?? this.sortBy,
-      );
+  }) {
+    return _OrderFilter(
+      dateRange: dateRange ?? this.dateRange,
+      customStart: customStart ?? this.customStart,
+      customEnd: customEnd ?? this.customEnd,
+      storeId: storeId == _sentinel ? this.storeId : storeId as String?,
+      serviceName: serviceName == _sentinel ? this.serviceName : serviceName as String?,
+      status: status == _sentinel ? this.status : status as String?,
+      sortBy: sortBy ?? this.sortBy,
+    );
+  }
 
   List<OrderEntity> apply(List<OrderEntity> orders) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
     var result = orders.where((o) {
-      // ── date range ──
       if (dateRange != _DateRange.all) {
         final d = o.createdAt;
         switch (dateRange) {
           case _DateRange.today:
             if (d.isBefore(today)) return false;
+            break;
           case _DateRange.last7:
             if (d.isBefore(today.subtract(const Duration(days: 7)))) return false;
+            break;
           case _DateRange.last30:
             if (d.isBefore(today.subtract(const Duration(days: 30)))) return false;
+            break;
           case _DateRange.custom:
             if (customStart != null && d.isBefore(customStart!)) return false;
             if (customEnd != null && d.isAfter(customEnd!.add(const Duration(days: 1)))) return false;
+            break;
           case _DateRange.all:
             break;
         }
       }
-      // ── store ──
       if (storeId != null && o.storeId != storeId) return false;
-      // ── category/service ──
       if (serviceName != null && o.serviceName != serviceName) return false;
-      // ── status ──
-      if (status != null && o.status != status) return false;
+
+      if (status != null && OrderStatus.getDisplayStatus(o.status) != status) return false;
+
       return true;
     }).toList();
 
-    // ── sort ──
     switch (sortBy) {
       case 'oldest':
         result.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
       case 'price_asc':
         result.sort((a, b) => a.totalPrice.compareTo(b.totalPrice));
+        break;
       case 'price_desc':
         result.sort((a, b) => b.totalPrice.compareTo(a.totalPrice));
+        break;
       default: // newest
         result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
     }
 
     return result;
@@ -174,7 +192,6 @@ class _OrderScreenState extends State<OrderScreen> {
                 }
               },
               builder: (context, state) {
-                // ── Shimmer Skeleton Loader ──
                 if (state is OrdersInitial || state is OrdersLoading) {
                   return _OrdersShimmer(isDark: isDark);
                 }
@@ -255,7 +272,6 @@ class _OrdersShimmer extends StatelessWidget {
             highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
             child: Column(
               children: [
-                // Toggle Bar Shimmer
                 Container(
                   height: 48,
                   decoration: BoxDecoration(
@@ -264,7 +280,6 @@ class _OrdersShimmer extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Orders List Shimmer
                 Expanded(
                   child: ListView.separated(
                     physics: const NeverScrollableScrollPhysics(),
@@ -288,7 +303,6 @@ class _OrdersShimmer extends StatelessWidget {
     );
   }
 }
-
 
 // ─── Custom App Bar ───────────────────────────────────────────────────────────
 
@@ -418,13 +432,11 @@ class _OrdersBody extends StatelessWidget {
               showActive: state.showActive, isDark: isDark,
               onChanged: (active) => context.read<OrdersBloc>().add(OrdersFilterToggled(active)),
             ),
-            // Active filter chips
             if (filter.isActive) ...[
               const SizedBox(height: 10),
-              _ActiveFilterBar(filter: filter, isDark: isDark, onClear: onClearFilter),
+              _ActiveFilterBar(filter: filter, isDark: isDark, onClear: onClearFilter, allOrders: state.orders),
             ],
             const SizedBox(height: 12),
-            // Results count
             if (filter.isActive)
               Align(
                 alignment: Alignment.centerLeft,
@@ -471,8 +483,14 @@ class _ActiveFilterBar extends StatelessWidget {
   final _OrderFilter filter;
   final bool isDark;
   final VoidCallback onClear;
+  final List<OrderEntity> allOrders;
 
-  const _ActiveFilterBar({required this.filter, required this.isDark, required this.onClear});
+  const _ActiveFilterBar({
+    required this.filter,
+    required this.isDark,
+    required this.onClear,
+    required this.allOrders,
+  });
 
   String _dateLabel(_DateRange r) {
     switch (r) {
@@ -488,9 +506,16 @@ class _ActiveFilterBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final chips = <String>[];
     if (filter.dateRange != _DateRange.all) chips.add(_dateLabel(filter.dateRange));
-    if (filter.storeId != null) chips.add(filter.storeId!);
+
+    if (filter.storeId != null) {
+      final storeIndex = allOrders.indexWhere((o) => o.storeId == filter.storeId);
+      final displayName = storeIndex != -1 ? allOrders[storeIndex].storeName : filter.storeId!;
+      chips.add(displayName);
+    }
+
     if (filter.serviceName != null) chips.add(filter.serviceName!);
-    if (filter.status != null) chips.add(filter.status!.replaceAll('_', ' '));
+    if (filter.status != null) chips.add(OrderStatus.format(filter.status!));
+
     if (filter.sortBy != 'newest') {
       chips.add({
         'oldest': 'Oldest first',
@@ -558,13 +583,10 @@ class _FilterSheet extends StatefulWidget {
 class _FilterSheetState extends State<_FilterSheet> {
   late _OrderFilter _f;
 
-  // Derived unique values from loaded orders
   late final List<String> _storeNames;
   late final List<String> _serviceNames;
-  static const _statuses = [
-    'pending', 'confirmed', 'picked_up', 'in_process',
-    'ready', 'out_for_delivery', 'delivered', 'cancelled',
-  ];
+  late final List<String> _availableStatuses;
+
   static const _sortOptions = {
     'newest': 'Newest first',
     'oldest': 'Oldest first',
@@ -572,7 +594,6 @@ class _FilterSheetState extends State<_FilterSheet> {
     'price_desc': 'Price: High → Low',
   };
 
-  // Map storeId → storeName (for display)
   late final Map<String, String> _storeMap;
 
   @override
@@ -582,6 +603,12 @@ class _FilterSheetState extends State<_FilterSheet> {
     _storeMap = { for (final o in widget.allOrders) o.storeId: o.storeName };
     _storeNames = _storeMap.values.toSet().toList()..sort();
     _serviceNames = widget.allOrders.map((o) => o.serviceName).toSet().toList()..sort();
+
+    _availableStatuses = widget.allOrders
+        .map((o) => OrderStatus.getDisplayStatus(o.status))
+        .toSet()
+        .toList()
+      ..sort();
   }
 
   bool get isDark => Theme.of(context).brightness == Brightness.dark;
@@ -663,7 +690,6 @@ class _FilterSheetState extends State<_FilterSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Pinned Header & Drag Handle ──────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
                 child: Column(
@@ -693,7 +719,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                 ),
               ),
 
-              // ── Scrollable Body ──────────────────────────────────────────────
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
@@ -702,7 +727,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Date Range ──
                       _sectionTitle('Date Range'),
                       Wrap(children: [
                         _chip(label: 'All time',   selected: _f.dateRange == _DateRange.all,    onTap: () => setState(() => _f = _f.copyWith(dateRange: _DateRange.all))),
@@ -721,7 +745,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                       ],
                       const SizedBox(height: 20),
 
-                      // ── Store ──
                       if (_storeNames.isNotEmpty) ...[
                         _sectionTitle('Store'),
                         Wrap(children: [
@@ -736,7 +759,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                         const SizedBox(height: 20),
                       ],
 
-                      // ── Service / Category ──
                       if (_serviceNames.isNotEmpty) ...[
                         _sectionTitle('Service / Category'),
                         Wrap(children: [
@@ -751,24 +773,24 @@ class _FilterSheetState extends State<_FilterSheet> {
                         const SizedBox(height: 20),
                       ],
 
-                      // ── Order Status ──
-                      _sectionTitle('Order Status'),
-                      Wrap(children: [
-                        _chip(label: 'All statuses', selected: _f.status == null,
-                            onTap: () => setState(() => _f = _f.copyWith(status: null))),
-                        ..._statuses.map((s) {
-                          final color = _statusChipColor(s);
-                          return _chip(
-                            label: s.replaceAll('_', ' '),
-                            selected: _f.status == s,
-                            color: color,
-                            onTap: () => setState(() => _f = _f.copyWith(status: s)),
-                          );
-                        }),
-                      ]),
-                      const SizedBox(height: 20),
+                      if (_availableStatuses.isNotEmpty) ...[
+                        _sectionTitle('Order Status'),
+                        Wrap(children: [
+                          _chip(label: 'All statuses', selected: _f.status == null,
+                              onTap: () => setState(() => _f = _f.copyWith(status: null))),
+                          ..._availableStatuses.map((s) {
+                            final color = OrderStatus.getColor(s);
+                            return _chip(
+                              label: OrderStatus.format(s),
+                              selected: _f.status == s,
+                              color: color,
+                              onTap: () => setState(() => _f = _f.copyWith(status: s)),
+                            );
+                          }),
+                        ]),
+                        const SizedBox(height: 20),
+                      ],
 
-                      // ── Sort ──
                       _sectionTitle('Sort By'),
                       Wrap(children: _sortOptions.entries.map((e) => _chip(
                         label: e.value,
@@ -781,7 +803,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                 ),
               ),
 
-              // ── Pinned Bottom Apply Button ──────────────────────────────────
               Padding(
                 padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 32),
                 child: SizedBox(
@@ -814,20 +835,6 @@ class _FilterSheetState extends State<_FilterSheet> {
   }
 }
 
-Color _statusChipColor(String s) {
-  switch (s) {
-    case 'pending':           return AppColors.primary;
-    case 'confirmed':         return AppColors.info;
-    case 'picked_up':
-    case 'in_process':        return AppColors.warning;
-    case 'ready':
-    case 'out_for_delivery':  return AppColors.success;
-    case 'delivered':         return AppColors.success;
-    case 'cancelled':         return AppColors.error;
-    default:                  return AppColors.primary;
-  }
-}
-
 class _DateButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
@@ -836,24 +843,26 @@ class _DateButton extends StatelessWidget {
   const _DateButton({required this.label, required this.onTap, required this.isDark});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(label, style: GoogleFonts.alexandria(
+            fontSize: 12,
+            color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+          )),
+          const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.primary),
+        ]),
       ),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label, style: GoogleFonts.alexandria(
-          fontSize: 12,
-          color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
-        )),
-        const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.primary),
-      ]),
-    ),
-  );
+    );
+  }
 }
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
@@ -863,32 +872,34 @@ class _OrderEmptyState extends StatelessWidget {
   const _OrderEmptyState({required this.showActive, required this.isDark, required this.isFiltered});
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(
-        isFiltered ? Iconsax.search_normal : (showActive ? Iconsax.truck_fast : Iconsax.box),
-        size: 72,
-        color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
-      ),
-      const SizedBox(height: 16),
-      Text(
-        isFiltered ? 'No orders match your filters' : (showActive ? 'No active orders' : 'No completed orders'),
-        style: GoogleFonts.alexandria(
-          fontSize: 17, fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(
+          isFiltered ? Iconsax.search_normal : (showActive ? Iconsax.truck_fast : Iconsax.box),
+          size: 72,
           color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
         ),
-      ),
-      const SizedBox(height: 8),
-      Text(
-        isFiltered ? 'Try adjusting or clearing your filters' : (showActive ? 'Tap + to book your first laundry service' : 'Completed orders will appear here'),
-        style: GoogleFonts.alexandria(
-          fontSize: 13,
-          color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+        const SizedBox(height: 16),
+        Text(
+          isFiltered ? 'No orders match your filters' : (showActive ? 'No active orders' : 'No completed orders'),
+          style: GoogleFonts.alexandria(
+            fontSize: 17, fontWeight: FontWeight.w600,
+            color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+          ),
         ),
-        textAlign: TextAlign.center,
-      ),
-    ]),
-  );
+        const SizedBox(height: 8),
+        Text(
+          isFiltered ? 'Try adjusting or clearing your filters' : (showActive ? 'Tap + to book your first laundry service' : 'Completed orders will appear here'),
+          style: GoogleFonts.alexandria(
+            fontSize: 13,
+            color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ]),
+    );
+  }
 }
 
 // ─── Tab toggle ───────────────────────────────────────────────────────────────
@@ -900,19 +911,21 @@ class _OrdersToggle extends StatelessWidget {
   const _OrdersToggle({required this.showActive, required this.isDark, required this.onChanged});
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(6),
-    decoration: BoxDecoration(
-      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
-    ),
-    child: Row(children: [
-      _ToggleItem(label: 'Active Orders',  isActive: showActive,  onTap: () => onChanged(true),  isDark: isDark),
-      const SizedBox(width: 8),
-      _ToggleItem(label: 'Order History',  isActive: !showActive, onTap: () => onChanged(false), isDark: isDark),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Row(children: [
+        _ToggleItem(label: 'Active Orders',  isActive: showActive,  onTap: () => onChanged(true),  isDark: isDark),
+        const SizedBox(width: 8),
+        _ToggleItem(label: 'Order History',  isActive: !showActive, onTap: () => onChanged(false), isDark: isDark),
+      ]),
+    );
+  }
 }
 
 class _ToggleItem extends StatelessWidget {
@@ -923,24 +936,26 @@ class _ToggleItem extends StatelessWidget {
   const _ToggleItem({required this.label, required this.isActive, required this.onTap, required this.isDark});
 
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          gradient: isActive ? AppColors.gradient : null,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: isActive ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            gradient: isActive ? AppColors.gradient : null,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isActive ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
+          ),
+          child: Center(child: Text(label, style: GoogleFonts.alexandria(
+            fontWeight: isActive ? FontWeight.bold : FontWeight.w600, fontSize: 13,
+            color: isActive ? Colors.white : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
+          ))),
         ),
-        child: Center(child: Text(label, style: GoogleFonts.alexandria(
-          fontWeight: isActive ? FontWeight.bold : FontWeight.w600, fontSize: 13,
-          color: isActive ? Colors.white : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
-        ))),
       ),
-    ),
-  );
+    );
+  }
 }
 
 // ─── DYNAMIC LOGIC REORDER SHEET ──────────────────────────────────────────────────────────────
@@ -967,25 +982,19 @@ class _ReorderSheetState extends State<_ReorderSheet> {
   @override
   void initState() {
     super.initState();
-
-    // 1. Initialize variables with default/placeholder values to satisfy 'late' check
     _pickupTime = 'Select time';
     _deliveryTime = 'Select time';
     _deliveryDate = DateTime.now();
-
-    // 2. Perform actual logic initialization
     _pickupDate = _minPickupDate;
-    _onPickupDateChanged(_pickupDate); // This also calls _syncDelivery and calculates times
+    _onPickupDateChanged(_pickupDate);
   }
 
-  // Calculate the absolute minimum valid pickup day based on 7 PM cutoff
   DateTime get _minPickupDate {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     return now.hour >= 19 ? today.add(const Duration(days: 1)) : today;
   }
 
-  // Extract the exact day we can deliver on based on business hours calculation
   DateTime get _minDeliveryDate {
     DateTime dt = _getMinDeliveryDateTime(_pickupDate, _pickupTime);
     return DateTime(dt.year, dt.month, dt.day);
@@ -1016,9 +1025,8 @@ class _ReorderSheetState extends State<_ReorderSheet> {
   List<String> _getPickupTimes(DateTime date) {
     final now = DateTime.now();
     int startHour = 8;
-    int endHour = 19; // Latest pickup slot at 7 PM
+    int endHour = 19;
 
-    // Rule: show from current + 1h
     if (date.year == now.year && date.month == now.month && date.day == now.day) {
       startHour = now.hour + 1;
       if (startHour < 8) startHour = 8;
@@ -1037,12 +1045,9 @@ class _ReorderSheetState extends State<_ReorderSheet> {
     int pHour = _parseHour(pTime);
     DateTime current = DateTime(pDate.year, pDate.month, pDate.day, pHour);
 
-    // Express = 5 working hours minimum (8am-8pm window).
-    // Standard = 12 working hours (effectively 24-hour turnaround).
     int hoursNeeded = _isExpress ? 5 : 12;
 
     while (hoursNeeded > 0) {
-      // If we are at or after closing (8:00 PM), move to next day opening (8:00 AM)
       if (current.hour >= 20) {
         current = DateTime(current.year, current.month, current.day + 1, 8);
       }
@@ -1237,6 +1242,223 @@ class _ReorderSheetState extends State<_ReorderSheet> {
   }
 }
 
+// ─── Clean Review Submission Modal ──────────────────────────────────────────
+
+class _OrderReviewSheet extends StatefulWidget {
+  final OrderEntity order;
+  final bool isDark;
+
+  const _OrderReviewSheet({required this.order, required this.isDark});
+
+  @override
+  State<_OrderReviewSheet> createState() => _OrderReviewSheetState();
+}
+
+class _OrderReviewSheetState extends State<_OrderReviewSheet> with SingleTickerProviderStateMixin {
+  final _client = Supabase.instance.client;
+  final _ctrl = TextEditingController();
+
+  double _rating = 5;
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final comment = _ctrl.text.trim();
+    if (comment.isEmpty) {
+      setState(() => _error = 'Please write a comment.');
+      return;
+    }
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) {
+      setState(() => _error = 'You must be signed in to review.');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    try {
+      await _client.from(AppConstants.reviewsTable).insert({
+        'service_id': widget.order.serviceId,
+        'user_id': uid,
+        'rating': _rating,
+        'comment': comment,
+      });
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      setState(() {
+        _submitting = false;
+        _error = e.toString().contains('duplicate') || e.toString().contains('unique')
+            ? 'You have already reviewed this service.'
+            : 'Failed to submit. Please try again.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final bg = widget.isDark ? AppColors.darkSurface : Colors.white;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.16), blurRadius: 24, offset: const Offset(0, -4))],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppSheetHandle(isDark: widget.isDark),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 8, 0),
+              child: Row(children: [
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Write a Review',
+                            style: GoogleFonts.alexandria(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                                color: widget.isDark ? Colors.white : AppColors.lightText)),
+                        Text(widget.order.serviceName,
+                            style: GoogleFonts.alexandria(
+                                fontSize: 12,
+                                color: widget.isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
+                      ]),
+                ),
+                IconButton(
+                  icon: Icon(Icons.close_rounded, color: widget.isDark ? Colors.white54 : Colors.black38),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ]),
+            ),
+            Divider(height: 1, color: widget.isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Column(children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(5, (i) {
+                          final on = i < _rating;
+                          return GestureDetector(
+                            onTap: () => setState(() => _rating = (i + 1).toDouble()),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 5),
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 150),
+                                child: Icon(
+                                  on ? Icons.star_rounded : Icons.star_outline_rounded,
+                                  key: ValueKey('$i-$on'),
+                                  color: on ? const Color(0xFFFBBF24) : (widget.isDark ? Colors.white24 : Colors.black26),
+                                  size: 40,
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 6),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: Text(
+                          _label(_rating),
+                          key: ValueKey(_rating),
+                          style: GoogleFonts.alexandria(fontSize: 13, fontWeight: FontWeight.w600, color: _labelColor(_rating)),
+                        ),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: _ctrl,
+                    maxLines: 4,
+                    maxLength: 500,
+                    style: GoogleFonts.alexandria(fontSize: 14, color: widget.isDark ? Colors.white : AppColors.lightText),
+                    decoration: InputDecoration(
+                      hintText: 'Share your experience…',
+                      hintStyle: GoogleFonts.alexandria(color: widget.isDark ? Colors.white30 : Colors.black38, fontSize: 13),
+                      filled: true,
+                      fillColor: widget.isDark ? AppColors.darkBackground : const Color(0xFFF8FAFF),
+                      contentPadding: const EdgeInsets.all(14),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: widget.isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+                      counterStyle: GoogleFonts.alexandria(fontSize: 11, color: widget.isDark ? Colors.white30 : Colors.black38),
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      const Icon(Icons.error_outline, color: AppColors.error, size: 14),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(_error!, style: GoogleFonts.alexandria(color: AppColors.error, fontSize: 12))),
+                    ]),
+                  ],
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: _submitting ? null : AppColors.gradient,
+                        color: _submitting ? AppColors.primary.withOpacity(0.5) : null,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: _submitting ? [] : [BoxShadow(color: AppColors.primary.withOpacity(0.28), blurRadius: 12, offset: const Offset(0, 4))],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: _submitting ? null : _submit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: _submitting
+                            ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : Text('Submit Review', style: GoogleFonts.alexandria(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _label(double r) {
+    if (r >= 5) return 'Excellent ✨';
+    if (r >= 4) return 'Very Good 👍';
+    if (r >= 3) return 'Good 😊';
+    if (r >= 2) return 'Fair 😐';
+    return 'Poor 😞';
+  }
+
+  Color _labelColor(double r) {
+    if (r >= 4) return AppColors.success;
+    if (r >= 3) return AppColors.warning;
+    return AppColors.error;
+  }
+}
+
+// ─── Individual Order Card ────────────────────────────────────────────────────
+
 class _OrderCard extends StatefulWidget {
   final OrderEntity order;
   final bool isHistory, isDark;
@@ -1248,33 +1470,6 @@ class _OrderCard extends StatefulWidget {
 
 class _OrderCardState extends State<_OrderCard> {
   bool _expanded = false;
-
-  Color _statusColor(String s) {
-    switch (s) {
-      case 'pending': return AppColors.primary;
-      case 'confirmed': return AppColors.info;
-      case 'picked_up': case 'in_process': return AppColors.warning;
-      case 'ready': case 'out_for_delivery': return AppColors.success;
-      case 'delivered': return AppColors.success;
-      case 'cancelled': return AppColors.error;
-      default: return AppColors.primary;
-    }
-  }
-
-  double _progressFor(String s, double db) {
-    final from = switch (s) {
-      'pending' => 0.05, 'confirmed' => 0.1, 'picked_up' => 0.2,
-      'in_process' => 0.4, 'ready' => 0.6, 'out_for_delivery' => 0.8,
-      'delivered' => 1.0, _ => 0.0,
-    };
-    return db > from ? db : from;
-  }
-
-  String _formatTime(DateTime dt) {
-    final h = dt.hour > 12 ? dt.hour - 12 : dt.hour == 0 ? 12 : dt.hour;
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '${dt.day}/${dt.month}/${dt.year}  $h:$m ${dt.hour >= 12 ? 'PM' : 'AM'}';
-  }
 
   void _confirmCancel(BuildContext ctx) {
     showDialog(context: ctx, builder: (dCtx) => AlertDialog(
@@ -1288,12 +1483,13 @@ class _OrderCardState extends State<_OrderCard> {
     ));
   }
 
-  bool _isStepDone(String status, int stepOrder) {
-    final cur = switch (status) {
-      'pending' || 'confirmed' => 1, 'picked_up' => 2, 'in_process' => 3,
-      'ready' || 'out_for_delivery' => 4, 'delivered' => 5, _ => 0,
-    };
-    return stepOrder <= cur;
+  void _showReviewSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _OrderReviewSheet(order: widget.order, isDark: widget.isDark),
+    );
   }
 
   Future<void> _handleReorder(BuildContext context) async {
@@ -1311,12 +1507,95 @@ class _OrderCardState extends State<_OrderCard> {
     ));
   }
 
+  Widget _buildRealLifeTimeline(int currentLevel, bool isDark) {
+    final steps = [
+      {'threshold': 1, 'title': 'Order Confirmed', 'sub': 'Your order has been received.'},
+      {'threshold': 4, 'title': 'Picked Up', 'sub': 'Items picked up and heading to laundry.'},
+      {'threshold': 7, 'title': 'Cleaning', 'sub': 'Washing, drying, and ironing.'},
+      {'threshold': 9, 'title': 'Out for Delivery', 'sub': 'Rider is on the way to deliver.'},
+      {'threshold': 10, 'title': 'Delivered', 'sub': 'Order completed successfully.'},
+    ];
+
+    return Column(
+      children: steps.asMap().entries.map((e) {
+        final index = e.key;
+        final step = e.value;
+        final threshold = step['threshold'] as int;
+
+        final isDone = currentLevel >= threshold;
+        final isActive = !isDone && (index == 0 || currentLevel >= (steps[index - 1]['threshold'] as int));
+        final isLast = index == steps.length - 1;
+
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                children: [
+                  Container(
+                    width: 26, height: 26,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isDone ? AppColors.primary : (isDark ? Colors.white12 : Colors.grey.shade200),
+                      border: isActive ? Border.all(color: AppColors.primary.withOpacity(0.3), width: 4) : null,
+                    ),
+                    child: isDone
+                        ? const Icon(Icons.check, size: 14, color: Colors.white)
+                        : (isActive
+                        ? Center(child: Container(width: 8, height: 8, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.primary)))
+                        : const SizedBox()),
+                  ),
+                  if (!isLast)
+                    Expanded(
+                      child: Container(
+                        width: 2,
+                        color: isDone ? AppColors.primary : (isDark ? Colors.white12 : Colors.grey.shade200),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        step['title'] as String,
+                        style: GoogleFonts.alexandria(
+                          fontWeight: isDone || isActive ? FontWeight.bold : FontWeight.w500,
+                          color: isDone || isActive ? (isDark ? Colors.white : Colors.black87) : Colors.grey.shade500,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        step['sub'] as String,
+                        style: GoogleFonts.alexandria(
+                          fontSize: 12,
+                          color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final o = widget.order;
-    final statusColor = _statusColor(o.status);
-    final progress = _progressFor(o.status, o.progress);
-    final sortedTimeline = List.of(o.timeline)..sort((a, b) => a.stepOrder.compareTo(b.stepOrder));
+
+    final displayStatus = OrderStatus.getDisplayStatus(o.status);
+    final statusColor = OrderStatus.getColor(displayStatus);
+    final currentLevel = OrderStatus.getStepCompletionOrder(displayStatus);
+    final progress = o.progress.clamp(0.0, 1.0);
 
     return GestureDetector(
       onTap: widget.onPress,
@@ -1344,7 +1623,7 @@ class _OrderCardState extends State<_OrderCard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
-                  child: Text(o.status.replaceAll('_', ' ').toUpperCase(), style: GoogleFonts.alexandria(fontSize: 9, color: statusColor, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                  child: Text(OrderStatus.format(displayStatus).toUpperCase(), style: GoogleFonts.alexandria(fontSize: 9, color: statusColor, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                 ),
               ]),
             ])),
@@ -1353,82 +1632,85 @@ class _OrderCardState extends State<_OrderCard> {
               Text('${o.itemCount} pcs', style: GoogleFonts.alexandria(fontSize: 11, color: widget.isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
             ]),
           ]),
+
           const SizedBox(height: 16),
           ClipRRect(borderRadius: BorderRadius.circular(10), child: Container(height: 6, color: widget.isDark ? Colors.white12 : Colors.grey.shade200,
             child: LayoutBuilder(builder: (_, c) => Align(alignment: Alignment.centerLeft,
               child: AnimatedContainer(duration: const Duration(milliseconds: 600), curve: Curves.easeOut,
-                width: c.maxWidth * progress.clamp(0.0, 1.0),
+                width: c.maxWidth * progress,
                 decoration: BoxDecoration(gradient: AppColors.gradient, borderRadius: BorderRadius.circular(10)),
               ),
             )),
           )),
+
           const SizedBox(height: 16),
+
           Row(children: [
-            Expanded(child: OutlinedButton.icon(
-              icon: Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.remove_red_eye_outlined, color: AppColors.primary, size: 18),
-              onPressed: () => setState(() => _expanded = !_expanded),
-              style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.primary, width: 1.5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12)),
-              label: Text(_expanded ? 'Hide' : 'Details', style: GoogleFonts.alexandria(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 12)),
-            )),
-            const SizedBox(width: 12),
-            Expanded(child: widget.isHistory
-                ? Container(
-              decoration: BoxDecoration(gradient: AppColors.gradient, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]),
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.replay_outlined, color: Colors.white, size: 16),
-                onPressed: () => _handleReorder(context),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                label: Text('Reorder', style: GoogleFonts.alexandria(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
+            Expanded(
+              child: widget.isHistory
+                  ? OutlinedButton.icon(
+                icon: const Icon(Icons.star_outline_rounded, color: AppColors.primary, size: 18),
+                onPressed: () => _showReviewSheet(context),
+                style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.primary, width: 1.5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12)),
+                label: Text('Review', style: GoogleFonts.alexandria(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 12)),
+              )
+                  : OutlinedButton.icon(
+                icon: Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.remove_red_eye_outlined, color: AppColors.primary, size: 18),
+                onPressed: () => setState(() => _expanded = !_expanded),
+                style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.primary, width: 1.5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12)),
+                label: Text(_expanded ? 'Hide' : 'Details', style: GoogleFonts.alexandria(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 12)),
               ),
-            )
-                : BlocBuilder<OrdersBloc, OrdersState>(builder: (ctx, bState) {
-              final cancelling = bState is OrderCancelling;
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: cancelling ? null : () => _confirmCancel(ctx),
-                child: Container(
-                  decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: AppColors.error.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]),
-                  child: ElevatedButton.icon(
-                    onPressed: null,
-                    icon: cancelling ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.cancel_outlined, color: Colors.white, size: 16),
-                    label: Text(cancelling ? 'Cancelling…' : 'Cancel', style: GoogleFonts.alexandria(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, disabledBackgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                  ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: widget.isHistory
+                  ? Container(
+                decoration: BoxDecoration(gradient: AppColors.gradient, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]),
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.replay_outlined, color: Colors.white, size: 16),
+                  onPressed: () => _handleReorder(context),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  label: Text('Reorder', style: GoogleFonts.alexandria(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
                 ),
-              );
-            }),
+              )
+                  : BlocBuilder<OrdersBloc, OrdersState>(
+                  builder: (ctx, bState) {
+                    final cancelling = bState is OrderCancelling;
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: cancelling ? null : () => _confirmCancel(ctx),
+                      child: Container(
+                        decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: AppColors.error.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]),
+                        child: ElevatedButton.icon(
+                          onPressed: null,
+                          icon: cancelling ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.cancel_outlined, color: Colors.white, size: 16),
+                          label: Text(cancelling ? 'Cancelling…' : 'Cancel', style: GoogleFonts.alexandria(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, disabledBackgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                        ),
+                      ),
+                    );
+                  }
+              ),
             ),
           ]),
-          if (_expanded) ...[
+
+          if (_expanded && !widget.isHistory) ...[
             const SizedBox(height: 20),
             Divider(color: widget.isDark ? Colors.white12 : Colors.grey.shade200),
-            const SizedBox(height: 12),
-            Text('Order Timeline', style: GoogleFonts.alexandria(fontWeight: FontWeight.bold, fontSize: 14, color: widget.isDark ? Colors.white : AppColors.lightText)),
-            const SizedBox(height: 12),
-            if (sortedTimeline.isEmpty)
-              Text('Timeline not available yet', style: GoogleFonts.alexandria(fontSize: 13, color: widget.isDark ? AppColors.darkSubtext : AppColors.lightSubtext))
+            const SizedBox(height: 16),
+            Text('Order Tracking', style: GoogleFonts.alexandria(fontWeight: FontWeight.bold, fontSize: 15, color: widget.isDark ? Colors.white : AppColors.lightText)),
+            const SizedBox(height: 16),
+
+            if (displayStatus == OrderStatus.cancelled)
+              Row(
+                children: [
+                  const Icon(Icons.cancel_rounded, color: AppColors.error),
+                  const SizedBox(width: 8),
+                  Text('This order was cancelled.', style: GoogleFonts.alexandria(color: AppColors.error, fontWeight: FontWeight.w600)),
+                ],
+              )
             else
-              ...sortedTimeline.map((step) {
-                final done = _isStepDone(o.status, step.stepOrder);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Container(
-                      margin: const EdgeInsets.only(top: 2, right: 14),
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: done ? AppColors.primary.withOpacity(0.12) : (widget.isDark ? Colors.white12 : Colors.grey.shade100)),
-                      child: Icon(done ? Icons.check_circle_rounded : Icons.circle_outlined, color: done ? AppColors.primary : Colors.grey.shade400, size: 16),
-                    ),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(step.title, style: GoogleFonts.alexandria(fontWeight: done ? FontWeight.bold : FontWeight.w500, color: done ? (widget.isDark ? Colors.white : Colors.black87) : Colors.grey.shade500, fontSize: 13)),
-                      if (step.description != null && step.description!.isNotEmpty)
-                        Text(step.description!, style: GoogleFonts.alexandria(fontSize: 11, color: widget.isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
-                      if (done && step.eventTime != null)
-                        Text(_formatTime(step.eventTime!), style: GoogleFonts.alexandria(fontSize: 10, color: AppColors.primary.withOpacity(0.7))),
-                    ])),
-                  ]),
-                );
-              }),
+              _buildRealLifeTimeline(currentLevel, widget.isDark),
           ],
         ]),
       ),

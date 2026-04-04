@@ -47,6 +47,15 @@ final class AuthSignOutRequested extends AuthEvent {
   const AuthSignOutRequested();
 }
 
+/// Emitted when the user submits the forgot-password form.
+final class AuthForgotPasswordRequested extends AuthEvent {
+  final String email;
+  const AuthForgotPasswordRequested({required this.email});
+
+  @override
+  List<Object> get props => [email];
+}
+
 /// Internal — emitted by the Supabase auth stream subscription.
 /// Kept private (prefixed with `_`) so screens cannot dispatch it directly.
 final class AuthStreamChanged extends AuthEvent {

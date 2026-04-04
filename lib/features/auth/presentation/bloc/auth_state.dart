@@ -18,12 +18,14 @@ final class AuthLoading extends AuthState {
 }
 
 /// The user is signed in. [user] holds their identity.
+/// [fromSignUp] is true when the session was created by a sign-up action.
 final class AuthAuthenticated extends AuthState {
   final UserEntity user;
-  const AuthAuthenticated(this.user);
+  final bool fromSignUp;
+  const AuthAuthenticated(this.user, {this.fromSignUp = false});
 
   @override
-  List<Object> get props => [user];
+  List<Object> get props => [user, fromSignUp];
 }
 
 /// No active session — show the login screen.
@@ -39,6 +41,11 @@ final class AuthSignedUp extends AuthState {
 
   @override
   List<Object> get props => [email];
+}
+
+/// Password reset email was sent successfully.
+final class AuthPasswordResetSent extends AuthState {
+  const AuthPasswordResetSent();
 }
 
 /// An auth operation failed. [message] is safe to show in a SnackBar.

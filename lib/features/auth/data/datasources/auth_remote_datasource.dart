@@ -15,6 +15,7 @@ abstract class AuthRemoteDataSource {
   Future<void> signOut();
   Future<UserModel?> getCurrentUser();
   Stream<UserModel?> get authStateChanges;
+  Future<void> resetPassword({required String email});
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -102,6 +103,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       // ✅ Do NOT read currentUser here. The browser hasn't even shown yet.
       // The authStateChanges stream will emit the authenticated user once
       // the OAuth redirect completes and Supabase restores the session.
+    } on supa.AuthApiException catch (e) {
+      throw AuthException(_friendly(e.message));
+    } catch (e) {
+      throw AuthException(e.toString());
+    }
+  }
+
+  // ─── Reset password ────────────────────────────────────────────
+
+  @override
+  Future<void> resetPassword({required String email}) async {
+    try {
+      await _client.auth.resetPasswordForEmail(email);
     } on supa.AuthApiException catch (e) {
       throw AuthException(_friendly(e.message));
     } catch (e) {

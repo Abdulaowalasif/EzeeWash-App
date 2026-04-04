@@ -9,16 +9,17 @@ import 'package:iconsax/iconsax.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/constants/app_color.dart';
+import '../../../../core/constants/order_status.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
 import '../../../notifications/presentation/bloc/notifications_bloc.dart';
 import '../../../orders/presentation/bloc/orders_bloc.dart';
 import '../../../orders/presentation/bloc/orders_state.dart';
-import '../../../orders/presentation/screens/track_order_screen.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
 import '../../../profile/presentation/bloc/profile_state.dart';
 import '../../../services/presentation/bloc/service_bloc.dart';
 import '../../../services/presentation/bloc/service_state.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,6 +30,24 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _localQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // Show welcome snackbar after sign-up, once the frame has settled.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authState = context.read<AuthBloc>().state;
+      if (authState is AuthAuthenticated && authState.fromSignUp) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account created successfully! Welcome 🎉'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -166,7 +185,7 @@ class _HomeSliverAppBar extends StatelessWidget {
                 ),
               ),
               Text(
-                'Welcome',
+                'Welcome, $name',
                 style: GoogleFonts.alexandria(
                   color: Colors.white.withOpacity(0.85),
                   fontSize: 12,
@@ -232,7 +251,7 @@ class _UserProfileGlassCard extends StatelessWidget {
                       radius: 26,
                       backgroundColor: Colors.white.withOpacity(0.2),
                       backgroundImage:
-                          p.avatarUrl != null && p.avatarUrl!.isNotEmpty
+                      p.avatarUrl != null && p.avatarUrl!.isNotEmpty
                           ? CachedNetworkImageProvider(p.avatarUrl!)
                           : null,
                       child: p.avatarUrl == null || p.avatarUrl!.isEmpty
@@ -346,12 +365,12 @@ class _SearchBoxState extends State<_SearchBox> {
         boxShadow: widget.isDark
             ? []
             : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: TextField(
         controller: _ctrl,
@@ -371,13 +390,13 @@ class _SearchBoxState extends State<_SearchBox> {
             builder: (_, value, __) => value.text.isEmpty
                 ? const SizedBox.shrink()
                 : IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                    color: Colors.grey[400],
-                    onPressed: () {
-                      _ctrl.clear();
-                      widget.onChanged('');
-                    },
-                  ),
+              icon: const Icon(Icons.close_rounded, size: 18),
+              color: Colors.grey[400],
+              onPressed: () {
+                _ctrl.clear();
+                widget.onChanged('');
+              },
+            ),
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
@@ -467,18 +486,22 @@ class _ServicesGrid extends StatelessWidget {
 
         if (state is ServicesLoaded) {
           final q = localQuery.toLowerCase().trim();
-          final all = state.services;
+
+          // ─── Sort by rating (highest first) ──────────────────────────────
+          final all = List.of(state.services)
+            ..sort((a, b) => b.rating.compareTo(a.rating));
+
           final services =
-              (q.isEmpty
-                      ? all
-                      : all.where((s) {
-                          return s.title.toLowerCase().contains(q) ||
-                              (s.description?.toLowerCase().contains(q) ??
-                                  false) ||
-                              s.tags.any((t) => t.toLowerCase().contains(q));
-                        }).toList())
-                  .take(4)
-                  .toList();
+          (q.isEmpty
+              ? all
+              : all.where((s) {
+            return s.title.toLowerCase().contains(q) ||
+                (s.description?.toLowerCase().contains(q) ??
+                    false) ||
+                s.tags.any((t) => t.toLowerCase().contains(q));
+          }).toList())
+              .take(4) // Only take top 4 highest rated
+              .toList();
 
           if (services.isEmpty && q.isNotEmpty) {
             return Padding(
@@ -514,6 +537,7 @@ class _ServicesGrid extends StatelessWidget {
                 title: s.title,
                 subtitle: s.description ?? '',
                 price: s.price.toStringAsFixed(0),
+                rating: s.rating, // Pass the rating to the card
                 imageUrl: s.imageUrl,
                 fallbackIcon: _serviceIcons[i % _serviceIcons.length],
                 isDark: isDark,
@@ -556,6 +580,7 @@ class _ServicesGrid extends StatelessWidget {
 // ===== Service Card Widget =====
 class _ServiceCard extends StatefulWidget {
   final String title, subtitle, price;
+  final double rating;
   final String? imageUrl;
   final IconData fallbackIcon;
   final bool isDark;
@@ -565,6 +590,7 @@ class _ServiceCard extends StatefulWidget {
     required this.title,
     required this.subtitle,
     required this.price,
+    required this.rating,
     this.imageUrl,
     required this.fallbackIcon,
     required this.isDark,
@@ -603,12 +629,12 @@ class _ServiceCardState extends State<_ServiceCard> {
             boxShadow: widget.isDark
                 ? []
                 : [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 15,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 15,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -620,8 +646,8 @@ class _ServiceCardState extends State<_ServiceCard> {
                   gradient: widget.imageUrl == null ? AppColors.gradient : null,
                   color: widget.imageUrl != null
                       ? (widget.isDark
-                            ? AppColors.darkSurface
-                            : Colors.grey.shade100)
+                      ? AppColors.darkSurface
+                      : Colors.grey.shade100)
                       : null,
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -629,48 +655,66 @@ class _ServiceCardState extends State<_ServiceCard> {
                   borderRadius: BorderRadius.circular(16),
                   child: widget.imageUrl != null
                       ? CachedNetworkImage(
-                          imageUrl: widget.imageUrl!,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Shimmer.fromColors(
-                            baseColor: widget.isDark
-                                ? Colors.grey[800]!
-                                : Colors.grey[300]!,
-                            highlightColor: widget.isDark
-                                ? Colors.grey[700]!
-                                : Colors.grey[100]!,
-                            child: Container(color: Colors.white),
-                          ),
-                          errorWidget: (_, __, ___) => Container(
-                            decoration: BoxDecoration(
-                              gradient: AppColors.gradient,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Icon(
-                              widget.fallbackIcon,
-                              color: Colors.white,
-                              size: 26,
-                            ),
-                          ),
-                        )
+                    imageUrl: widget.imageUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Shimmer.fromColors(
+                      baseColor: widget.isDark
+                          ? Colors.grey[800]!
+                          : Colors.grey[300]!,
+                      highlightColor: widget.isDark
+                          ? Colors.grey[700]!
+                          : Colors.grey[100]!,
+                      child: Container(color: Colors.white),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      decoration: BoxDecoration(
+                        gradient: AppColors.gradient,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        widget.fallbackIcon,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                    ),
+                  )
                       : Icon(
-                          widget.fallbackIcon,
-                          color: Colors.white,
-                          size: 26,
-                        ),
+                    widget.fallbackIcon,
+                    color: Colors.white,
+                    size: 26,
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
-              Text(
-                widget.title,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.alexandria(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: widget.isDark ? Colors.white : AppColors.lightText,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+
+              // Title and Dynamic Rating Stars
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      widget.title,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.alexandria(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: widget.isDark ? Colors.white : AppColors.lightText,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (widget.rating > 0) ...[
+                    const SizedBox(width: 4),
+                    const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 14),
+                    Text(
+                      widget.rating.toStringAsFixed(1),
+                      style: GoogleFonts.alexandria(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFFFBBF24)),
+                    ),
+                  ],
+                ],
               ),
+
               const SizedBox(height: 4),
               Text(
                 widget.subtitle,
@@ -765,17 +809,17 @@ class _ActionBtn extends StatelessWidget {
           border: filled
               ? null
               : Border.all(
-                  color: AppColors.primary.withOpacity(0.4),
-                  width: 1.5,
-                ),
+            color: AppColors.primary.withOpacity(0.4),
+            width: 1.5,
+          ),
           boxShadow: filled
               ? [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ]
               : [],
         ),
         child: Row(
@@ -819,7 +863,7 @@ class _RecentOrdersList extends StatelessWidget {
             child: Column(
               children: List.generate(
                 2,
-                (index) => Padding(
+                    (index) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Container(
                     height: 120,
@@ -851,18 +895,18 @@ class _RecentOrdersList extends StatelessWidget {
             children: recent
                 .map(
                   (order) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _RecentOrderCard(
-                      orderId: order.id,
-                      id: '#${order.orderNumber}',
-                      service: order.serviceName,
-                      status: order.status,
-                      progress: order.progress,
-                      isDark: isDark,
-                      image: order.serviceImageUrl.toString(),
-                    ),
-                  ),
-                )
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _RecentOrderCard(
+                  orderId: order.id,
+                  id: '#${order.orderNumber}',
+                  service: order.serviceName,
+                  status: order.status,
+                  progress: order.progress,
+                  isDark: isDark,
+                  image: order.serviceImageUrl.toString(),
+                ),
+              ),
+            )
                 .toList(),
           );
         }
@@ -889,9 +933,11 @@ class _RecentOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCompleted = status == 'delivered';
-    final statusColor = isCompleted ? AppColors.success : AppColors.warning;
-    final statusLabel = status.replaceAll('_', ' ').toUpperCase();
+    final displayStatus = OrderStatus.getDisplayStatus(status);
+    final statusColor = OrderStatus.getColor(displayStatus);
+    final statusLabel = OrderStatus.format(displayStatus).toUpperCase();
+
+    final clampedProgress = progress.clamp(0.0, 1.0);
 
     return GestureDetector(
       onTap: () => context.push(RoutesName.trackOrdersNavigate, extra: orderId),
@@ -906,12 +952,12 @@ class _RecentOrderCard extends StatelessWidget {
           boxShadow: isDark
               ? []
               : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 15,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           children: [
@@ -963,22 +1009,17 @@ class _RecentOrderCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: LinearProgressIndicator(
-                value: TrackContent.effectiveProgress(
-                  status: status,
-                  dbProgress: progress,
-                ),
+                value: clampedProgress,
                 minHeight: 6,
                 backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
-                valueColor: AlwaysStoppedAnimation(
-                  isCompleted ? statusColor : AppColors.primary,
-                ),
+                valueColor: AlwaysStoppedAnimation(statusColor),
               ),
             ),
             const SizedBox(height: 6),
             Align(
               alignment: Alignment.centerRight,
               child: Text(
-                '${(TrackContent.effectiveProgress(status: status, dbProgress: progress) * 100).toInt()}% Complete',
+                '${(clampedProgress * 100).toInt()}% Complete',
                 style: GoogleFonts.alexandria(
                   color: isDark
                       ? AppColors.darkSubtext
@@ -1024,32 +1065,32 @@ class _ServiceImage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: imageUrl != null && imageUrl!.isNotEmpty
             ? CachedNetworkImage(
-                imageUrl: imageUrl!,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Shimmer.fromColors(
-                  baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-                  highlightColor: isDark
-                      ? Colors.grey[700]!
-                      : Colors.grey[100]!,
-                  child: Container(color: Colors.white),
-                ),
-                errorWidget: (_, __, ___) => Container(
-                  decoration: BoxDecoration(
-                    gradient: AppColors.gradient,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.local_laundry_service,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-              )
+          imageUrl: imageUrl!,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Shimmer.fromColors(
+            baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+            highlightColor: isDark
+                ? Colors.grey[700]!
+                : Colors.grey[100]!,
+            child: Container(color: Colors.white),
+          ),
+          errorWidget: (_, __, ___) => Container(
+            decoration: BoxDecoration(
+              gradient: AppColors.gradient,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.local_laundry_service,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+        )
             : const Icon(
-                Icons.local_laundry_service,
-                color: Colors.white,
-                size: 28,
-              ),
+          Icons.local_laundry_service,
+          color: Colors.white,
+          size: 28,
+        ),
       ),
     );
   }

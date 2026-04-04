@@ -17,8 +17,6 @@ import '../../domain/entities/service_entity.dart';
 import '../bloc/service_bloc.dart';
 import '../bloc/service_event.dart';
 import '../bloc/service_state.dart';
-import '../../../orders/presentation/bloc/orders_bloc.dart';
-import '../../../orders/presentation/bloc/orders_state.dart';
 
 class ServiceScreen extends StatefulWidget {
   const ServiceScreen({super.key});
@@ -121,7 +119,7 @@ class _ServicesShimmer extends StatelessWidget {
         itemCount: 5,
         separatorBuilder: (_, __) => const SizedBox(height: 16),
         itemBuilder: (_, __) => Container(
-          height: 280, // Approximate height of a service card
+          height: 280,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
@@ -653,7 +651,7 @@ class _ServiceImageFallback extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// REVIEW SYSTEM
+// REVIEW SYSTEM (VIEW ONLY)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── Data model ───────────────────────────────────────────────────────────────
@@ -697,13 +695,6 @@ class _Review {
 
 class _ReviewBottomSheet {
   static void show(BuildContext context, ServiceEntity service, bool isDark) {
-    bool hasCompleted = false;
-    final ordersState = context.read<OrdersBloc>().state;
-    if (ordersState is OrdersLoaded) {
-      hasCompleted = ordersState.orders.any(
-            (o) => o.serviceId == service.id && o.status == 'delivered',
-      );
-    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -712,7 +703,6 @@ class _ReviewBottomSheet {
       builder: (_) => _ReviewSheet(
         service: service,
         isDark: isDark,
-        hasCompletedOrder: hasCompleted,
       ),
     );
   }
@@ -723,11 +713,9 @@ class _ReviewBottomSheet {
 class _ReviewSheet extends StatefulWidget {
   final ServiceEntity service;
   final bool isDark;
-  final bool hasCompletedOrder;
   const _ReviewSheet({
     required this.service,
     required this.isDark,
-    this.hasCompletedOrder = false,
   });
 
   @override
@@ -742,7 +730,6 @@ class _ReviewSheetState extends State<_ReviewSheet> {
   String? _error;
   double _avg = 0;
   Map<int, int> _dist = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
-  bool _alreadyReviewed = false;
 
   @override
   void initState() {
@@ -770,13 +757,11 @@ class _ReviewSheetState extends State<_ReviewSheet> {
             (dist[r.rating.round().clamp(1, 5)] ?? 0) + 1;
         sum += r.rating;
       }
-      final uid = _client.auth.currentUser?.id;
       setState(() {
         _reviews = reviews;
         _dist = dist;
         _avg = reviews.isEmpty ? 0 : sum / reviews.length;
         _loading = false;
-        _alreadyReviewed = uid != null && reviews.any((r) => r.userId == uid);
       });
     } catch (e) {
       setState(() {
@@ -784,19 +769,6 @@ class _ReviewSheetState extends State<_ReviewSheet> {
         _error = e.toString();
       });
     }
-  }
-
-  void _openWriteReview() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _WriteReviewSheet(
-        service: widget.service,
-        isDark: widget.isDark,
-        onSubmitted: _load,
-      ),
-    );
   }
 
   @override
@@ -855,16 +827,6 @@ class _ReviewSheetState extends State<_ReviewSheet> {
                             dist: _dist,
                             isDark: widget.isDark,
                           ),
-                          const SizedBox(height: 14),
-                          if (_alreadyReviewed)
-                            _DoneChip(isDark: widget.isDark)
-                          else if (widget.hasCompletedOrder)
-                            _WriteReviewCta(
-                              isDark: widget.isDark,
-                              onTap: _openWriteReview,
-                            )
-                          else
-                            _NoCompletedOrderChip(isDark: widget.isDark),
                           const SizedBox(height: 20),
                           if (_reviews.isNotEmpty) ...[
                             AppSectionLabel(
@@ -880,7 +842,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
                   ),
                   _reviews.isEmpty
                       ? SliverFillRemaining(
-                      child: AppEmptyState(message: 'No reviews yet. Be the first to review!', isDark: widget.isDark))
+                      child: AppEmptyState(message: 'No reviews yet.', isDark: widget.isDark))
                       : SliverPadding(
                     padding: const EdgeInsets.fromLTRB(
                         20, 0, 20, 32),
@@ -902,296 +864,6 @@ class _ReviewSheetState extends State<_ReviewSheet> {
         ),
       ),
     );
-  }
-}
-
-// ─── Write-review sheet (separate modal on top) ────────────────────────────────
-
-class _WriteReviewSheet extends StatefulWidget {
-  final ServiceEntity service;
-  final bool isDark;
-  final VoidCallback onSubmitted;
-
-  const _WriteReviewSheet({
-    required this.service,
-    required this.isDark,
-    required this.onSubmitted,
-  });
-
-  @override
-  State<_WriteReviewSheet> createState() => _WriteReviewSheetState();
-}
-
-class _WriteReviewSheetState extends State<_WriteReviewSheet> {
-  final _client = Supabase.instance.client;
-  final _ctrl = TextEditingController();
-  double _rating = 5;
-  bool _submitting = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    final comment = _ctrl.text.trim();
-    if (comment.isEmpty) {
-      setState(() => _error = 'Please write a comment.');
-      return;
-    }
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) {
-      setState(() => _error = 'You must be signed in to review.');
-      return;
-    }
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    try {
-      await _client.from(AppConstants.reviewsTable).insert({
-        'service_id': widget.service.id,
-        'user_id': uid,
-        'rating': _rating,
-        'comment': comment,
-      });
-      widget.onSubmitted();
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      setState(() {
-        _submitting = false;
-        _error = e.toString().contains('duplicate') ||
-            e.toString().contains('unique')
-            ? 'You have already reviewed this service.'
-            : 'Failed to submit. Please try again.';
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final bg = widget.isDark ? AppColors.darkSurface : Colors.white;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.16),
-                blurRadius: 24,
-                offset: const Offset(0, -4)),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppSheetHandle(isDark: widget.isDark),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 8, 0),
-              child: Row(children: [
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Write a Review',
-                            style: GoogleFonts.alexandria(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 17,
-                                color: widget.isDark
-                                    ? Colors.white
-                                    : AppColors.lightText)),
-                        Text(widget.service.title,
-                            style: GoogleFonts.alexandria(
-                                fontSize: 12,
-                                color: widget.isDark
-                                    ? AppColors.darkSubtext
-                                    : AppColors.lightSubtext)),
-                      ]),
-                ),
-                IconButton(
-                  icon: Icon(Icons.close_rounded,
-                      color: widget.isDark ? Colors.white54 : Colors.black38),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ]),
-            ),
-            Divider(
-                height: 1,
-                color: widget.isDark
-                    ? AppColors.darkBorder
-                    : AppColors.lightBorder),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Column(children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(5, (i) {
-                          final on = i < _rating;
-                          return GestureDetector(
-                            onTap: () =>
-                                setState(() => _rating = (i + 1).toDouble()),
-                            child: Padding(
-                              padding:
-                              const EdgeInsets.symmetric(horizontal: 5),
-                              child: AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 150),
-                                child: Icon(
-                                  on
-                                      ? Icons.star_rounded
-                                      : Icons.star_outline_rounded,
-                                  key: ValueKey('$i-$on'),
-                                  color: on
-                                      ? const Color(0xFFFBBF24)
-                                      : (widget.isDark
-                                      ? Colors.white24
-                                      : Colors.black26),
-                                  size: 40,
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 6),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: Text(
-                          _label(_rating),
-                          key: ValueKey(_rating),
-                          style: GoogleFonts.alexandria(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: _labelColor(_rating)),
-                        ),
-                      ),
-                    ]),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _ctrl,
-                    maxLines: 4,
-                    maxLength: 500,
-                    style: GoogleFonts.alexandria(
-                        fontSize: 14,
-                        color:
-                        widget.isDark ? Colors.white : AppColors.lightText),
-                    decoration: InputDecoration(
-                      hintText: 'Share your experience…',
-                      hintStyle: GoogleFonts.alexandria(
-                          color:
-                          widget.isDark ? Colors.white30 : Colors.black38,
-                          fontSize: 13),
-                      filled: true,
-                      fillColor: widget.isDark
-                          ? AppColors.darkBackground
-                          : const Color(0xFFF8FAFF),
-                      contentPadding: const EdgeInsets.all(14),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                            color: widget.isDark
-                                ? AppColors.darkBorder
-                                : AppColors.lightBorder),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(
-                            color: AppColors.primary, width: 1.5),
-                      ),
-                      counterStyle: GoogleFonts.alexandria(
-                          fontSize: 11,
-                          color:
-                          widget.isDark ? Colors.white30 : Colors.black38),
-                    ),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      const Icon(Icons.error_outline,
-                          color: AppColors.error, size: 14),
-                      const SizedBox(width: 6),
-                      Expanded(
-                          child: Text(_error!,
-                              style: GoogleFonts.alexandria(
-                                  color: AppColors.error, fontSize: 12))),
-                    ]),
-                  ],
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: _submitting ? null : AppColors.gradient,
-                        color: _submitting
-                            ? AppColors.primary.withOpacity(0.5)
-                            : null,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: _submitting
-                            ? []
-                            : [
-                          BoxShadow(
-                              color: AppColors.primary.withOpacity(0.28),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4)),
-                        ],
-                      ),
-                      child: ElevatedButton(
-                        onPressed: _submitting ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                        ),
-                        child: _submitting
-                            ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                            : Text('Submit Review',
-                            style: GoogleFonts.alexandria(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _label(double r) {
-    if (r >= 5) return 'Excellent ✨';
-    if (r >= 4) return 'Very Good 👍';
-    if (r >= 3) return 'Good 😊';
-    if (r >= 2) return 'Fair 😐';
-    return 'Poor 😞';
-  }
-
-  Color _labelColor(double r) {
-    if (r >= 4) return AppColors.success;
-    if (r >= 3) return AppColors.warning;
-    return AppColors.error;
   }
 }
 
@@ -1233,7 +905,7 @@ class _SummaryBar extends StatelessWidget {
                 color: AppColors.primary, size: 18),
           ),
           const SizedBox(width: 12),
-          Text('No reviews yet — be the first!',
+          Text('No reviews yet for this service.',
               style: GoogleFonts.alexandria(
                   fontSize: 13,
                   color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext)),
@@ -1327,107 +999,6 @@ class _SummaryBar extends StatelessWidget {
               );
             }).toList(),
           ),
-        ),
-      ]),
-    );
-  }
-}
-
-// ─── Write review CTA ─────────────────────────────────────────────────────────
-
-class _WriteReviewCta extends StatelessWidget {
-  final bool isDark;
-  final VoidCallback onTap;
-  const _WriteReviewCta({required this.isDark, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        decoration: BoxDecoration(
-          gradient: AppColors.gradient,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-                color: AppColors.primary.withOpacity(0.25),
-                blurRadius: 10,
-                offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Iconsax.edit_2, color: Colors.white, size: 16),
-          const SizedBox(width: 8),
-          Text('Write a Review',
-              style: GoogleFonts.alexandria(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14)),
-        ]),
-      ),
-    );
-  }
-}
-
-// ─── Already reviewed chip ────────────────────────────────────────────────────
-
-class _DoneChip extends StatelessWidget {
-  final bool isDark;
-  const _DoneChip({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.success.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.success.withOpacity(0.3)),
-      ),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.check_circle_rounded,
-            color: AppColors.success, size: 16),
-        const SizedBox(width: 8),
-        Text('You\'ve already reviewed this',
-            style: GoogleFonts.alexandria(
-                fontSize: 13,
-                color: AppColors.success,
-                fontWeight: FontWeight.w600)),
-      ]),
-    );
-  }
-}
-
-// ─── No completed order chip ─────────────────────────────────────────────────
-
-class _NoCompletedOrderChip extends StatelessWidget {
-  final bool isDark;
-  const _NoCompletedOrderChip({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 16),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-            color: isDark ? Colors.white12 : Colors.grey.shade300),
-      ),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.lock_outline_rounded,
-            size: 16,
-            color: isDark ? Colors.white38 : Colors.grey.shade500),
-        const SizedBox(width: 8),
-        Text(
-          'Complete an order to leave a review',
-          style: GoogleFonts.alexandria(
-              fontSize: 13,
-              color: isDark ? Colors.white38 : Colors.grey.shade500),
         ),
       ]),
     );

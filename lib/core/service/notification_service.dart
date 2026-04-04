@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 import '../../routes/routes_name.dart';
+import '../constants/order_status.dart'; // ─── NEW IMPORT
 
 class NotificationService {
   NotificationService._();
@@ -161,7 +162,7 @@ class NotificationService {
     required String body,
   }) async {
     await _local.show(
-      id: id,
+     id:  id,
       title: title,
       body: body,
       notificationDetails: NotificationDetails(
@@ -183,16 +184,17 @@ class NotificationService {
     );
   }
 
+  // ─── UPDATED: Using OrderStatus constants ───
   static (String, String) _orderLabels(String orderNumber, String status) {
     return switch (status) {
-      'confirmed'        => ('✅ Order Confirmed',     'Your order #$orderNumber has been confirmed.'),
-      'picked_up'        => ('🚗 Picked Up',           'Order #$orderNumber has been picked up.'),
-      'in_process'       => ('🫧 In Progress',          'Your laundry is being washed!'),
-      'ready'            => ('📦 Ready for Delivery',  'Order #$orderNumber is ready!'),
-      'out_for_delivery' => ('🛵 Out for Delivery',    'Order #$orderNumber is on its way.'),
-      'delivered'        => ('🎉 Delivered!',           'Order #$orderNumber has been delivered.'),
-      'cancelled'        => ('❌ Order Cancelled',      'Order #$orderNumber was cancelled.'),
-      _                  => ('EzeeWash Update',         'Order #$orderNumber status: $status'),
+      OrderStatus.confirmed      => ('✅ Order Confirmed',     'Your order #$orderNumber has been confirmed.'),
+      OrderStatus.pickedUp       => ('🚗 Picked Up',           'Order #$orderNumber has been picked up.'),
+      OrderStatus.inProcess      => ('🫧 In Progress',          'Your laundry is being washed!'),
+      OrderStatus.ready          => ('📦 Ready for Delivery',  'Order #$orderNumber is ready!'),
+      OrderStatus.outForDelivery => ('🛵 Out for Delivery',    'Order #$orderNumber is on its way.'),
+      OrderStatus.delivered      => ('🎉 Delivered!',           'Order #$orderNumber has been delivered.'),
+      OrderStatus.cancelled      => ('❌ Order Cancelled',      'Order #$orderNumber was cancelled.'),
+      _                          => ('EzeeWash Update',         'Order #$orderNumber status: $status'),
     };
   }
 }

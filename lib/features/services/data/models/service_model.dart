@@ -12,6 +12,7 @@ class ServiceModel extends ServiceEntity {
     super.imageUrl,
     super.tags,
     super.isActive,
+    super.rating,
   });
 
   factory ServiceModel.fromJson(Map<String, dynamic> j) => ServiceModel(
@@ -24,6 +25,8 @@ class ServiceModel extends ServiceEntity {
     imageUrl: j['image_url'] as String?,
     tags: List<String>.from(j['tags'] ?? []),
     isActive: j['is_active'] as bool? ?? true,
+    // Safely parse rating, defaulting to 0.0 if not present yet
+    rating: (j['rating'] as num?)?.toDouble() ?? 0.0,
   );
 
   Map<String, dynamic> toJson() => {
@@ -36,6 +39,7 @@ class ServiceModel extends ServiceEntity {
     'image_url': imageUrl,
     'tags': tags,
     'is_active': isActive,
+    'rating': rating,
   };
 
   ServiceModel copyWith({
@@ -48,6 +52,7 @@ class ServiceModel extends ServiceEntity {
     String? imageUrl,
     List<String>? tags,
     bool? isActive,
+    double? rating,
   }) =>
       ServiceModel(
         id: id ?? this.id,
@@ -59,5 +64,6 @@ class ServiceModel extends ServiceEntity {
         imageUrl: imageUrl ?? this.imageUrl,
         tags: tags ?? this.tags,
         isActive: isActive ?? this.isActive,
+        rating: rating ?? this.rating,
       );
 }

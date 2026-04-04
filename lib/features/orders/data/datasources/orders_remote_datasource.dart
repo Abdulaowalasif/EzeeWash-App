@@ -18,20 +18,17 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
   final SupabaseClient _client;
   OrdersRemoteDataSourceImpl(this._client);
 
-  // FIX: Join the riders table three times using the foreign key names
   static const _select =
       '*, services(title,category,image_url), stores(name), order_timelines(*),'
       ' riders:rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
       ' pickup_rider:pickup_rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
-      ' delivery_rider:delivery_rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
-      ' rider_locations(latitude,longitude,updated_at)'; // Note: Removed foreign key hint here as Supabase usually infers it if there's only one. If it throws an error, revert to 'rider_locations!rider_locations_order_id_fkey(...)'
+      ' delivery_rider:delivery_rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng)';
 
   static const _selectNoTimeline =
       '*, services(title,category,image_url), stores(name),'
       ' riders:rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
       ' pickup_rider:pickup_rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
-      ' delivery_rider:delivery_rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng),'
-      ' rider_locations(latitude,longitude,updated_at)';
+      ' delivery_rider:delivery_rider_id(id,full_name,phone,avatar_url,vehicle_type,vehicle_plate,rating,is_online,current_lat,current_lng)';
 
   @override
   Future<List<OrderModel>> getOrders(String userId) async {

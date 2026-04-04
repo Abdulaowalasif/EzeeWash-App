@@ -93,11 +93,6 @@ class OrderModel extends OrderEntity {
           j['riders'] as Map<String, dynamic>?;
     }
 
-    // ── rider_locations: live lat/lng for the map ────────────────────────────
-    final riderLocs = j['rider_locations'] as List?;
-    final locData   = (riderLocs != null && riderLocs.isNotEmpty)
-        ? riderLocs.first as Map<String, dynamic>
-        : null;
 
     return OrderModel(
       id: j['id'] as String,
@@ -131,13 +126,8 @@ class OrderModel extends OrderEntity {
       paymentStatus: j['payment_status'] as String? ?? 'pending',
       stripePaymentIntentId: j['stripe_payment_intent_id'] as String?,
 
-      // ── Live rider lat/lng from rider_locations ───────────────────────────
-      riderLat: locData != null
-          ? (locData['latitude']  as num).toDouble()
-          : (activeRiderData?['current_lat'] as num?)?.toDouble(),
-      riderLng: locData != null
-          ? (locData['longitude'] as num).toDouble()
-          : (activeRiderData?['current_lng'] as num?)?.toDouble(),
+      riderLat: (activeRiderData?['current_lat'] as num?)?.toDouble(),
+      riderLng: (activeRiderData?['current_lng'] as num?)?.toDouble(),
 
       // ── Rider profile mapped to entity ────────────────────────────────────
       riderId:           j['rider_id']              as String?,
