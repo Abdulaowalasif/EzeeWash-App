@@ -43,13 +43,12 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
           (_) => emit(const NotificationsLoaded(notifications: [])),
           (list) {
         emit(NotificationsLoaded(notifications: list));
-        // Subscribe to realtime only once — not on every reload
-        if (!_subscribed) {
-          final userId = client.auth.currentUser?.id;
-          if (userId != null) {
-            _subscribed = true;
-            _subscribeRealtime(userId);
-          }
+        final userId = client.auth.currentUser?.id;
+        if (userId != null) {
+          // Always cancel and re-subscribe — ensures the channel is for the
+          // currently authenticated user after logout → re-login.
+          _subscribed = true;
+          _subscribeRealtime(userId);
         }
       },
     );
@@ -123,6 +122,14 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
       },
       onError: (_) {},
     );
+  }
+
+  /// Call when the authenticated user changes (logout → re-login) so the
+  /// realtime subscription is re-established for the new user.
+  void resetSubscription() {
+    _realtimeSub?.cancel();
+    _realtimeSub = null;
+    _subscribed = false;
   }
 
   @override

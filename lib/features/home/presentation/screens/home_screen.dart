@@ -1,4 +1,5 @@
 // lib/features/home/presentation/screens/home_screen.dart
+import 'dart:async';
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +30,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _localQuery = '';
+  // ValueNotifier so search changes only rebuild _ServicesGrid,
+  // not the entire HomeScreen.
+  final _searchQuery = ValueNotifier<String>('');
+
+  @override
+  void dispose() {
+    _searchQuery.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -63,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // Collapsible Sliver App Bar
           _HomeSliverAppBar(
             isDark: isDark,
-            onSearch: (q) => setState(() => _localQuery = q),
+            onSearch: (q) => _searchQuery.value = q,
           ),
 
           // Scrollable Content
@@ -87,10 +96,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         isDark: isDark,
                       ),
                       const SizedBox(height: 15),
-                      _ServicesGrid(
-                        isDark: isDark,
-                        crossAxisCount: Responsive.gridCount(context),
-                        localQuery: _localQuery,
+                      // ValueListenableBuilder so only this subtree rebuilds
+                      // when the search query changes — not the whole screen.
+                      ValueListenableBuilder<String>(
+                        valueListenable: _searchQuery,
+                        builder: (_, query, __) => _ServicesGrid(
+                          isDark: isDark,
+                          crossAxisCount: Responsive.gridCount(context),
+                          localQuery: query,
+                        ),
                       ),
                       const SizedBox(height: 30),
                       _QuickActions(isDark: isDark),
@@ -233,98 +247,100 @@ class _UserProfileGlassCard extends StatelessWidget {
 
           return ClipRRect(
             borderRadius: BorderRadius.circular(18),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white.withOpacity(0.25)),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 26,
-                      backgroundColor: Colors.white.withOpacity(0.2),
-                      backgroundImage:
-                      p.avatarUrl != null && p.avatarUrl!.isNotEmpty
-                          ? CachedNetworkImageProvider(p.avatarUrl!)
-                          : null,
-                      child: p.avatarUrl == null || p.avatarUrl!.isEmpty
-                          ? const Icon(Iconsax.user, color: Colors.white)
-                          : null,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            p.fullName ?? 'User Profile',
-                            style: GoogleFonts.alexandria(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
+            child: RepaintBoundary(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white.withOpacity(0.25)),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 26,
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundImage:
+                        p.avatarUrl != null && p.avatarUrl!.isNotEmpty
+                            ? CachedNetworkImageProvider(p.avatarUrl!)
+                            : null,
+                        child: p.avatarUrl == null || p.avatarUrl!.isEmpty
+                            ? const Icon(Iconsax.user, color: Colors.white)
+                            : null,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              p.fullName ?? 'User Profile',
+                              style: GoogleFonts.alexandria(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (p.phone != null && p.phone!.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.phone,
-                                  color: Colors.white70,
-                                  size: 12,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  p.phone!,
-                                  style: GoogleFonts.alexandria(
-                                    color: Colors.white70,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          if (location.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Padding(
-                                  padding: EdgeInsets.only(top: 2),
-                                  child: Icon(
-                                    Icons.location_on,
+                            if (p.phone != null && p.phone!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.phone,
                                     color: Colors.white70,
                                     size: 12,
                                   ),
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    location,
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    p.phone!,
                                     style: GoogleFonts.alexandria(
                                       color: Colors.white70,
                                       fontSize: 11,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                            ],
+                            if (location.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 2),
+                                    child: Icon(
+                                      Icons.location_on,
+                                      color: Colors.white70,
+                                      size: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      location,
+                                      style: GoogleFonts.alexandria(
+                                        color: Colors.white70,
+                                        fontSize: 11,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -349,11 +365,20 @@ class _SearchBox extends StatefulWidget {
 
 class _SearchBoxState extends State<_SearchBox> {
   final _ctrl = TextEditingController();
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _ctrl.dispose();
     super.dispose();
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      widget.onChanged(value);
+    });
   }
 
   @override
@@ -374,7 +399,7 @@ class _SearchBoxState extends State<_SearchBox> {
       ),
       child: TextField(
         controller: _ctrl,
-        onChanged: widget.onChanged,
+        onChanged: _onChanged,
         decoration: InputDecoration(
           hintText: 'Search services...',
           hintStyle: GoogleFonts.alexandria(
@@ -393,6 +418,7 @@ class _SearchBoxState extends State<_SearchBox> {
               icon: const Icon(Icons.close_rounded, size: 18),
               color: Colors.grey[400],
               onPressed: () {
+                _debounce?.cancel();
                 _ctrl.clear();
                 widget.onChanged('');
               },
@@ -1094,4 +1120,4 @@ class _ServiceImage extends StatelessWidget {
       ),
     );
   }
-}
+} 

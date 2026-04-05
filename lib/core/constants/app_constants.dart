@@ -15,6 +15,9 @@ class AppConstants {
   // ── OneSignal ──────────────────────────────────────────────────────────────
   static final oneSignalAppId = dotenv.env['ONESIGNAL_APP_ID'] ?? '';
 
+  // ── Google auth redirect uri ──────────────────────────────────────────────────────────────
+  static final googleAuthRedirectUri = dotenv.env['GOOGLE_AUTH_REDIRECT'] ?? '';
+
   // App
   static const appName = 'EzeeWash';
   static const appVersion = '1.0.0';

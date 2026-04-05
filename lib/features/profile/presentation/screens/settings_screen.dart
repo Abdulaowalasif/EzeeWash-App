@@ -8,7 +8,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../../../../main.dart';
+import '../../../../core/utils/theme_prefs.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
@@ -336,7 +336,7 @@ class _SettingsContentState extends State<_SettingsContent> {
                       isDark: isDark,
                       value: isDark,
                       onChanged: (v) =>
-                          saveThemeMode(v ? ThemeMode.dark : ThemeMode.light),
+                          ThemePrefs.save(v ? ThemeMode.dark : ThemeMode.light),
                     ),
                   ],
                 ),

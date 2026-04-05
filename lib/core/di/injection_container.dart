@@ -44,7 +44,7 @@ Future<void> initDependencies() async {
 
   // ─── AUTH ──────────────────────────────────────────────────────────────────
   sl.registerFactory(
-    () => AuthBloc(
+        () => AuthBloc(
       signInUseCase: sl(),
       signUpUseCase: sl(),
       signOutUseCase: sl(),
@@ -66,22 +66,22 @@ Future<void> initDependencies() async {
 
   // Data sources
   sl.registerLazySingleton<AuthRemoteDataSource>(
-    () => AuthRemoteDataSourceImpl(sl()),
+        () => AuthRemoteDataSourceImpl(sl()),
   );
 
   // ─── SERVICES ─────────────────────────────────────────────────────────────
   sl.registerLazySingleton<ServicesRemoteDataSource>(
-    () => ServicesRemoteDataSourceImpl(sl()),
+        () => ServicesRemoteDataSourceImpl(sl()),
   );
   sl.registerLazySingleton<ServicesRepository>(
-    () => ServicesRepositoryImpl(sl()),
+        () => ServicesRepositoryImpl(sl()),
   );
   sl.registerLazySingleton(() => GetAllServicesUseCase(sl()));
   sl.registerLazySingleton(() => GetServicesByCategoryUseCase(sl()));
   sl.registerLazySingleton(() => GetServiceByIdUseCase(sl()));
 
-  sl.registerFactory(
-    () => ServicesBloc(
+  sl.registerLazySingleton(
+        () => ServicesBloc(
       getAllServicesUseCase: sl(),
       getServicesByCategoryUseCase: sl(),
       getServiceByIdUseCase: sl(),
@@ -90,22 +90,22 @@ Future<void> initDependencies() async {
 
   // ─── STORES ───────────────────────────────────────────────────────────────
   sl.registerLazySingleton<StoresRemoteDataSource>(
-    () => StoresRemoteDataSourceImpl(sl()),
+        () => StoresRemoteDataSourceImpl(sl()),
   );
   sl.registerLazySingleton<StoresRepository>(() => StoresRepositoryImpl(sl()));
   sl.registerLazySingleton(() => GetAllStoresUseCase(sl()));
   sl.registerLazySingleton(() => GetStoreByIdUseCase(sl()));
 
-  sl.registerFactory(
-    () => StoresBloc(getAllStoresUseCase: sl(), getStoreByIdUseCase: sl()),
+  sl.registerLazySingleton(
+        () => StoresBloc(getAllStoresUseCase: sl(), getStoreByIdUseCase: sl()),
   );
 
   // ─── ORDERS ───────────────────────────────────────────────────────────────
   sl.registerLazySingleton<OrdersRemoteDataSource>(
-    () => OrdersRemoteDataSourceImpl(sl()),
+        () => OrdersRemoteDataSourceImpl(sl()),
   );
   sl.registerLazySingleton<OrdersRepository>(
-    () => OrdersRepositoryImpl(remoteDataSource: sl(), client: sl()),
+        () => OrdersRepositoryImpl(remoteDataSource: sl(), client: sl()),
   );
   sl.registerLazySingleton(() => GetOrdersUseCase(sl()));
   sl.registerLazySingleton(() => GetOrderByIdUseCase(sl()));
@@ -113,7 +113,7 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => CancelOrderUseCase(sl())); // ← new
 
   sl.registerFactory(
-    () => OrdersBloc(
+        () => OrdersBloc(
       getOrdersUseCase: sl(),
       getOrderByIdUseCase: sl(),
       placeOrderUseCase: sl(),
@@ -125,17 +125,17 @@ Future<void> initDependencies() async {
 
   // ─── NOTIFICATIONS ────────────────────────────────────────────────────────
   sl.registerLazySingleton<NotificationsRemoteDataSource>(
-    () => NotificationsRemoteDataSourceImpl(sl()),
+        () => NotificationsRemoteDataSourceImpl(sl()),
   );
   sl.registerLazySingleton<NotificationsRepository>(
-    () => NotificationsRepositoryImpl(remoteDataSource: sl(), client: sl()),
+        () => NotificationsRepositoryImpl(remoteDataSource: sl(), client: sl()),
   );
   sl.registerLazySingleton(() => GetNotificationsUseCase(sl()));
   sl.registerLazySingleton(() => MarkNotificationReadUseCase(sl()));
   sl.registerLazySingleton(() => MarkAllNotificationsReadUseCase(sl()));
 
   sl.registerFactory(
-    () => NotificationsBloc(
+        () => NotificationsBloc(
       getNotificationsUseCase: sl(),
       markReadUseCase: sl(),
       markAllReadUseCase: sl(),
@@ -145,17 +145,17 @@ Future<void> initDependencies() async {
 
   // ─── PROFILE ──────────────────────────────────────────────────────────────
   sl.registerLazySingleton<ProfileRemoteDataSource>(
-    () => ProfileRemoteDataSourceImpl(sl()),
+        () => ProfileRemoteDataSourceImpl(sl()),
   );
   sl.registerLazySingleton<ProfileRepository>(
-    () => ProfileRepositoryImpl(remoteDataSource: sl(), client: sl()),
+        () => ProfileRepositoryImpl(remoteDataSource: sl(), client: sl()),
   );
   sl.registerLazySingleton(() => GetProfileUseCase(sl()));
   sl.registerLazySingleton(() => UpdateProfileUseCase(sl()));
   sl.registerLazySingleton(() => UpdateAvatarUseCase(sl()));
 
   sl.registerFactory(
-    () => ProfileBloc(
+        () => ProfileBloc(
       getProfileUseCase: sl(),
       updateProfileUseCase: sl(),
       updateAvatarUseCase: sl(),

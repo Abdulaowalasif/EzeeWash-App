@@ -63,12 +63,12 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final icons = [
-      [Iconsax.heart, Iconsax.heart],
-      [Iconsax.truck_fast, Iconsax.truck_fast],
-      [Iconsax.home, Iconsax.home],
-      [Icons.smart_toy_outlined, Icons.smart_toy_outlined],
-      [Iconsax.notification, Iconsax.notification],
+    const icons = [
+      Iconsax.heart,
+      Iconsax.truck_fast,
+      Iconsax.home,
+      Icons.smart_toy_outlined,
+      Iconsax.notification,
     ];
 
     final labels = ['Services', 'Orders', 'Home', 'Bot', 'Alerts'];
@@ -119,9 +119,7 @@ class _BottomNav extends StatelessWidget {
                           clipBehavior: Clip.none,
                           children: [
                             Icon(
-                              isSelected
-                                  ? icons[i][0]
-                                  : icons[i][1],
+                              icons[i],
                               size: 22,
                               color: isSelected
                                   ? Colors.white
@@ -154,7 +152,7 @@ class _BottomNav extends StatelessWidget {
                       },
                     )
                         : Icon(
-                      isSelected ? icons[i][0] : icons[i][1],
+                      icons[i],
                       size: 22,
                       color: isSelected
                           ? Colors.white

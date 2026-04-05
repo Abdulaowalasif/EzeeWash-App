@@ -6,15 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:go_router/go_router.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ─── NEW IMPORT
 
 import 'core/constants/app_constants.dart';
 import 'core/di/injection_container.dart';
 import 'core/service/notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/utils/theme_prefs.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/notifications/presentation/bloc/notifications_bloc.dart';
 import 'features/orders/presentation/bloc/order_event.dart';
@@ -29,32 +28,18 @@ import 'features/store/presentation/bloc/stores_event.dart';
 import 'firebase_options.dart';
 import 'routes/app_router.dart';
 
-// ─── Global Theme Notifier ───────────────────────────────────────────────────
-final ValueNotifier<ThemeMode> appThemeNotifier = ValueNotifier(ThemeMode.system);
-
-// ─── Helper method to save and update theme globally ─────────────────────────
-Future<void> saveThemeMode(ThemeMode mode) async {
-  appThemeNotifier.value = mode; // Instantly update UI
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString('theme_mode', mode.name); // Save to storage
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ─── Load Saved Theme on App Start ─────────────────────────────────────────
-  final prefs = await SharedPreferences.getInstance();
-  final savedTheme = prefs.getString('theme_mode');
-  if (savedTheme != null) {
-    appThemeNotifier.value = ThemeMode.values.firstWhere(
-          (e) => e.name == savedTheme,
-      orElse: () => ThemeMode.system,
-    );
-  }
-
-  await _requestAppPermissions();
+  // ─── Cap the Flutter image cache to avoid unbounded memory growth ──────────
+  // Default is 1000 images / 100 MB — too large for a mobile laundry app.
+  PaintingBinding.instance.imageCache.maximumSize = 100;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // 50 MB
 
   await dotenv.load(fileName: '.env');
+
+  // ─── Load Saved Theme on App Start ─────────────────────────────────────────
+  await ThemePrefs.load();
 
   Stripe.publishableKey = AppConstants.stripePubKey;
 
@@ -70,13 +55,6 @@ void main() async {
   await initDependencies();
 
   runApp(const EzeeWashApp());
-}
-
-Future<void> _requestAppPermissions() async {
-  await [
-    Permission.location,
-    Permission.notification,
-  ].request();
 }
 
 class EzeeWashApp extends StatefulWidget {
@@ -114,12 +92,11 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
     return MultiBlocProvider(
       providers: [
         BlocProvider.value(value: _authBloc),
-        BlocProvider(
-          create: (_) => sl<ServicesBloc>()..add(const ServicesLoadRequested()),
-        ),
-        BlocProvider(
-          create: (_) => sl<StoresBloc>()..add(const StoresLoadRequested()),
-        ),
+        // Services and stores are public/static data — kept alive as
+        // singletons (see injection_container) so _allServices is preserved
+        // across screen navigations. Loaded after auth in _AuthReactiveLoader.
+        BlocProvider(create: (_) => sl<ServicesBloc>()),
+        BlocProvider(create: (_) => sl<StoresBloc>()),
         BlocProvider(create: (_) => sl<OrdersBloc>()),
         BlocProvider(create: (_) => sl<NotificationsBloc>()),
         BlocProvider(create: (_) => sl<ProfileBloc>()),
@@ -127,7 +104,7 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
       child: _AuthReactiveLoader(
         onLogout: _recreateRouter,
         child: ValueListenableBuilder<ThemeMode>(
-          valueListenable: appThemeNotifier,
+          valueListenable: ThemePrefs.notifier,
           builder: (context, currentMode, child) {
             return MaterialApp.router(
               debugShowCheckedModeBanner: false,
@@ -179,7 +156,10 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
                 _lastLoadedUserId = userId;
 
                 ctx.read<OrdersBloc>().resetSubscription();
+                ctx.read<NotificationsBloc>().resetSubscription();
 
+                ctx.read<ServicesBloc>().add(const ServicesLoadRequested());
+                ctx.read<StoresBloc>().add(const StoresLoadRequested());
                 ctx.read<OrdersBloc>().add(const OrdersLoadRequested());
                 ctx.read<NotificationsBloc>().add(const NotificationsLoadRequested());
                 ctx.read<ProfileBloc>().add(const ProfileLoadRequested());
@@ -191,6 +171,7 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
 
               _loaded = false;
               _lastLoadedUserId = null;
+              _prevStatuses.clear();
               NotificationService.clearUserId();
             }
           },

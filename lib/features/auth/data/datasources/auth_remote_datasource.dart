@@ -5,22 +5,33 @@ import '../../../../core/errors/exceptions.dart';
 import '../models/user_model.dart';
 
 abstract class AuthRemoteDataSource {
-  Future<UserModel> signInWithEmail(
-      {required String email, required String password});
-  Future<UserModel?> signUpWithEmail(
-      {required String fullName,
-        required String email,
-        required String password});
+  Future<UserModel> signInWithEmail({
+    required String email,
+    required String password,
+  });
+
+  Future<UserModel?> signUpWithEmail({
+    required String fullName,
+    required String email,
+    required String password,
+  });
+
   Future<void> signInWithGoogle();
+
   Future<void> signOut();
+
   Future<UserModel?> getCurrentUser();
+
   Stream<UserModel?> get authStateChanges;
+
   Future<void> resetPassword({required String email});
+
   Future<void> changePassword(String newPassword);
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final supa.SupabaseClient _client;
+
   AuthRemoteDataSourceImpl(this._client);
 
   // ─── Sign in ───────────────────────────────────────────────────────────────
@@ -99,7 +110,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       await _client.auth.signInWithOAuth(
         supa.OAuthProvider.google,
-        redirectTo: 'io.supabase.flutter://login-callback',
+        redirectTo: AppConstants.googleAuthRedirectUri,
       );
       // ✅ Do NOT read currentUser here. The browser hasn't even shown yet.
       // The authStateChanges stream will emit the authenticated user once
@@ -152,19 +163,18 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
-  // forget password
+  // ─── Change password ───────────────────────────────────────────────────────
   @override
   Future<void> changePassword(String newPassword) async {
     try {
-      await _client.auth.updateUser(
-        supa.UserAttributes(password: newPassword),
-      );
+      await _client.auth.updateUser(supa.UserAttributes(password: newPassword));
     } on supa.AuthApiException catch (e) {
       throw AuthException(_friendly(e.message));
     } catch (e) {
       throw AuthException(e.toString());
     }
   }
+
   // ─── Auth state stream ─────────────────────────────────────────────────────
 
   @override
@@ -186,9 +196,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   // ─── Private helpers ───────────────────────────────────────────────────────
 
   Future<UserModel> _fetchProfileOnly(
-      supa.User authUser, {
-        String? fallbackName,
-      }) async {
+    supa.User authUser, {
+    String? fallbackName,
+  }) async {
     final row1 = await _safeSelect(authUser.id);
     if (row1 != null) return UserModel.fromJson(row1);
 
@@ -200,7 +210,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     return UserModel(
       id: authUser.id,
       email: authUser.email,
-      fullName: fallbackName ??
+      fullName:
+          fallbackName ??
           (authUser.userMetadata?['full_name'] as String?) ??
           authUser.email?.split('@').first,
     );
@@ -214,7 +225,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       await _client.from(AppConstants.profilesTable).upsert({
         'id': authUser.id,
         'email': authUser.email,
-        'full_name': authUser.userMetadata?['full_name'] as String? ??
+        'full_name':
+            authUser.userMetadata?['full_name'] as String? ??
             authUser.email?.split('@').first,
       }, onConflict: 'id');
     } catch (_) {}
