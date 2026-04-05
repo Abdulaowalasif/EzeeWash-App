@@ -28,7 +28,7 @@ import '../bloc/orders_state.dart';
 // ─── Real-Life Phase Logic ───────────────────────────────────────────────────
 enum _OrderPhase {
   waiting, // pending / confirmed -> No map. Waiting for rider.
-  riderComingToPickup, // assign_pickup -> MAP SHOWN. Rider coming to user.
+  riderComingToPickup, // rider_assign -> MAP SHOWN. Rider coming to user.
   riderHeadingToStore, // picked_up -> No map. Rider going away to laundry.
   atStore, // dropped / received -> No map. At facility.
   cleaning, // in_process -> No map. Washing.
@@ -105,7 +105,6 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     super.dispose();
   }
 
-  // Listens directly to the DB to change the UI instantly when the admin updates it
   void _listenToOrderUpdates(String orderId) {
     if (_trackingOrderId == orderId) return;
     _trackingOrderId = orderId;
@@ -116,15 +115,15 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
         .stream(primaryKey: ['id'])
         .eq('id', orderId)
         .listen((data) {
-          if (data.isNotEmpty && mounted) {
-            setState(() {
-              _liveStatus = data.first['status'];
-              _liveProgress = (data.first['progress'] as num?)?.toDouble();
-              _livePickupRiderId = data.first['pickup_rider_id'];
-              _liveDeliveryRiderId = data.first['delivery_rider_id'];
-            });
-          }
+      if (data.isNotEmpty && mounted) {
+        setState(() {
+          _liveStatus = data.first['status'];
+          _liveProgress = (data.first['progress'] as num?)?.toDouble();
+          _livePickupRiderId = data.first['pickup_rider_id'];
+          _liveDeliveryRiderId = data.first['delivery_rider_id'];
         });
+      }
+    });
   }
 
   @override
@@ -170,7 +169,6 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
               isDark: isDark,
             );
 
-          // Activate real-time listener for this specific order
           _listenToOrderUpdates(order.id);
 
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -192,10 +190,10 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   }
 
   Future<void> _checkRating(
-    BuildContext ctx,
-    OrderEntity order,
-    bool isDark,
-  ) async {
+      BuildContext ctx,
+      OrderEntity order,
+      bool isDark,
+      ) async {
     if (_ratingMem.shownForPickup && _ratingMem.shownForDelivery) return;
 
     final effectiveStatus = _liveStatus ?? order.status;
@@ -203,7 +201,12 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     final prefs = await SharedPreferences.getInstance();
 
     final pickupId = _livePickupRiderId ?? order.pickupRiderId ?? order.riderId;
-    if (phase == _OrderPhase.atStore &&
+
+    // Trigger pickup rating as soon as order is 'picked_up' (riderHeadingToStore phase)
+    bool isPickupPhaseCompleted = phase.index >= _OrderPhase.riderHeadingToStore.index &&
+        phase.index < _OrderPhase.riderComingToDeliver.index;
+
+    if (isPickupPhaseCompleted &&
         !_ratingMem.shownForPickup &&
         pickupId != null) {
       final hasHandled = prefs.getBool('rated_pickup_${order.id}') ?? false;
@@ -233,15 +236,14 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   }
 
   void _showRatingSheet(
-    BuildContext ctx,
-    OrderEntity order,
-    bool isDark,
-    _RatingEvent evt,
-  ) {
-    final safeCtx = context;
-    if (!safeCtx.mounted) return;
+      BuildContext ctx,
+      OrderEntity order,
+      bool isDark,
+      _RatingEvent evt,
+      ) {
+    if (!context.mounted) return;
     showModalBottomSheet(
-      context: safeCtx,
+      context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black54,
@@ -266,7 +268,6 @@ class TrackContent extends StatelessWidget {
   final OrderEntity order;
   final bool isDark;
 
-  // Real-time overrides from parent stream
   final String? liveStatus;
   final double? liveProgress;
   final String? livePickupRiderId;
@@ -317,7 +318,7 @@ class TrackContent extends StatelessWidget {
           color: AppColors.primary,
           title: 'Awaiting Rider',
           subtitle:
-              'Your order is confirmed. A rider will be assigned shortly.',
+          'Your order is confirmed. A rider will be assigned shortly.',
           order: order,
           isDark: isDark,
           phase: _phase,
@@ -330,7 +331,7 @@ class TrackContent extends StatelessWidget {
           color: AppColors.warning,
           title: 'Heading to Store',
           subtitle:
-              'The rider has picked up your items and is taking them to the laundry facility.',
+          'The rider has picked up your items and is taking them to the laundry facility.',
           order: order,
           isDark: isDark,
           phase: _phase,
@@ -946,14 +947,14 @@ class _ArcPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..shader =
-          const LinearGradient(
-            colors: [AppColors.primary, Colors.transparent],
-          ).createShader(
-            Rect.fromCircle(
-              center: Offset(size.width / 2, size.height / 2),
-              radius: size.width / 2,
-            ),
-          )
+      const LinearGradient(
+        colors: [AppColors.primary, Colors.transparent],
+      ).createShader(
+        Rect.fromCircle(
+          center: Offset(size.width / 2, size.height / 2),
+          radius: size.width / 2,
+        ),
+      )
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round;
@@ -1051,13 +1052,13 @@ class _CleaningSteps extends StatelessWidget {
                                   : s.active
                                   ? AppColors.primary.withOpacity(0.12)
                                   : (isDark
-                                        ? Colors.grey.shade800
-                                        : Colors.grey.shade100),
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade100),
                               border: s.active && !s.done
                                   ? Border.all(
-                                      color: AppColors.primary,
-                                      width: 2,
-                                    )
+                                color: AppColors.primary,
+                                width: 2,
+                              )
                                   : null,
                             ),
                             child: Icon(
@@ -1082,8 +1083,8 @@ class _CleaningSteps extends StatelessWidget {
                                   ? AppColors.primary
                                   : s.active
                                   ? (isDark
-                                        ? Colors.white
-                                        : AppColors.lightText)
+                                  ? Colors.white
+                                  : AppColors.lightText)
                                   : Colors.grey.shade400,
                             ),
                             textAlign: TextAlign.center,
@@ -1102,8 +1103,8 @@ class _CleaningSteps extends StatelessWidget {
                             color: s.done
                                 ? null
                                 : (isDark
-                                      ? Colors.grey.shade800
-                                      : Colors.grey.shade200),
+                                ? Colors.grey.shade800
+                                : Colors.grey.shade200),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -1204,12 +1205,12 @@ class _OrderDetailsCard extends StatelessWidget {
         boxShadow: isDark
             ? []
             : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1626,7 +1627,6 @@ class _MapViewState extends State<MapView> {
     }
   }
 
-  // Real-Time stream from `riders` table to automatically get live coordinates
   void _listenRider() {
     _sub?.cancel();
     if (widget.activeRiderId == null) return;
@@ -1636,32 +1636,32 @@ class _MapViewState extends State<MapView> {
         .stream(primaryKey: ['id'])
         .eq('id', widget.activeRiderId!)
         .listen((data) {
-          if (data.isNotEmpty && mounted) {
-            final row = data.first;
-            final lat = (row['current_lat'] as num?)?.toDouble();
-            final lng = (row['current_lng'] as num?)?.toDouble();
+      if (data.isNotEmpty && mounted) {
+        final row = data.first;
+        final lat = (row['current_lat'] as num?)?.toDouble();
+        final lng = (row['current_lng'] as num?)?.toDouble();
 
-            setState(() {
-              _riderRow = row;
-              if (lat != null && lng != null) {
-                _riderPos = LatLng(lat, lng);
-              }
-            });
-            _fit();
+        setState(() {
+          _riderRow = row;
+          if (lat != null && lng != null) {
+            _riderPos = LatLng(lat, lng);
           }
         });
+        _fit();
+      }
+    });
   }
 
   void _onRiderMarkerTap() {
     if (_riderRow == null) return;
     final distKm = (_customerLoc != null && _riderPos != null)
         ? Geolocator.distanceBetween(
-                _riderPos!.latitude,
-                _riderPos!.longitude,
-                _customerLoc!.latitude,
-                _customerLoc!.longitude,
-              ) /
-              1000
+      _riderPos!.latitude,
+      _riderPos!.longitude,
+      _customerLoc!.latitude,
+      _customerLoc!.longitude,
+    ) /
+        1000
         : null;
 
     showModalBottomSheet(
@@ -1675,8 +1675,7 @@ class _MapViewState extends State<MapView> {
         initialRiderRow: _riderRow!,
         initialRiderPos: _riderPos,
         initialDistanceKm: distKm,
-        customerLoc:
-            _customerLoc, // Enables real-time updates inside the sheet!
+        customerLoc: _customerLoc,
       ),
     );
   }
@@ -1774,12 +1773,12 @@ class _MapViewState extends State<MapView> {
                 boxShadow: widget.isDark
                     ? []
                     : [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(22),
@@ -1788,30 +1787,30 @@ class _MapViewState extends State<MapView> {
                     : _denied
                     ? _deniedOverlay()
                     : GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: _customerLoc ?? _dhaka,
-                          zoom: 14,
-                        ),
-                        onMapCreated: (ctrl) {
-                          if (!_cc.isCompleted) _cc.complete(ctrl);
-                          _mapCtrl = ctrl;
-                          if (widget.isDark)
-                            ctrl.setMapStyle(AppConstants.darkMapStyle);
-                          _fit();
-                        },
-                        markers: _markers,
-                        polylines: _polylines,
-                        myLocationEnabled: false,
-                        myLocationButtonEnabled: false,
-                        zoomControlsEnabled: false,
-                        mapToolbarEnabled: false,
-                        compassEnabled: false,
-                        gestureRecognizers: {
-                          Factory<EagerGestureRecognizer>(
-                            () => EagerGestureRecognizer(),
-                          ),
-                        },
-                      ),
+                  initialCameraPosition: CameraPosition(
+                    target: _customerLoc ?? _dhaka,
+                    zoom: 14,
+                  ),
+                  onMapCreated: (ctrl) {
+                    if (!_cc.isCompleted) _cc.complete(ctrl);
+                    _mapCtrl = ctrl;
+                    if (widget.isDark)
+                      ctrl.setMapStyle(AppConstants.darkMapStyle);
+                    _fit();
+                  },
+                  markers: _markers,
+                  polylines: _polylines,
+                  myLocationEnabled: false,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                  compassEnabled: false,
+                  gestureRecognizers: {
+                    Factory<EagerGestureRecognizer>(
+                          () => EagerGestureRecognizer(),
+                    ),
+                  },
+                ),
               ),
             ),
           ),
@@ -2030,7 +2029,7 @@ class _HeaderInfo extends StatelessWidget {
             value,
             style: GoogleFonts.alexandria(
               color: Colors.white,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.bold,
               fontSize: 13,
             ),
           ),
@@ -2160,12 +2159,10 @@ class _RiderInfoSheet extends StatefulWidget {
   final bool isDark;
   final _OrderPhase phase;
 
-  // Passed from MapView to initiate state
   final Map<String, dynamic> initialRiderRow;
   final LatLng? initialRiderPos;
   final double? initialDistanceKm;
 
-  // Target location (customer address) used for live distance recalculation
   final LatLng? customerLoc;
 
   const _RiderInfoSheet({
@@ -2206,35 +2203,35 @@ class _RiderInfoSheetState extends State<_RiderInfoSheet> {
         .stream(primaryKey: ['id'])
         .eq('id', riderId)
         .listen((data) {
-          if (data.isNotEmpty && mounted) {
-            final row = data.first;
-            final lat = (row['current_lat'] as num?)?.toDouble();
-            final lng = (row['current_lng'] as num?)?.toDouble();
+      if (data.isNotEmpty && mounted) {
+        final row = data.first;
+        final lat = (row['current_lat'] as num?)?.toDouble();
+        final lng = (row['current_lng'] as num?)?.toDouble();
 
-            LatLng? newPos;
-            double? newDist = _distanceKm;
+        LatLng? newPos;
+        double? newDist = _distanceKm;
 
-            if (lat != null && lng != null) {
-              newPos = LatLng(lat, lng);
-              if (widget.customerLoc != null) {
-                newDist =
-                    Geolocator.distanceBetween(
-                      lat,
-                      lng,
-                      widget.customerLoc!.latitude,
-                      widget.customerLoc!.longitude,
-                    ) /
+        if (lat != null && lng != null) {
+          newPos = LatLng(lat, lng);
+          if (widget.customerLoc != null) {
+            newDist =
+                Geolocator.distanceBetween(
+                  lat,
+                  lng,
+                  widget.customerLoc!.latitude,
+                  widget.customerLoc!.longitude,
+                ) /
                     1000;
-              }
-            }
-
-            setState(() {
-              _riderRow = row;
-              _riderPos = newPos;
-              _distanceKm = newDist;
-            });
           }
+        }
+
+        setState(() {
+          _riderRow = row;
+          _riderPos = newPos;
+          _distanceKm = newDist;
         });
+      }
+    });
   }
 
   @override
@@ -2338,10 +2335,10 @@ class _RiderInfoSheetState extends State<_RiderInfoSheet> {
                 child: ClipOval(
                   child: _photo != null
                       ? Image.network(
-                          _photo!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _fb(),
-                        )
+                    _photo!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _fb(),
+                  )
                       : _fb(),
                 ),
               ),
@@ -2430,7 +2427,7 @@ class _RiderInfoSheetState extends State<_RiderInfoSheet> {
             color: const Color(0xFF8B5CF6),
             title: 'Vehicle',
             value:
-                '${_vtype[0].toUpperCase()}${_vtype.substring(1)}${_plate != null ? "  •  $_plate" : ""}',
+            '${_vtype[0].toUpperCase()}${_vtype.substring(1)}${_plate != null ? "  •  $_plate" : ""}',
             isDark: widget.isDark,
           ),
           _SheetInfoRow(
@@ -2730,7 +2727,7 @@ class _RatingSheetState extends State<_RatingSheet>
     );
     _starAnims = List.generate(
       5,
-      (i) => Tween<double>(begin: 1.0, end: 1.4).animate(
+          (i) => Tween<double>(begin: 1.0, end: 1.4).animate(
         CurvedAnimation(
           parent: _bounceCtrl,
           curve: Interval(i * 0.1, i * 0.1 + 0.4, curve: Curves.elasticOut),
@@ -2772,25 +2769,6 @@ class _RatingSheetState extends State<_RatingSheet>
     setState(() => _loading = true);
 
     try {
-      try {
-        final res = await client
-            .from('riders')
-            .select('rating, total_trips')
-            .eq('id', riderId)
-            .maybeSingle();
-        if (res != null) {
-          final cur = (res['rating'] as num?)?.toDouble() ?? 5.0;
-          final trips = (res['total_trips'] as int?) ?? 0;
-          final newR = double.parse(
-            ((cur * trips + _stars) / (trips + 1)).toStringAsFixed(2),
-          );
-          await client
-              .from('riders')
-              .update({'rating': newR, 'total_trips': trips + 1})
-              .eq('id', riderId);
-        }
-      } catch (_) {}
-
       await client.from('rider_ratings').upsert({
         'order_id': widget.order.id,
         'rider_id': riderId,
@@ -2871,10 +2849,10 @@ class _RatingSheetState extends State<_RatingSheet>
           child: ClipOval(
             child: photo != null
                 ? Image.network(
-                    photo,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _fb(name),
-                  )
+              photo,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _fb(name),
+            )
                 : _fb(name),
           ),
         ),
@@ -2960,7 +2938,7 @@ class _RatingSheetState extends State<_RatingSheet>
                 ),
                 child: Text(
                   'Skip',
-                  style: GoogleFonts.alexandria(fontWeight: FontWeight.w600),
+                  style: GoogleFonts.alexandria(fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -2981,20 +2959,20 @@ class _RatingSheetState extends State<_RatingSheet>
                   ),
                   child: _loading
                       ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
                       : Text(
-                          'Submit Rating',
-                          style: GoogleFonts.alexandria(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                    'Submit Rating',
+                    style: GoogleFonts.alexandria(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ),
