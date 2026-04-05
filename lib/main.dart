@@ -1,6 +1,8 @@
 // lib/main.dart
 
 import 'dart:async';
+import 'dart:ui';
+import 'package:ezzewash/core/widgets/connectivity_wrapper.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -11,6 +13,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/constants/app_constants.dart';
 import 'core/di/injection_container.dart';
+import 'core/service/connectivity_service.dart';
 import 'core/service/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/theme_prefs.dart';
@@ -32,7 +35,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // ─── Cap the Flutter image cache to avoid unbounded memory growth ──────────
-  // Default is 1000 images / 100 MB — too large for a mobile laundry app.
   PaintingBinding.instance.imageCache.maximumSize = 100;
   PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // 50 MB
 
@@ -53,6 +55,7 @@ void main() async {
   await NotificationService.init(AppConstants.oneSignalAppId);
 
   await initDependencies();
+  await ConnectivityService.instance.init();
 
   runApp(const EzeeWashApp());
 }
@@ -92,9 +95,6 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
     return MultiBlocProvider(
       providers: [
         BlocProvider.value(value: _authBloc),
-        // Services and stores are public/static data — kept alive as
-        // singletons (see injection_container) so _allServices is preserved
-        // across screen navigations. Loaded after auth in _AuthReactiveLoader.
         BlocProvider(create: (_) => sl<ServicesBloc>()),
         BlocProvider(create: (_) => sl<StoresBloc>()),
         BlocProvider(create: (_) => sl<OrdersBloc>()),
@@ -106,13 +106,22 @@ class _EzeeWashAppState extends State<EzeeWashApp> {
         child: ValueListenableBuilder<ThemeMode>(
           valueListenable: ThemePrefs.notifier,
           builder: (context, currentMode, child) {
-            return MaterialApp.router(
-              debugShowCheckedModeBanner: false,
-              title: AppConstants.appName,
-              theme: AppTheme.light(),
-              darkTheme: AppTheme.dark(),
-              themeMode: currentMode,
-              routerConfig: _router,
+            // Determine if dark mode is active for the connectivity overlay
+            final isDarkMode = currentMode == ThemeMode.dark ||
+                (currentMode == ThemeMode.system &&
+                    View.of(context).platformDispatcher.platformBrightness ==
+                        Brightness.dark);
+
+            return ConnectivityWrapper(
+              isDarkMode: isDarkMode,
+              child: MaterialApp.router(
+                debugShowCheckedModeBanner: false,
+                title: AppConstants.appName,
+                theme: AppTheme.light(),
+                darkTheme: AppTheme.dark(),
+                themeMode: currentMode,
+                routerConfig: _router,
+              ),
             );
           },
         ),
@@ -139,7 +148,6 @@ class _AuthReactiveLoader extends StatefulWidget {
 class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
   bool _loaded = false;
   String? _lastLoadedUserId;
-  final Map<String, String> _prevStatuses = {};
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +157,8 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
           listener: (ctx, state) {
             if (state is AuthAuthenticated) {
               final userId = state.user.id;
-              unawaited(NotificationService.loginAndWaitForSubscription(userId));
+              unawaited(
+                  NotificationService.loginAndWaitForSubscription(userId));
 
               if (!_loaded || _lastLoadedUserId != userId) {
                 _loaded = true;
@@ -161,7 +170,8 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
                 ctx.read<ServicesBloc>().add(const ServicesLoadRequested());
                 ctx.read<StoresBloc>().add(const StoresLoadRequested());
                 ctx.read<OrdersBloc>().add(const OrdersLoadRequested());
-                ctx.read<NotificationsBloc>().add(const NotificationsLoadRequested());
+                ctx.read<NotificationsBloc>()
+                    .add(const NotificationsLoadRequested());
                 ctx.read<ProfileBloc>().add(const ProfileLoadRequested());
               }
             } else if (state is AuthUnauthenticated || state is AuthError) {
@@ -171,25 +181,7 @@ class _AuthReactiveLoaderState extends State<_AuthReactiveLoader> {
 
               _loaded = false;
               _lastLoadedUserId = null;
-              _prevStatuses.clear();
               NotificationService.clearUserId();
-            }
-          },
-        ),
-        BlocListener<OrdersBloc, OrdersState>(
-          listener: (ctx, state) {
-            if (state is! OrdersLoaded) return;
-            for (final order in state.orders) {
-              final prev = _prevStatuses[order.id];
-              final curr = order.status;
-              if (prev != null && prev != curr) {
-                NotificationService.showOrderUpdate(
-                  orderNumber: order.orderNumber,
-                  status: curr,
-                  orderId: order.id,
-                );
-              }
-              _prevStatuses[order.id] = curr;
             }
           },
         ),

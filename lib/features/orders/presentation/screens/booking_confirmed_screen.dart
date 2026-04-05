@@ -7,6 +7,7 @@ import '../../../../routes/routes_name.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../../core/widgets/gradient_app_bar.dart';
 
 class BookingConfirmedScreen extends StatelessWidget {
   final String orderNumber;
@@ -20,6 +21,10 @@ class BookingConfirmedScreen extends StatelessWidget {
       backgroundColor: isDark
           ? AppColors.darkBackground
           : AppColors.lightBackground,
+      appBar: const GradientAppBar(
+        title: 'Booking Confirmed',
+        backEnabled: false,
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -38,7 +43,7 @@ class BookingConfirmedScreen extends StatelessWidget {
                   OrderSuccessAnimation(
                     title: "Order Confirmed!",
                     subtitle:
-                        "Your laundry request has been received.\nWe are assigning a rider now.",
+                    "Your laundry request has been received.\nWe are assigning a rider now.",
                     isDark: isDark,
                   ),
 
@@ -85,12 +90,12 @@ class BookingConfirmedScreen extends StatelessWidget {
                       boxShadow: isDark
                           ? []
                           : [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.03),
-                                blurRadius: 14,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 14,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
                     child: Column(
                       children: [

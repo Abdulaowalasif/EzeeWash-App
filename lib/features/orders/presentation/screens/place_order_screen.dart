@@ -19,6 +19,7 @@ import '../../../../core/widgets/widgets.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
+import '../../../../core/widgets/gradient_app_bar.dart';
 import '../../domain/entities/place_orders_params.dart';
 import '../bloc/order_event.dart';
 import '../bloc/orders_bloc.dart';
@@ -252,8 +253,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
 
     bool isSameAsMinDay =
         dDate.year == minDelDateTime.year &&
-        dDate.month == minDelDateTime.month &&
-        dDate.day == minDelDateTime.day;
+            dDate.month == minDelDateTime.month &&
+            dDate.day == minDelDateTime.day;
 
     if (isSameAsMinDay) {
       startHour = minDelDateTime.hour;
@@ -354,7 +355,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         int? preIdx;
         if (widget.preSelectedServiceId != null) {
           final idx = services.indexWhere(
-            (s) => s.id == widget.preSelectedServiceId,
+                (s) => s.id == widget.preSelectedServiceId,
           );
           if (idx != -1) preIdx = idx;
         }
@@ -465,34 +466,45 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         ),
       );
       await Stripe.instance.presentPaymentSheet();
-      if (mounted)
+      if (mounted) {
         context.read<OrdersBloc>().add(
           OrderPlaceRequested(_buildParams(method: PaymentMethod.stripe)),
         );
+      }
     } on StripeException catch (e) {
       if (mounted) setState(() => _stripeLoading = false);
       if (e.error.code != FailureCode.Canceled) {
-        if (mounted)
+        if (mounted) {
           setState(() {
             _stripeError = e.error.localizedMessage;
           });
-        AppSnackBar.show(
-          context,
-          e.error.localizedMessage ?? 'Payment failed',
-          isError: true,
-        );
+          AppSnackBar.show(
+            context,
+            e.error.localizedMessage ?? 'Payment failed',
+            isError: true,
+          );
+          // Insert order when Stripe payment fails
+          context.read<OrdersBloc>().add(
+            OrderPlaceRequested(_buildParams(method: PaymentMethod.stripe)),
+          );
+        }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _stripeLoading = false;
           _stripeError = e.toString();
         });
-      AppSnackBar.show(
-        context,
-        'Payment setup failed. Please try again.',
-        isError: true,
-      );
+        AppSnackBar.show(
+          context,
+          'Payment setup failed. Please try again.',
+          isError: true,
+        );
+        // Insert order when Stripe setup fails
+        context.read<OrdersBloc>().add(
+          OrderPlaceRequested(_buildParams(method: PaymentMethod.stripe)),
+        );
+      }
     }
   }
 
@@ -526,21 +538,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         backgroundColor: isDark
             ? AppColors.darkBackground
             : AppColors.lightBackground,
-        appBar: AppBar(
-          title: Text(
-            'Book Service',
-            style: GoogleFonts.alexandria(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: true,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-            onPressed: () => context.pop(),
-          ),
+        appBar: const GradientAppBar(
+          title: 'Book Service',
         ),
         body: Center(
           child: ConstrainedBox(
@@ -553,7 +552,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               ),
               child: Column(
                 children: [
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 16),
                   _StepProgress(step: _step, totalSteps: 5, isDark: isDark),
                   const SizedBox(height: 20),
                   Align(
@@ -600,7 +599,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                     enabled: _canProceed,
                     isDark: isDark,
                     isLoading:
-                        context.watch<OrdersBloc>().state is OrderPlacing ||
+                    context.watch<OrdersBloc>().state is OrderPlacing ||
                         _stripeLoading,
                     paymentMethod: _paymentMethod,
                     onBack: () {
@@ -659,7 +658,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           key: const ValueKey(1),
           children: List.generate(
             _services.length,
-            (i) => _ServiceCard(
+                (i) => _ServiceCard(
               service: _services[i],
               selected: _serviceIdx == i,
               isDark: isDark,
@@ -672,7 +671,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           key: const ValueKey(2),
           children: List.generate(
             _stores.length,
-            (i) => _StoreCard(
+                (i) => _StoreCard(
               store: _stores[i],
               selected: _storeIdx == i,
               isDark: isDark,
@@ -720,10 +719,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           isDark: isDark,
           stripeError: _stripeError,
           serviceName:
-              widget.reorderParams?.serviceName ??
+          widget.reorderParams?.serviceName ??
               _services[_serviceIdx!].title,
           storeName:
-              widget.reorderParams?.storeName ?? _stores[_storeIdx!].name,
+          widget.reorderParams?.storeName ?? _stores[_storeIdx!].name,
           pickupInfo: '${_fmtDate(_pickupDate)} at $_pickupTime',
           deliveryInfo: '${_fmtDate(_deliveryDate)} at $_deliveryTime',
           onMethodChanged: (m) => setState(() => _paymentMethod = m),
@@ -817,7 +816,7 @@ class _ScheduleStep extends StatelessWidget {
           minDate: minPickupDate,
           maxDate: null,
           noSlotsMessage:
-              'No pickup slots available today. Please choose another date.',
+          'No pickup slots available today. Please choose another date.',
         ),
         const SizedBox(height: 18),
         _SchCard(
@@ -934,7 +933,7 @@ class _SchCard extends StatelessWidget {
                   final now = DateTime.now();
                   final firstDate = minDate ?? now;
                   DateTime initial =
-                      (date != null && !date!.isBefore(firstDate))
+                  (date != null && !date!.isBefore(firstDate))
                       ? date!
                       : firstDate;
                   final picked = await showDatePicker(
@@ -999,18 +998,18 @@ class _SchCard extends StatelessWidget {
               items: times
                   .map(
                     (t) => DropdownMenuItem(
-                      value: t,
-                      child: Text(
-                        t,
-                        style: GoogleFonts.alexandria(fontSize: 14),
-                      ),
-                    ),
-                  )
+                  value: t,
+                  child: Text(
+                    t,
+                    style: GoogleFonts.alexandria(fontSize: 14),
+                  ),
+                ),
+              )
                   .toList(),
               onChanged: hasSlots
                   ? (v) {
-                      if (v != null) onTime(v);
-                    }
+                if (v != null) onTime(v);
+              }
                   : null,
             ),
         ],
@@ -1042,8 +1041,6 @@ class _AddressStepState extends State<_AddressStep> {
   GoogleMapController? _mapController;
   LatLng _centerPosition = const LatLng(23.8103, 90.4125);
   bool _isMoving = false;
-  final String _darkMapStyle =
-      '[{"elementType": "geometry", "stylers": [{"color": "#212121"}]}, {"elementType": "labels.icon", "stylers": [{"visibility": "off"}]}, {"elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]}, {"elementType": "labels.text.stroke", "stylers": [{"color": "#212121"}]}, {"featureType": "poi", "elementType": "geometry", "stylers": [{"color": "#181818"}]}, {"featureType": "road", "elementType": "geometry.fill", "stylers": [{"color": "#2c2c2c"}]}, {"featureType": "water", "elementType": "geometry", "stylers": [{"color": "#000000"}]}]';
   bool? _locationPermissionGranted;
 
   @override
@@ -1113,7 +1110,7 @@ class _AddressStepState extends State<_AddressStep> {
                 GoogleMap(
                   gestureRecognizers: {
                     Factory<EagerGestureRecognizer>(
-                      () => EagerGestureRecognizer(),
+                          () => EagerGestureRecognizer(),
                     ),
                   },
                   initialCameraPosition: CameraPosition(
@@ -1123,7 +1120,7 @@ class _AddressStepState extends State<_AddressStep> {
                   myLocationEnabled: _locationPermissionGranted == true,
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
-                  style: widget.isDark ? _darkMapStyle : null,
+                  style: widget.isDark ? AppConstants.darkMapStyle : null,
                   onMapCreated: (c) => _mapController = c,
                   onCameraMoveStarted: () => setState(() => _isMoving = true),
                   onCameraMove: (p) => _centerPosition = p.target,
@@ -1481,7 +1478,7 @@ class _PaymentStep extends StatelessWidget {
             ),
           ),
 
-        const SizedBox(height: 20,)
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -1530,7 +1527,7 @@ class _BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.only(bottom: 10,top:2),
+    padding: const EdgeInsets.only(bottom: 10, top: 2),
     child: Row(
       children: [
         Expanded(
@@ -1566,12 +1563,12 @@ class _BottomNav extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               boxShadow: enabled
                   ? [
-                      BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ]
                   : [],
             ),
             child: ElevatedButton(
@@ -1586,28 +1583,28 @@ class _BottomNav extends StatelessWidget {
               ),
               child: isLoading
                   ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
                   : Text(
-                      step < totalSteps
-                          ? 'Next'
-                          : (paymentMethod == PaymentMethod.stripe
-                                ? 'Pay Now'
-                                : 'Confirm'),
-                      style: GoogleFonts.alexandria(
-                        color: enabled
-                            ? Colors.white
-                            : (isDark
-                                  ? Colors.grey.shade500
-                                  : Colors.grey.shade400),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                step < totalSteps
+                    ? 'Next'
+                    : (paymentMethod == PaymentMethod.stripe
+                    ? 'Pay Now'
+                    : 'Confirm'),
+                style: GoogleFonts.alexandria(
+                  color: enabled
+                      ? Colors.white
+                      : (isDark
+                      ? Colors.grey.shade500
+                      : Colors.grey.shade400),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ),
@@ -1654,13 +1651,13 @@ class _StepProgress extends StatelessWidget {
               child: done
                   ? const Icon(Icons.check, color: Colors.white, size: 16)
                   : Text(
-                      '$s',
-                      style: GoogleFonts.alexandria(
-                        color: active ? Colors.white : Colors.grey,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
+                '$s',
+                style: GoogleFonts.alexandria(
+                  color: active ? Colors.white : Colors.grey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
             ),
           );
         }
@@ -1709,12 +1706,12 @@ class _QtyBtn extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: enabled
             ? [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.25),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ]
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.25),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ]
             : [],
       ),
       child: Icon(
@@ -1766,12 +1763,12 @@ class _PaymentOpt extends StatelessWidget {
         ),
         boxShadow: selected
             ? [
-                BoxShadow(
-                  color: color.withOpacity(0.15),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5),
-                ),
-              ]
+          BoxShadow(
+            color: color.withOpacity(0.15),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ]
             : [],
       ),
       child: Row(
@@ -1890,8 +1887,8 @@ class _ServiceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected
             ? (isDark
-                  ? AppColors.primary.withOpacity(0.15)
-                  : AppColors.primary.withOpacity(0.07))
+            ? AppColors.primary.withOpacity(0.15)
+            : AppColors.primary.withOpacity(0.07))
             : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
@@ -1983,8 +1980,8 @@ class _StoreCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected
             ? (isDark
-                  ? AppColors.primary.withOpacity(0.15)
-                  : AppColors.primary.withOpacity(0.07))
+            ? AppColors.primary.withOpacity(0.15)
+            : AppColors.primary.withOpacity(0.07))
             : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
@@ -2079,13 +2076,13 @@ class _ItemImage extends StatelessWidget {
       borderRadius: BorderRadius.circular(15),
       child: imageUrl != null
           ? CachedNetworkImage(
-              imageUrl: imageUrl!,
-              fit: BoxFit.cover,
-              errorWidget: (_, _, _) => Icon(
-                fallbackIcon,
-                color: selected ? Colors.white : Colors.grey,
-              ),
-            )
+        imageUrl: imageUrl!,
+        fit: BoxFit.cover,
+        errorWidget: (_, _, _) => Icon(
+          fallbackIcon,
+          color: selected ? Colors.white : Colors.grey,
+        ),
+      )
           : Icon(fallbackIcon, color: selected ? Colors.white : Colors.grey),
     ),
   );

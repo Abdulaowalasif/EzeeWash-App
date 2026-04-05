@@ -1,10 +1,9 @@
 // lib/core/widgets/gradient_app_bar.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../constants/app_color.dart';
-import '../utils/responsive.dart';
+import '../theme/app_text_styles.dart';
 
 /// A gradient pill-shaped app bar used across profile sub-screens.
 ///
@@ -59,25 +58,21 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
           children: [
             backEnabled == true
                 ? GestureDetector(
-                    onTap: () => context.pop(),
-                    child:
-                        leading ??
-                        const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                  )
+              onTap: () => context.pop(),
+              child:
+              leading ??
+                  const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+            )
                 : SizedBox(),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
                 title,
-                style: GoogleFonts.alexandria(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: AppTextStyles.appBarTitle,
                 overflow: TextOverflow.ellipsis,
               ),
             ),

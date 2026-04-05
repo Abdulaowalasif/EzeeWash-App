@@ -1,4 +1,5 @@
 // lib/features/notifications/presentation/screens/notification_screen.dart
+import 'package:ezzewash/core/widgets/gradient_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -24,7 +25,7 @@ class NotificationScreen extends StatelessWidget {
       isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: Column(
         children: [
-          _NotificationsAppBar(isDark: isDark),
+          const GradientAppBar(title: "Notifications", backEnabled: false),
           Expanded(
             child: BlocBuilder<NotificationsBloc, NotificationsState>(
               builder: (context, state) {

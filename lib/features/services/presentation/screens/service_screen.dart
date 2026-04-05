@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../../core/widgets/gradient_app_bar.dart'; // ─── NEW IMPORT
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
@@ -52,18 +53,37 @@ class _ServiceScreenState extends State<ServiceScreen> {
     return Scaffold(
       backgroundColor:
       isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      body: Column(
-        children: [
-          _ServicesAppBar(isDark: isDark),
-
-          Expanded(
-            child: BlocBuilder<ServicesBloc, ServicesState>(
-              builder: (context, state) {
-                if (state is ServicesLoading) {
-                  return _ServicesShimmer(isDark: isDark);
-                }
-                if (state is ServicesError) {
-                  return Center(
+      // ─── CONSISTENT APP BAR ───
+      appBar: const GradientAppBar(
+        title: 'Our Services',
+        backEnabled: false, // Hidden since it's a bottom nav tab
+      ),
+      body: BlocBuilder<ServicesBloc, ServicesState>(
+        builder: (context, state) {
+          if (state is ServicesLoading) {
+            return Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                      Responsive.horizontalPadding(context), 16,
+                      Responsive.horizontalPadding(context), 0),
+                  child: _SearchBar(isDark: isDark),
+                ),
+                Expanded(child: _ServicesShimmer(isDark: isDark)),
+              ],
+            );
+          }
+          if (state is ServicesError) {
+            return Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                      Responsive.horizontalPadding(context), 16,
+                      Responsive.horizontalPadding(context), 0),
+                  child: _SearchBar(isDark: isDark),
+                ),
+                Expanded(
+                  child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -79,20 +99,20 @@ class _ServiceScreenState extends State<ServiceScreen> {
                         ),
                       ],
                     ),
-                  );
-                }
-                if (state is ServicesLoaded) {
-                  return _ServicesContent(
-                    state: state,
-                    isDark: isDark,
-                    categoryIcons: _categoryIcons,
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ),
-        ],
+                  ),
+                ),
+              ],
+            );
+          }
+          if (state is ServicesLoaded) {
+            return _ServicesContent(
+              state: state,
+              isDark: isDark,
+              categoryIcons: _categoryIcons,
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
@@ -123,58 +143,6 @@ class _ServicesShimmer extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Unified Custom App Bar ───────────────────────────────────────────────────
-
-class _ServicesAppBar extends StatelessWidget {
-  final bool isDark;
-  const _ServicesAppBar({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: AppColors.gradient,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Our Services',
-                    style: GoogleFonts.alexandria(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _SearchBar(isDark: isDark),
-            ],
           ),
         ),
       ),
@@ -272,6 +240,10 @@ class _ServicesContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ─── Search Bar Moved Here ───
+              _SearchBar(isDark: isDark),
+              const SizedBox(height: 16),
+
               // Category chips
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,

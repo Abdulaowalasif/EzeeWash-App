@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../core/constants/app_color.dart';
-import '../../core/constants/app_constants.dart';
-import '../../core/utils/responsive.dart';
+import '../../../../core/constants/app_color.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/utils/responsive.dart';
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 

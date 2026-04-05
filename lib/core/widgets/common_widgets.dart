@@ -13,6 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 
 import '../constants/app_color.dart';
+import '../theme/app_text_styles.dart';
 
 // ─── Section heading ──────────────────────────────────────────────────────────
 

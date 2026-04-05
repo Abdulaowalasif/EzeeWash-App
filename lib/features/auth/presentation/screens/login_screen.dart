@@ -326,9 +326,6 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   _AuthView _view = _AuthView.signIn;
-  // _loading field removed: loading state is now derived directly from
-  // the bloc state inside the BlocConsumer builder (state is AuthLoading),
-  // eliminating the setState race condition with GoRouter's redirect.
 
   final _signInFormKey = GlobalKey<FormState>();
   final _signUpFormKey = GlobalKey<FormState>();
@@ -336,12 +333,9 @@ class _LoginScreenState extends State<LoginScreen>
 
   final _nameCtrl = TextEditingController();
 
-  // Sign-in has its own controllers so typing in one panel never
-  // bleeds into the other panel's fields.
   final _signInEmailCtrl = TextEditingController();
   final _signInPassCtrl  = TextEditingController();
 
-  // Sign-up controllers (separate from sign-in)
   final _emailCtrl   = TextEditingController();
   final _passCtrl    = TextEditingController();
   final _confirmCtrl = TextEditingController();
@@ -425,7 +419,6 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _submitSignUp() {
     if (!_signUpFormKey.currentState!.validate()) return;
-    // Note: password match is validated in the form — no need to re-check here
     context.read<AuthBloc>().add(AuthSignUpRequested(
       fullName: _nameCtrl.text.trim(),
       email: _emailCtrl.text.trim(),
@@ -512,16 +505,6 @@ class _LoginScreenState extends State<LoginScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return BlocConsumer<AuthBloc, AuthState>(
-      // FIX: Removed AuthLoading from listenWhen.
-      //
-      // Previously the listener called setState(() => _loading = true) when it
-      // saw AuthLoading, and setState(() => _loading = false) for everything else.
-      // But GoRouter was also reacting to AuthLoading (via _AuthStateListenable)
-      // and rebuilding the login screen — killing the listener before it ran.
-      //
-      // Now _AuthStateListenable skips AuthLoading, so the screen stays alive.
-      // We derive _loading directly in the builder from the bloc state instead,
-      // making it reliable regardless of listener timing.
       listenWhen: (_, curr) =>
       curr is AuthError ||
           curr is AuthAuthenticated ||
@@ -530,11 +513,6 @@ class _LoginScreenState extends State<LoginScreen>
           curr is AuthUnauthenticated,
       listener: (ctx, state) {
         if (state is AuthAuthenticated) {
-          // Only show the congratulations snackbar when the session was actually
-          // created by a sign-up action (fromSignUp == true).
-          // Checking _view == _AuthView.signUp was wrong: a previously logged-in
-          // user auto-redirected while on the sign-up tab would also pass that
-          // check, triggering a false "Account created successfully" snackbar.
           if (state.fromSignUp) {
             _snack('Account created successfully! Welcome to EzeeWash 🎉');
           }
@@ -554,8 +532,6 @@ class _LoginScreenState extends State<LoginScreen>
           _snack(state.message, error: true);
         }
       },
-      // FIX: Derive loading directly from the bloc state in the builder.
-      // This is always in sync — no setState race condition possible.
       builder: (ctx, state) {
         final isLoading = state is AuthLoading;
         return Scaffold(
@@ -625,7 +601,32 @@ class _LoginScreenState extends State<LoginScreen>
                           ],
                         ),
                         clipBehavior: Clip.hardEdge,
-                        child: _buildCardContent(isDark, isLoading),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // The smoothly sliding toggle bar detached from the forms
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                              alignment: Alignment.topCenter,
+                              child: _view == _AuthView.forgotPassword
+                                  ? const SizedBox(width: double.infinity, height: 0)
+                                  : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _TabToggle(
+                                    isDark: isDark,
+                                    isSignIn: _view == _AuthView.signIn,
+                                    onSignIn: () => _switchTo(_AuthView.signIn),
+                                    onSignUp: () => _switchTo(_AuthView.signUp),
+                                  ),
+                                  const SizedBox(height: 24),
+                                ],
+                              ),
+                            ),
+                            _buildCardContent(isDark, isLoading),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -673,7 +674,6 @@ class _LoginScreenState extends State<LoginScreen>
           isDark: isDark,
           loading: isLoading,
           onSubmit: _submitSignIn,
-          onSwitchToSignUp: () => _switchTo(_AuthView.signUp),
           onForgotPassword: () => _switchTo(_AuthView.forgotPassword),
         );
       case _AuthView.signUp:
@@ -687,7 +687,6 @@ class _LoginScreenState extends State<LoginScreen>
           isDark: isDark,
           loading: isLoading,
           onSubmit: _submitSignUp,
-          onSwitchToSignIn: () => _switchTo(_AuthView.signIn),
         );
       case _AuthView.forgotPassword:
         return _ForgotPasswordPanel(
@@ -712,7 +711,6 @@ class _SignInPanel extends StatelessWidget {
   final bool isDark;
   final bool loading;
   final VoidCallback onSubmit;
-  final VoidCallback onSwitchToSignUp;
   final VoidCallback onForgotPassword;
 
   const _SignInPanel({
@@ -723,7 +721,6 @@ class _SignInPanel extends StatelessWidget {
     required this.isDark,
     required this.loading,
     required this.onSubmit,
-    required this.onSwitchToSignUp,
     required this.onForgotPassword,
   });
 
@@ -733,13 +730,6 @@ class _SignInPanel extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _TabToggle(
-          isDark: isDark,
-          isSignIn: true,
-          onSignIn: () {},
-          onSignUp: onSwitchToSignUp,
-        ),
-        const SizedBox(height: 24),
         _Field(
           key: const ValueKey('si_email'),
           ctrl: emailCtrl,
@@ -809,7 +799,6 @@ class _SignUpPanel extends StatelessWidget {
   final bool isDark;
   final bool loading;
   final VoidCallback onSubmit;
-  final VoidCallback onSwitchToSignIn;
 
   const _SignUpPanel({
     super.key,
@@ -821,7 +810,6 @@ class _SignUpPanel extends StatelessWidget {
     required this.isDark,
     required this.loading,
     required this.onSubmit,
-    required this.onSwitchToSignIn,
   });
 
   @override
@@ -829,13 +817,6 @@ class _SignUpPanel extends StatelessWidget {
     key: formKey,
     child: Column(
       children: [
-        _TabToggle(
-          isDark: isDark,
-          isSignIn: false,
-          onSignIn: onSwitchToSignIn,
-          onSignUp: () {},
-        ),
-        const SizedBox(height: 24),
         _Field(
           key: const ValueKey('su_name'),
           ctrl: nameCtrl,
@@ -1031,51 +1012,74 @@ class _TabToggle extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(4),
-    decoration: BoxDecoration(
-      color: isDark ? Colors.black26 : const Color(0xFFF1F5F9),
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Row(
-      children: [
-        _Tab('Sign In', isSignIn, onSignIn),
-        _Tab('Sign Up', !isSignIn, onSignUp),
-      ],
-    ),
-  );
-}
-
-class _Tab extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  const _Tab(this.label, this.active, this.onTap);
-
-  @override
-  Widget build(BuildContext context) => Expanded(
-    child: GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        decoration: BoxDecoration(
-          gradient: active ? AppColors.gradient : null,
-          borderRadius: BorderRadius.circular(13),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: GoogleFonts.alexandria(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: active ? Colors.white : Colors.grey,
+  Widget build(BuildContext context) {
+    return Container(
+      height: 54,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.black26 : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Stack(
+        children: [
+          AnimatedAlign(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            alignment: isSignIn ? Alignment.centerLeft : Alignment.centerRight,
+            child: FractionallySizedBox(
+              widthFactor: 0.5,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: AppColors.gradient,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                ),
+              ),
             ),
           ),
-        ),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onSignIn,
+                  child: Center(
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 150),
+                      style: GoogleFonts.alexandria(
+                        fontWeight: FontWeight.w600, // Fixed weight to prevent layout stutter
+                        fontSize: 13,
+                        color: isSignIn ? Colors.white : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
+                      ),
+                      child: const Text('Sign In'),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onSignUp,
+                  child: Center(
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 150),
+                      style: GoogleFonts.alexandria(
+                        fontWeight: FontWeight.w600, // Fixed weight to prevent layout stutter
+                        fontSize: 13,
+                        color: !isSignIn ? Colors.white : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
+                      ),
+                      child: const Text('Sign Up'),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _OrDivider extends StatelessWidget {

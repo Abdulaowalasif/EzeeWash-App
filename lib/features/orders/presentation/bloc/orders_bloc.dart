@@ -16,7 +16,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   final SupabaseClient client;
 
   StreamSubscription? _realtimeSub;
-  bool _subscribed = false;
+  String? _currentUserId;
 
   OrdersBloc({
     required this.getOrdersUseCase,
@@ -49,19 +49,13 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         emit(OrdersLoaded(orders: orders, showActive: prevShowActive));
 
         // FIX: Always re-evaluate the realtime subscription on load.
-        //
-        // Previously _subscribed was set to true once and never reset, so
-        // if OrdersBloc was shared via BlocProvider.value (see app_router.dart)
-        // across sessions (logout → re-login), the subscription kept the OLD
-        // userId filter. Resetting here ensures we always subscribe for the
-        // currently authenticated user.
+        // We track the actual user ID instead of a simple boolean flag.
+        // This ensures that if the session changes (logout -> login) or
+        // the subscription dies, it correctly recreates the stream.
         final userId = client.auth.currentUser?.id;
         if (userId != null) {
-          // Cancel any existing subscription before creating a new one.
-          // This handles the case where the user logs out and back in —
-          // we must re-subscribe with the new userId.
-          if (!_subscribed) {
-            _subscribed = true;
+          if (_currentUserId != userId || _realtimeSub == null) {
+            _currentUserId = userId;
             _subscribeRealtime(userId);
           }
         }
@@ -97,14 +91,9 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       },
           (order) {
         emit(OrderPlaced(orderNumber: order.orderNumber));
-        // FIX: After placing, reload orders so the new order appears on
+        // After placing, reload orders so the new order appears on
         // the OrderScreen immediately. The 600 ms delay gives Supabase time
         // to commit the row before we fetch.
-        //
-        // Because PlaceOrderScreen now uses BlocProvider.value (sharing the
-        // root OrdersBloc — see app_router.dart), this reload updates the
-        // same state that OrderScreen is listening to, so the UI reflects
-        // the new order without requiring an app restart.
         Future.delayed(const Duration(milliseconds: 600), () {
           if (!isClosed) add(const OrdersLoadRequested());
         });
@@ -177,6 +166,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   void _subscribeRealtime(String userId) {
     _realtimeSub?.cancel();
     bool firstEvent = true;
+
     _realtimeSub = client
         .from('orders')
         .stream(primaryKey: ['id'])
@@ -191,7 +181,14 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         }
         if (!isClosed) add(const OrdersRealtimeTick());
       },
-      onError: (_) {},
+      onError: (error) {
+        // FIX: Automatically attempt to reconnect if the stream silently dies
+        Future.delayed(const Duration(seconds: 5), () {
+          if (!isClosed && _currentUserId != null) {
+            _subscribeRealtime(_currentUserId!);
+          }
+        });
+      },
     );
   }
 
@@ -202,7 +199,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   void resetSubscription() {
     _realtimeSub?.cancel();
     _realtimeSub = null;
-    _subscribed = false;
+    _currentUserId = null;
   }
 
   @override

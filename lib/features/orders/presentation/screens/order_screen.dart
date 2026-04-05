@@ -21,6 +21,7 @@ import '../../../../core/constants/app_color.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/order_status.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../../core/widgets/gradient_app_bar.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../routes/routes_name.dart';
 import '../../domain/entities/order_entity.dart';
@@ -173,66 +174,107 @@ class _OrderScreenState extends State<OrderScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      body: Column(
-        children: [
-          _OrdersAppBar(
-            isDark: isDark,
-            filter: _filter,
-            onShowFilter: _showFilterSheet,
-          ),
-
-          Expanded(
-            child: BlocConsumer<OrdersBloc, OrdersState>(
-              listenWhen: (_, s) => s is OrderCancelled || s is OrdersError,
-              listener: (context, state) {
-                if (state is OrderCancelled) {
-                  AppSnackBar.show(context, 'Order cancelled.', isError: false);
-                } else if (state is OrdersError) {
-                  AppSnackBar.show(context, state.message, isError: true);
-                }
-              },
-              builder: (context, state) {
-                if (state is OrdersInitial || state is OrdersLoading) {
-                  return _OrdersShimmer(isDark: isDark);
-                }
-
-                if (state is OrdersError) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.error_outline, color: AppColors.error, size: 52),
-                        const SizedBox(height: 14),
-                        Text(state.message,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.alexandria(fontSize: 14,
-                              color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.refresh_rounded, size: 18),
-                          onPressed: () => context.read<OrdersBloc>().add(const OrdersLoadRequested()),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary, foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          label: Text('Retry', style: GoogleFonts.alexandria(fontWeight: FontWeight.w600)),
-                        ),
-                      ]),
+      appBar: GradientAppBar(
+        title: 'My Orders',
+        backEnabled: false,
+        trailing: BlocBuilder<OrdersBloc, OrdersState>(
+          builder: (ctx, state) {
+            if (state is! OrdersLoaded) return const SizedBox.shrink();
+            final allOrders = state.orders;
+            return GestureDetector(
+              onTap: () => _showFilterSheet(ctx, allOrders),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
                     ),
-                  );
-                }
-                if (state is OrdersLoaded) {
-                  return _OrdersBody(state: state, isDark: isDark, filter: _filter,
-                    onClearFilter: () => setState(() => _filter = const _OrderFilter()),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ),
-        ],
+                    child: const Icon(Icons.filter_list_outlined, color: Colors.white, size: 20),
+                  ),
+                  if (_filter.activeCount > 0)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: const BoxDecoration(
+                          color: Colors.orangeAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${_filter.activeCount}',
+                            style: const TextStyle(
+                                fontSize: 9,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+      body: BlocConsumer<OrdersBloc, OrdersState>(
+        listenWhen: (_, s) => s is OrderCancelled || s is OrdersError,
+        buildWhen: (prev, current) =>
+        current is OrdersInitial ||
+            current is OrdersLoading ||
+            current is OrdersLoaded ||
+            current is OrdersError,
+        listener: (context, state) {
+          if (state is OrderCancelled) {
+            AppSnackBar.show(context, 'Order cancelled.', isError: false);
+          } else if (state is OrdersError) {
+            AppSnackBar.show(context, state.message, isError: true);
+          }
+        },
+        builder: (context, state) {
+          if (state is OrdersInitial || state is OrdersLoading) {
+            return _OrdersShimmer(isDark: isDark);
+          }
+
+          if (state is OrdersError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.error_outline, color: AppColors.error, size: 52),
+                  const SizedBox(height: 14),
+                  Text(state.message,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.alexandria(fontSize: 14,
+                        color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    onPressed: () => context.read<OrdersBloc>().add(const OrdersLoadRequested()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    label: Text('Retry', style: GoogleFonts.alexandria(fontWeight: FontWeight.w600)),
+                  ),
+                ]),
+              ),
+            );
+          }
+          if (state is OrdersLoaded) {
+            return _OrdersBody(state: state, isDark: isDark, filter: _filter,
+              onClearFilter: () => setState(() => _filter = const _OrderFilter()),
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
       floatingActionButton: Container(
         decoration: BoxDecoration(
@@ -304,120 +346,95 @@ class _OrdersShimmer extends StatelessWidget {
   }
 }
 
-// ─── Custom App Bar ───────────────────────────────────────────────────────────
-
-class _OrdersAppBar extends StatelessWidget {
-  final bool isDark;
-  final _OrderFilter filter;
-  final void Function(BuildContext, List<OrderEntity>) onShowFilter;
-
-  const _OrdersAppBar({
-    required this.isDark,
-    required this.filter,
-    required this.onShowFilter,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: AppColors.gradient,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'My Orders',
-                style: GoogleFonts.alexandria(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              BlocBuilder<OrdersBloc, OrdersState>(
-                builder: (ctx, state) {
-                  if (state is! OrdersLoaded) return const SizedBox.shrink();
-                  final allOrders = state.orders;
-                  return GestureDetector(
-                    onTap: () => onShowFilter(ctx, allOrders),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Iconsax.filter, color: Colors.white, size: 20),
-                        ),
-                        if (filter.activeCount > 0)
-                          Positioned(
-                            right: -2,
-                            top: -2,
-                            child: Container(
-                              width: 16,
-                              height: 16,
-                              decoration: const BoxDecoration(
-                                color: Colors.orangeAccent,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '${filter.activeCount}',
-                                  style: const TextStyle(
-                                      fontSize: 9,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // ─── Orders body ──────────────────────────────────────────────────────────────
 
-class _OrdersBody extends StatelessWidget {
+class _OrdersBody extends StatefulWidget {
   final OrdersLoaded state;
   final bool isDark;
   final _OrderFilter filter;
   final VoidCallback onClearFilter;
 
   const _OrdersBody({
-    required this.state, required this.isDark,
-    required this.filter, required this.onClearFilter,
+    required this.state,
+    required this.isDark,
+    required this.filter,
+    required this.onClearFilter,
   });
 
   @override
+  State<_OrdersBody> createState() => _OrdersBodyState();
+}
+
+class _OrdersBodyState extends State<_OrdersBody> {
+  late PageController _pageController;
+  late bool _showActive;
+
+  @override
+  void initState() {
+    super.initState();
+    _showActive = widget.state.showActive;
+    _pageController = PageController(initialPage: _showActive ? 0 : 1);
+  }
+
+  @override
+  void didUpdateWidget(covariant _OrdersBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state.showActive != widget.state.showActive) {
+      if (_showActive != widget.state.showActive) {
+        _showActive = widget.state.showActive;
+        if (_pageController.hasClients) {
+          _pageController.animateToPage(
+            _showActive ? 0 : 1,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildList(List<OrderEntity> displayed, bool isActiveTab) {
+    if (displayed.isEmpty) {
+      return _OrderEmptyState(
+        showActive: isActiveTab,
+        isDark: widget.isDark,
+        isFiltered: widget.filter.isActive,
+      );
+    }
+    return ListView.separated(
+      physics: const BouncingScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: displayed.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      itemBuilder: (context, i) {
+        final order = displayed[i];
+        final tab = isActiveTab ? 'a' : 'h';
+        return _OrderCard(
+          key: ValueKey('${tab}_${order.id}'),
+          order: order,
+          isHistory: !isActiveTab,
+          isDark: widget.isDark,
+          onPress: () => context.push(RoutesName.trackOrdersNavigate, extra: order.id),
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final activeOrders = state.orders.where((o) => o.isActive).toList();
-    final historyOrders = state.orders.where((o) => !o.isActive).toList();
-    final base = state.showActive ? activeOrders : historyOrders;
-    final displayed = filter.apply(base);
+    final activeOrders = widget.state.orders.where((o) => o.isActive).toList();
+    final historyOrders = widget.state.orders.where((o) => !o.isActive).toList();
+
+    final activeDisplayed = widget.filter.apply(activeOrders);
+    final historyDisplayed = widget.filter.apply(historyOrders);
+
+    final currentDisplayed = _showActive ? activeDisplayed : historyDisplayed;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -429,45 +446,53 @@ class _OrdersBody extends StatelessWidget {
           constraints: BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
           child: Column(children: [
             _OrdersToggle(
-              showActive: state.showActive, isDark: isDark,
-              onChanged: (active) => context.read<OrdersBloc>().add(OrdersFilterToggled(active)),
+              showActive: _showActive,
+              isDark: widget.isDark,
+              pageController: _pageController,
+              onChanged: (active) {
+                setState(() => _showActive = active);
+                _pageController.animateToPage(
+                  active ? 0 : 1,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
+                context.read<OrdersBloc>().add(OrdersFilterToggled(active));
+              },
             ),
-            if (filter.isActive) ...[
+            if (widget.filter.isActive) ...[
               const SizedBox(height: 10),
-              _ActiveFilterBar(filter: filter, isDark: isDark, onClear: onClearFilter, allOrders: state.orders),
+              _ActiveFilterBar(filter: widget.filter, isDark: widget.isDark, onClear: widget.onClearFilter, allOrders: widget.state.orders),
             ],
             const SizedBox(height: 12),
-            if (filter.isActive)
+            if (widget.filter.isActive)
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '${displayed.length} result${displayed.length == 1 ? '' : 's'}',
+                  '${currentDisplayed.length} result${currentDisplayed.length == 1 ? '' : 's'}',
                   style: GoogleFonts.alexandria(
                     fontSize: 12,
-                    color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                    color: widget.isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
                   ),
                 ),
               ),
             const SizedBox(height: 8),
             Expanded(
-              child: displayed.isEmpty
-                  ? _OrderEmptyState(showActive: state.showActive, isDark: isDark, isFiltered: filter.isActive)
-                  : ListView.separated(
+              child: PageView(
+                controller: _pageController,
                 physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.zero,
-                itemCount: displayed.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 16),
-                itemBuilder: (context, i) {
-                  final order = displayed[i];
-                  final tab = state.showActive ? 'a' : 'h';
-                  return _OrderCard(
-                    key: ValueKey('${tab}_${order.id}'),
-                    order: order,
-                    isHistory: !state.showActive,
-                    isDark: isDark,
-                    onPress: () => context.push(RoutesName.trackOrdersNavigate, extra: order.id),
-                  );
+                onPageChanged: (idx) {
+                  final isActive = idx == 0;
+                  if (isActive != _showActive) {
+                    setState(() => _showActive = isActive);
+                  }
+                  if (isActive != widget.state.showActive) {
+                    context.read<OrdersBloc>().add(OrdersFilterToggled(isActive));
+                  }
                 },
+                children: [
+                  _buildList(activeDisplayed, true),
+                  _buildList(historyDisplayed, false),
+                ],
               ),
             ),
           ]),
@@ -804,7 +829,9 @@ class _FilterSheetState extends State<_FilterSheet> {
               ),
 
               Padding(
-                padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+                padding: EdgeInsetsGeometry.only(
+                    top: 2,bottom: 10,left: 20,right: 20
+                ),
                 child: SizedBox(
                   width: double.infinity,
                   child: Container(
@@ -902,57 +929,102 @@ class _OrderEmptyState extends StatelessWidget {
   }
 }
 
-// ─── Tab toggle ───────────────────────────────────────────────────────────────
+// ─── Tab toggle (Animated Slide) ──────────────────────────────────────────────
 
 class _OrdersToggle extends StatelessWidget {
-  final bool showActive, isDark;
+  final bool showActive;
+  final bool isDark;
   final ValueChanged<bool> onChanged;
+  final PageController pageController;
 
-  const _OrdersToggle({required this.showActive, required this.isDark, required this.onChanged});
+  const _OrdersToggle({
+    required this.showActive,
+    required this.isDark,
+    required this.onChanged,
+    required this.pageController,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: 54,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
-      child: Row(children: [
-        _ToggleItem(label: 'Active Orders',  isActive: showActive,  onTap: () => onChanged(true),  isDark: isDark),
-        const SizedBox(width: 8),
-        _ToggleItem(label: 'Order History',  isActive: !showActive, onTap: () => onChanged(false), isDark: isDark),
-      ]),
-    );
-  }
-}
+      child: Stack(
+        children: [
+          AnimatedBuilder(
+            animation: pageController,
+            builder: (context, child) {
+              double page = showActive ? 0.0 : 1.0;
 
-class _ToggleItem extends StatelessWidget {
-  final String label;
-  final bool isActive, isDark;
-  final VoidCallback onTap;
+              if (pageController.hasClients && pageController.position.haveDimensions) {
+                page = pageController.page ?? page;
+              }
 
-  const _ToggleItem({required this.label, required this.isActive, required this.onTap, required this.isDark});
+              // Clamp to prevent the pill from over-sliding during bouncy scroll
+              page = page.clamp(0.0, 1.0);
 
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            gradient: isActive ? AppColors.gradient : null,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: isActive ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
+              // Map page (0.0 to 1.0) directly to Alignment.x (-1.0 to 1.0)
+              final alignmentX = (page * 2) - 1.0;
+
+              return Align(
+                alignment: Alignment(alignmentX, 0.0),
+                child: FractionallySizedBox(
+                  widthFactor: 0.5,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: AppColors.gradient,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
-          child: Center(child: Text(label, style: GoogleFonts.alexandria(
-            fontWeight: isActive ? FontWeight.bold : FontWeight.w600, fontSize: 13,
-            color: isActive ? Colors.white : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
-          ))),
-        ),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(true),
+                  child: Center(
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 150),
+                      style: GoogleFonts.alexandria(
+                        fontWeight: FontWeight.w600, // Fixed font weight to prevent layout jump stutter
+                        fontSize: 13,
+                        color: showActive ? Colors.white : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
+                      ),
+                      child: const Text('Active Orders'),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(false),
+                  child: Center(
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 150),
+                      style: GoogleFonts.alexandria(
+                        fontWeight: FontWeight.w600, // Fixed font weight to prevent layout jump stutter
+                        fontSize: 13,
+                        color: !showActive ? Colors.white : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
+                      ),
+                      child: const Text('Order History'),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1294,7 +1366,6 @@ class _OrderReviewSheetState extends State<_OrderReviewSheet> with SingleTickerP
 
       if (mounted) {
         Navigator.pop(context);
-        // Show success snackbar following the pattern used for cancellations
         AppSnackBar.show(context, 'Review submitted successfully!', isError: false);
       }
     } catch (e) {
@@ -1601,6 +1672,9 @@ class _OrderCardState extends State<_OrderCard> {
     final currentLevel = OrderStatus.getStepCompletionOrder(displayStatus);
     final progress = o.progress.clamp(0.0, 1.0);
 
+    // Prevent cancelling if the order level is at 'assignPickup' (level 3) or higher
+    final canCancel = currentLevel < OrderStatus.getStepCompletionOrder(OrderStatus.assignPickup);
+
     return GestureDetector(
       onTap: widget.onPress,
       child: AnimatedContainer(
@@ -1680,16 +1754,43 @@ class _OrderCardState extends State<_OrderCard> {
                   : BlocBuilder<OrdersBloc, OrdersState>(
                   builder: (ctx, bState) {
                     final cancelling = bState is OrderCancelling;
+                    final isButtonDisabled = cancelling || !canCancel;
+
+                    final bgColor = isButtonDisabled
+                        ? (widget.isDark ? Colors.grey.shade800 : Colors.grey.shade200)
+                        : AppColors.error;
+                    final textColor = isButtonDisabled
+                        ? (widget.isDark ? Colors.grey.shade500 : Colors.grey.shade500)
+                        : Colors.white;
+
                     return GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: cancelling ? null : () => _confirmCancel(ctx),
+                      onTap: isButtonDisabled
+                          ? () {
+                        if (!canCancel && !cancelling) {
+                          AppSnackBar.show(context, 'Order cannot be cancelled after a rider is assigned.', isError: true);
+                        }
+                      }
+                          : () => _confirmCancel(ctx),
                       child: Container(
-                        decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: AppColors.error.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]),
+                        decoration: BoxDecoration(
+                            color: bgColor,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: isButtonDisabled ? [] : [BoxShadow(color: AppColors.error.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]
+                        ),
                         child: ElevatedButton.icon(
                           onPressed: null,
-                          icon: cancelling ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.cancel_outlined, color: Colors.white, size: 16),
-                          label: Text(cancelling ? 'Cancelling…' : 'Cancel', style: GoogleFonts.alexandria(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, disabledBackgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                          icon: cancelling
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : Icon(Icons.cancel_outlined, color: textColor, size: 16),
+                          label: Text(cancelling ? 'Cancelling…' : 'Cancel', style: GoogleFonts.alexandria(color: textColor, fontWeight: FontWeight.w600, fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              disabledBackgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))
+                          ),
                         ),
                       ),
                     );
