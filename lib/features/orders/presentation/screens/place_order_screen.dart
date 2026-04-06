@@ -536,8 +536,13 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           _dataLoading = false;
         });
 
+        // Fixed logic: If nav from home/service screen, we force a store reset
+        // and immediately jump to step 2.
         if (preIdx != null) {
-          _moveToStep(2);
+          _storeIdx = null;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _moveToStep(2);
+          });
         }
       }
     } catch (e) {
@@ -601,8 +606,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerLeft,
-                    // UPDATED: Fixed height container ensures the title level remains
-                    // identical across all steps by accounting for the missing subtitle.
                     child: SizedBox(
                       height: 48,
                       child: Column(
@@ -616,7 +619,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                               color: isDark ? Colors.white : AppColors.lightText,
                             ),
                           ),
-                          // Subtitle removed globally from Step 4 to fix the layout level.
                         ],
                       ),
                     ),
@@ -646,11 +648,13 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                         _isCheckingAvailability,
                     paymentMethod: _paymentMethod,
                     onBack: () {
-                      if (_step == 1 ||
-                          (_step == 5 && widget.reorderParams != null))
+                      if (_step == 1) {
                         context.pop();
-                      else
+                      } else if (_step == 5 && widget.reorderParams != null) {
+                        context.pop();
+                      } else {
                         _moveToStep(_step - 1);
+                      }
                     },
                     onNext: () async {
                       if (_step == 3) {
@@ -700,7 +704,11 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               service: _services[i],
               selected: _serviceIdx == i,
               isDark: isDark,
-              onTap: () => setState(() => _serviceIdx = i),
+              onTap: () => setState(() {
+                _serviceIdx = i;
+                // Resets store selection if service is manually changed in step 1
+                _storeIdx = null;
+              }),
             ),
           ),
         );
@@ -1217,7 +1225,6 @@ class _AddressStepState extends State<_AddressStep> {
                       ),
                     ),
                   ),
-                // UPDATED: Floating Address Bubble above the central pin
                 Align(
                   alignment: Alignment.center,
                   child: Padding(
@@ -2007,40 +2014,37 @@ class _ServiceCard extends StatelessWidget {
               isDark: isDark,
             ),
             const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    service.title,
-                    style: GoogleFonts.alexandria(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppColors.lightText,
-                    ),
-                  ),
-                  if (service.subtitle.isNotEmpty)
-                    Text(
-                      service.subtitle,
-                      style: GoogleFonts.alexandria(
-                        fontSize: 12,
-                        color: isDark
-                            ? AppColors.darkSubtext
-                            : AppColors.lightSubtext,
-                      ),
-                      maxLines: 1,
-                    ),
-                  const SizedBox(height: 10),
-                  Text(
-                    '৳${service.price.toStringAsFixed(0)}',
-                    style: GoogleFonts.alexandria(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                service.title,
+                style: GoogleFonts.alexandria(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : AppColors.lightText,
+                ),
               ),
+              if (service.subtitle.isNotEmpty)
+                Text(
+                  service.subtitle,
+                  style: GoogleFonts.alexandria(
+                    fontSize: 12,
+                    color: isDark
+                        ? AppColors.darkSubtext
+                        : AppColors.lightSubtext,
+                  ),
+                  maxLines: 1,
+                ),
+              const SizedBox(height: 10),
+              Text(
+                '৳${service.price.toStringAsFixed(0)}',
+                style: GoogleFonts.alexandria(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+            ),
             ),
             if (selected)
               Container(

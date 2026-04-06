@@ -907,7 +907,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                             onTap: () => setState(() => _f = _f.copyWith(sortBy: e.key)),
                           ))
                               .toList()),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 10),
                       SizedBox(
                         width: double.infinity,
                         child: Container(
@@ -938,7 +938,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
