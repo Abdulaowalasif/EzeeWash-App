@@ -22,7 +22,9 @@ class _MainScreenState extends State<MainScreen> {
   void _onTap(int index) {
     widget.navigationShell.goBranch(
       index,
-      initialLocation: index != widget.navigationShell.currentIndex,
+      // UPDATED: Now resets only on double-tap (when index matches currentIndex)
+      // This allows state preservation when switching between different tabs.
+      initialLocation: index == widget.navigationShell.currentIndex,
     );
   }
 
@@ -78,21 +80,19 @@ class _BottomNav extends StatelessWidget {
               final tabWidth = constraints.maxWidth / 5;
               return Stack(
                 children: [
-                  // --- UPDATED PILL DESIGN: BIGGER, RECTANGULAR, AND SPACIOUS ---
+                  // --- PILL DESIGN ---
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOutCubic,
                     left: currentIndex * tabWidth,
-                    top: 6,      // Reduced top offset to make the bg taller
-                    bottom: 10,   // Reduced bottom offset to make the bg taller
+                    top: 6,
+                    bottom: 10,
                     width: tabWidth,
                     child: Center(
                       child: Container(
-                        // Increased width to 85% for better internal padding/fit
                         width: tabWidth * 0.85,
                         decoration: BoxDecoration(
                           gradient: AppColors.gradient,
-                          // Reduced radius from 16 to 10 for a "more rectangle" feel
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(

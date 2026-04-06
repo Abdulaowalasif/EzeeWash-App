@@ -10,6 +10,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -122,6 +123,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   List<String> _pickupTimeSlots = [];
   List<String> _deliveryTimeSlots = [];
 
+  late final PageController _pageController;
+
   double get _perPcsPrice {
     final rp = widget.reorderParams;
     if (rp != null) return (rp.totalPrice - _kServiceCharge) / rp.itemCount;
@@ -137,12 +140,11 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: widget.reorderParams != null ? 4 : 0);
 
     final rp = widget.reorderParams;
     if (rp != null) {
       _quantity = rp.itemCount;
-      // EC-14: Clamp stale dates — reorderParams may carry a past date if the
-      // user opens a reorder days after it was first triggered.
       _pickupDate = BusinessLogicUtils.clampToMinPickupDate(rp.pickupDate);
       _pickupTime = rp.pickupTime;
       _deliveryDate = BusinessLogicUtils.clampToMinPickupDate(rp.deliveryDate);
@@ -165,203 +167,16 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     _addrCtrl.addListener(() => setState(() {}));
   }
 
-  // ─── REAL WORLD BUSINESS LOGIC (delegated to BusinessLogicUtils) ───────────
-
-  // EC-01/02/22/48/55: blocks all closed-day types
-  bool _isClosedDay(DateTime date) => BusinessLogicUtils.isClosedDay(date);
-
-  DateTime get _minPickupDate => BusinessLogicUtils.getMinPickupDate();
-
-  // EC-15: max 30-day advance booking window
-  DateTime get _maxPickupDate => BusinessLogicUtils.getMaxPickupDate();
+  // ─── GETTERS ───
 
   bool get _isExpress =>
       _serviceIdx != null && _services[_serviceIdx!].category == 'Express';
 
-  String get _serviceName =>
-      _serviceIdx != null ? _services[_serviceIdx!].title : '';
-
-  // EC-25/33/42: collect all categories in the order for processing-time calculation
   List<String> get _categories =>
       _serviceIdx != null ? [_services[_serviceIdx!].category] : const [];
 
-  List<String> _getPickupTimes(DateTime date) =>
-      BusinessLogicUtils.getAvailableSlots(
-        date,
-        isPickup: true,
-        categories: _categories, // EC-49
-      );
-
-  DateTime _calculateMinDeliveryDateTime(DateTime pDate, String pTime) =>
-      BusinessLogicUtils.calculateMinDelivery(
-        pDate,
-        pTime,
-        _serviceName,
-        categories: _categories, // EC-25/33/42
-        totalItems: _quantity, // EC-32
-      );
-
-  List<String> _getDeliveryTimes(DateTime dDate) =>
-      BusinessLogicUtils.getDeliverySlots(
-        dDate,
-        pickupDate: _pickupDate,
-        pickupTime: _pickupTime,
-        serviceName: _serviceName,
-        categories: _categories,
-        // EC-25/33/42
-        totalItems: _quantity, // EC-32
-      );
-
-  // ─── SLOT CAPPING AVAILABILITY CHECK ──────────────────────────────────────
-
-  Future<bool> _checkSlotAvailability() async {
-    if (_pickupTime == 'Select time' || _storeIdx == null) return true;
-
-    // EC-27: validate the slot is still in the future with 2h buffer
-    if (!BusinessLogicUtils.isSubmissionStillValid(_pickupDate, _pickupTime)) {
-      AppSnackBar.show(
-        context,
-        'Your selected pickup time has passed the 2-hour booking window. Please choose a later slot.',
-        isError: true,
-      );
-      return false;
-    }
-
-    setState(() => _isCheckingAvailability = true);
-    final available = await BusinessLogicUtils.isSlotAvailable(
-      _stores[_storeIdx!].id,
-      _pickupDate,
-      _pickupTime,
-      orderValue: _totalPrice, // EC-45: high-value priority
-      orderItemCount: _quantity, // EC-38: unit saturation guard
-    );
-    if (mounted) setState(() => _isCheckingAvailability = false);
-
-    if (!available) {
-      AppSnackBar.show(
-        context,
-        'This slot is fully booked (${BusinessLogicUtils.kSlotLimit}-order limit). Please pick another time.',
-        isError: true,
-      );
-    }
-    return available;
-  }
-
-  // ─── HANDLERS ─────────────────────────────────────────────────────────────
-
-  void _refreshTimeSlots() {
-    _pickupTimeSlots = _getPickupTimes(_pickupDate);
-    if (!_pickupTimeSlots.contains(_pickupTime)) {
-      _pickupTime = _pickupTimeSlots.isNotEmpty
-          ? _pickupTimeSlots.first
-          : 'Select time';
-    }
-    _syncDelivery();
-  }
-
-  void _syncDelivery() {
-    final minRequired = BusinessLogicUtils.getMinDeliveryDate(
-      _pickupDate,
-      _pickupTime,
-      _serviceName,
-      categories: _categories, // EC-25/33/42
-      totalItems: _quantity, // EC-32
-    );
-
-    if (_deliveryDate.isBefore(minRequired)) {
-      _deliveryDate = minRequired;
-    }
-
-    _deliveryTimeSlots = _getDeliveryTimes(_deliveryDate);
-    if (!_deliveryTimeSlots.contains(_deliveryTime)) {
-      _deliveryTime = _deliveryTimeSlots.isNotEmpty
-          ? _deliveryTimeSlots.first
-          : 'Select time';
-    }
-  }
-
-  void _handlePickupDateChanged(DateTime date) {
-    setState(() {
-      _pickupDate = date;
-      _refreshTimeSlots();
-    });
-  }
-
-  void _handlePickupTimeChanged(String time) {
-    setState(() {
-      _pickupTime = time;
-      _syncDelivery();
-    });
-  }
-
-  void _handleDeliveryDateChanged(DateTime date) {
-    setState(() {
-      _deliveryDate = date;
-      _deliveryTimeSlots = _getDeliveryTimes(date);
-      if (!_deliveryTimeSlots.contains(_deliveryTime)) {
-        _deliveryTime = _deliveryTimeSlots.isNotEmpty
-            ? _deliveryTimeSlots.first
-            : 'Select time';
-      }
-    });
-  }
-
-  // ─── Boilerplate & UI ─────────────────────────────────────────────────────
-
-  @override
-  void dispose() {
-    _addrCtrl.dispose();
-    _noteCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadData() async {
-    try {
-      final client = Supabase.instance.client;
-      final svcs = await client
-          .from(AppConstants.servicesTable)
-          .select()
-          .eq('is_active', true)
-          .order('category');
-      final strs = await client
-          .from(AppConstants.storesTable)
-          .select()
-          .eq('is_active', true)
-          .order('distance_km');
-
-      if (mounted) {
-        final services = (svcs as List)
-            .map((e) => _ServiceItem.fromJson(e))
-            .toList();
-        final stores = (strs as List)
-            .map((e) => _StoreItem.fromJson(e))
-            .toList();
-        int? preIdx;
-        if (widget.preSelectedServiceId != null) {
-          final idx = services.indexWhere(
-            (s) => s.id == widget.preSelectedServiceId,
-          );
-          if (idx != -1) preIdx = idx;
-        }
-        setState(() {
-          _services = services;
-          _stores = stores;
-          _serviceIdx = preIdx;
-          _dataLoading = false;
-          if (preIdx != null) {
-            _step = 2;
-            _refreshTimeSlots();
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted)
-        setState(() {
-          _dataError = e.toString();
-          _dataLoading = false;
-        });
-    }
-  }
+  String get _serviceName =>
+      _serviceIdx != null ? _services[_serviceIdx!].title : '';
 
   bool get _canProceed {
     if (_isCheckingAvailability) return false;
@@ -381,6 +196,204 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         return true;
       default:
         return false;
+    }
+  }
+
+  // ─── LOGIC ───
+
+  bool _isClosedDay(DateTime date) => BusinessLogicUtils.isClosedDay(date);
+
+  DateTime get _minPickupDate => BusinessLogicUtils.getMinPickupDate();
+
+  DateTime get _maxPickupDate => BusinessLogicUtils.getMaxPickupDate();
+
+  Future<bool> _checkSlotAvailability() async {
+    if (_pickupTime == 'Select time' || _storeIdx == null) return true;
+
+    if (!BusinessLogicUtils.isSubmissionStillValid(_pickupDate, _pickupTime)) {
+      AppSnackBar.show(
+        context,
+        'Selected pickup time window has passed. Please choose a later slot.',
+        isError: true,
+      );
+      return false;
+    }
+
+    setState(() => _isCheckingAvailability = true);
+    final available = await BusinessLogicUtils.isSlotAvailable(
+      _stores[_storeIdx!].id,
+      _pickupDate,
+      _pickupTime,
+      orderValue: _totalPrice,
+      orderItemCount: _quantity,
+    );
+    if (mounted) setState(() => _isCheckingAvailability = false);
+
+    if (!available) {
+      AppSnackBar.show(
+        context,
+        'This slot is fully booked. Please pick another time.',
+        isError: true,
+      );
+    }
+    return available;
+  }
+
+  Future<void> _refreshTimeSlots() async {
+    if (_storeIdx == null && widget.reorderParams == null) return;
+    final storeId = widget.reorderParams?.storeId ?? _stores[_storeIdx!].id;
+
+    setState(() => _isCheckingAvailability = true);
+
+    List<String> slots = await BusinessLogicUtils.getAvailableSlotsFiltered(
+      storeId,
+      _pickupDate,
+      isPickup: true,
+      categories: _categories,
+    );
+
+    while (slots.isEmpty) {
+      _pickupDate = BusinessLogicUtils.getNextBusinessDay(_pickupDate);
+      slots = await BusinessLogicUtils.getAvailableSlotsFiltered(
+        storeId,
+        _pickupDate,
+        isPickup: true,
+        categories: _categories,
+      );
+    }
+
+    setState(() {
+      _pickupTimeSlots = slots;
+      _pickupTime = _pickupTimeSlots.isNotEmpty ? _pickupTimeSlots.first : 'Select time';
+      _isCheckingAvailability = false;
+    });
+
+    await _syncDelivery();
+  }
+
+  Future<void> _syncDelivery() async {
+    if (_storeIdx == null && widget.reorderParams == null) return;
+    final storeId = widget.reorderParams?.storeId ?? _stores[_storeIdx!].id;
+
+    final minRequired = BusinessLogicUtils.getMinDeliveryDate(
+      _pickupDate,
+      _pickupTime,
+      _serviceName,
+      categories: _categories,
+      totalItems: _quantity,
+    );
+
+    if (_deliveryDate.isBefore(minRequired)) {
+      _deliveryDate = minRequired;
+    }
+
+    List<String> slots = await BusinessLogicUtils.getDeliverySlotsFiltered(
+      storeId,
+      _deliveryDate,
+      pickupDate: _pickupDate,
+      pickupTime: _pickupTime,
+      serviceName: _serviceName,
+      categories: _categories,
+      totalItems: _quantity,
+    );
+
+    while (slots.isEmpty) {
+      _deliveryDate = _deliveryDate.add(const Duration(days: 1));
+      while (BusinessLogicUtils.isClosedDay(_deliveryDate)) {
+        _deliveryDate = _deliveryDate.add(const Duration(days: 1));
+      }
+      slots = await BusinessLogicUtils.getDeliverySlotsFiltered(
+        storeId,
+        _deliveryDate,
+        pickupDate: _pickupDate,
+        pickupTime: _pickupTime,
+        serviceName: _serviceName,
+        categories: _categories,
+        totalItems: _quantity,
+      );
+    }
+
+    setState(() {
+      _deliveryTimeSlots = slots;
+      _deliveryTime = _deliveryTimeSlots.isNotEmpty ? _deliveryTimeSlots.first : 'Select time';
+    });
+  }
+
+  Future<void> _handlePickupDateChanged(DateTime date) async {
+    _pickupDate = date;
+    await _refreshTimeSlots();
+  }
+
+  Future<void> _handlePickupTimeChanged(String time) async {
+    _pickupTime = time;
+    await _syncDelivery();
+  }
+
+  Future<void> _handleDeliveryDateChanged(DateTime date) async {
+    if (_storeIdx == null && widget.reorderParams == null) return;
+    final storeId = widget.reorderParams?.storeId ?? _stores[_storeIdx!].id;
+
+    setState(() => _isCheckingAvailability = true);
+    _deliveryDate = date;
+
+    List<String> slots = await BusinessLogicUtils.getDeliverySlotsFiltered(
+      storeId,
+      _deliveryDate,
+      pickupDate: _pickupDate,
+      pickupTime: _pickupTime,
+      serviceName: _serviceName,
+      categories: _categories,
+      totalItems: _quantity,
+    );
+
+    if (slots.isEmpty) {
+      while (slots.isEmpty) {
+        _deliveryDate = _deliveryDate.add(const Duration(days: 1));
+        while (BusinessLogicUtils.isClosedDay(_deliveryDate)) {
+          _deliveryDate = _deliveryDate.add(const Duration(days: 1));
+        }
+        slots = await BusinessLogicUtils.getDeliverySlotsFiltered(
+          storeId,
+          _deliveryDate,
+          pickupDate: _pickupDate,
+          pickupTime: _pickupTime,
+          serviceName: _serviceName,
+          categories: _categories,
+          totalItems: _quantity,
+        );
+      }
+    }
+
+    setState(() {
+      _deliveryTimeSlots = slots;
+      _deliveryTime = _deliveryTimeSlots.isNotEmpty ? _deliveryTimeSlots.first : 'Select time';
+      _isCheckingAvailability = false;
+    });
+  }
+
+  // ─── NAV ───
+
+  void _moveToStep(int targetStep) {
+    setState(() => _step = targetStep);
+    _pageController.animateToPage(
+      targetStep - 1,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  void _onConfirm() {
+    if (widget.reorderParams == null &&
+        (_serviceIdx == null || _storeIdx == null)) {
+      return;
+    }
+    if (_paymentMethod == PaymentMethod.cashOnDelivery) {
+      context.read<OrdersBloc>().add(
+        OrderPlaceRequested(
+            _buildParams(method: PaymentMethod.cashOnDelivery)),
+      );
+    } else {
+      _handleStripePayment();
     }
   }
 
@@ -404,19 +417,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     );
   }
 
-  void _onConfirm() {
-    if (widget.reorderParams == null &&
-        (_serviceIdx == null || _storeIdx == null))
-      return;
-    if (_paymentMethod == PaymentMethod.cashOnDelivery) {
-      context.read<OrdersBloc>().add(
-        OrderPlaceRequested(_buildParams(method: PaymentMethod.cashOnDelivery)),
-      );
-    } else {
-      _handleStripePayment();
-    }
-  }
-
   Future<void> _handleStripePayment() async {
     if (!mounted) return;
     setState(() {
@@ -425,7 +425,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     });
     try {
       final svcTitle =
-          widget.reorderParams?.serviceName ?? _services[_serviceIdx!].title;
+          widget.reorderParams?.serviceName ?? (_serviceIdx != null ? _services[_serviceIdx!].title : '');
       final client = Supabase.instance.client;
       final response = await client.functions.invoke(
         'create-payment-intent',
@@ -491,6 +491,64 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     }
   }
 
+  // ─── Boilerplate & UI ─────────────────────────────────────────────────────
+
+  @override
+  void dispose() {
+    _addrCtrl.dispose();
+    _noteCtrl.dispose();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final client = Supabase.instance.client;
+      final svcs = await client
+          .from(AppConstants.servicesTable)
+          .select()
+          .eq('is_active', true)
+          .order('category');
+      final strs = await client
+          .from(AppConstants.storesTable)
+          .select()
+          .eq('is_active', true)
+          .order('distance_km');
+
+      if (mounted) {
+        final services = (svcs as List)
+            .map((e) => _ServiceItem.fromJson(e))
+            .toList();
+        final stores = (strs as List)
+            .map((e) => _StoreItem.fromJson(e))
+            .toList();
+        int? preIdx;
+        if (widget.preSelectedServiceId != null) {
+          final idx = services.indexWhere(
+                (s) => s.id == widget.preSelectedServiceId,
+          );
+          if (idx != -1) preIdx = idx;
+        }
+        setState(() {
+          _services = services;
+          _stores = stores;
+          _serviceIdx = preIdx;
+          _dataLoading = false;
+        });
+
+        if (preIdx != null) {
+          _moveToStep(2);
+        }
+      }
+    } catch (e) {
+      if (mounted)
+        setState(() {
+          _dataError = e.toString();
+          _dataLoading = false;
+        });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -534,44 +592,47 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 16),
-                  _StepProgress(step: _step, totalSteps: 5, isDark: isDark),
-                  const SizedBox(height: 20),
+                  _StepProgress(
+                    step: _step,
+                    totalSteps: 5,
+                    isDark: isDark,
+                    pageController: _pageController,
+                  ),
+                  const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _stepTitle,
-                          style: GoogleFonts.alexandria(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : AppColors.lightText,
-                          ),
-                        ),
-                        if (_step == 4)
+                    // UPDATED: Fixed height container ensures the title level remains
+                    // identical across all steps by accounting for the missing subtitle.
+                    child: SizedBox(
+                      height: 48,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            _stepSubtitle,
+                            _stepTitle,
                             style: GoogleFonts.alexandria(
-                              fontSize: 13,
-                              color: isDark
-                                  ? AppColors.darkSubtext
-                                  : AppColors.lightSubtext,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : AppColors.lightText,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                      ],
+                          // Subtitle removed globally from Step 4 to fix the layout level.
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
                   Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 280),
-                        child: _buildStep(isDark),
-                      ),
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _buildStepForPage(1, isDark),
+                        _buildStepForPage(2, isDark),
+                        _buildStepForPage(3, isDark),
+                        _buildStepForPage(4, isDark),
+                        _buildStepForPage(5, isDark),
+                      ],
                     ),
                   ),
                   _BottomNav(
@@ -580,7 +641,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                     enabled: _canProceed,
                     isDark: isDark,
                     isLoading:
-                        (context.watch<OrdersBloc>().state is OrderPlacing) ||
+                    (context.watch<OrdersBloc>().state is OrderPlacing) ||
                         _stripeLoading ||
                         _isCheckingAvailability,
                     paymentMethod: _paymentMethod,
@@ -589,16 +650,16 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                           (_step == 5 && widget.reorderParams != null))
                         context.pop();
                       else
-                        setState(() => _step--);
+                        _moveToStep(_step - 1);
                     },
                     onNext: () async {
                       if (_step == 3) {
                         bool available = await _checkSlotAvailability();
                         if (!available) return;
                       }
-                      if (_step == 2) _refreshTimeSlots();
+                      if (_step == 2) await _refreshTimeSlots();
                       if (_step < 5)
-                        setState(() => _step++);
+                        _moveToStep(_step + 1);
                       else
                         _onConfirm();
                     },
@@ -613,7 +674,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   }
 
   String get _stepTitle {
-    if (_step == 4) return 'Address Selection';
     return [
       'Select Service',
       'Select Store',
@@ -623,26 +683,20 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     ][_step - 1];
   }
 
-  String get _stepSubtitle {
-    if (_step == 4)
-      return _addrCtrl.text.isEmpty ? 'Set location on map' : _addrCtrl.text;
-    return [
-      'Choose your service',
-      'Pick a store',
-      'Set times',
-      'Set location on map',
-      'Summary & Payment',
-    ][_step - 1];
+  Widget _buildStepForPage(int stepNum, bool isDark) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: _buildStep(stepNum, isDark),
+    );
   }
 
-  Widget _buildStep(bool isDark) {
-    switch (_step) {
+  Widget _buildStep(int stepNum, bool isDark) {
+    switch (stepNum) {
       case 1:
         return Column(
-          key: const ValueKey(1),
           children: List.generate(
             _services.length,
-            (i) => _ServiceCard(
+                (i) => _ServiceCard(
               service: _services[i],
               selected: _serviceIdx == i,
               isDark: isDark,
@@ -652,10 +706,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         );
       case 2:
         return Column(
-          key: const ValueKey(2),
           children: List.generate(
             _stores.length,
-            (i) => _StoreCard(
+                (i) => _StoreCard(
               store: _stores[i],
               selected: _storeIdx == i,
               isDark: isDark,
@@ -665,7 +718,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         );
       case 3:
         return _ScheduleStep(
-          key: const ValueKey(3),
           minPickupDate: _minPickupDate,
           maxPickupDate: _maxPickupDate,
           pickupDate: _pickupDate,
@@ -680,27 +732,46 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           onPickupTime: _handlePickupTimeChanged,
           onDeliveryDate: _handleDeliveryDateChanged,
           onDeliveryTime: (t) => setState(() => _deliveryTime = t),
-          minDeliveryDate: _calculateMinDeliveryDateTime(
+          minDeliveryDate: BusinessLogicUtils.getMinDeliveryDate(
             _pickupDate,
             _pickupTime,
+            _serviceName,
+            categories: _categories,
+            totalItems: _quantity,
           ),
           isClosedDay: _isClosedDay,
           processingLabel: BusinessLogicUtils.processingTimeLabel(
             _serviceName,
-            categories: _categories, // EC-25/33/42
+            categories: _categories,
           ),
+          pickupSelectablePredicate: (DateTime val) =>
+          !_isClosedDay(val) &&
+              BusinessLogicUtils.getAvailableSlots(
+                val,
+                isPickup: true,
+                categories: _categories,
+              ).isNotEmpty,
+          deliverySelectablePredicate: (DateTime val) =>
+          !_isClosedDay(val) &&
+              BusinessLogicUtils.getDeliverySlots(
+                val,
+                pickupDate: _pickupDate,
+                pickupTime: _pickupTime,
+                serviceName: _serviceName,
+                categories: _categories,
+                totalItems: _quantity,
+              ).isNotEmpty,
         );
       case 4:
         return _AddressStep(
-          key: const ValueKey(4),
           addrCtrl: _addrCtrl,
           noteCtrl: _noteCtrl,
           isDark: isDark,
           onChanged: () => setState(() {}),
         );
       default:
+        final rp = widget.reorderParams;
         return _PaymentStep(
-          key: const ValueKey(5),
           selectedMethod: _paymentMethod,
           perPcsPrice: _perPcsPrice,
           quantity: _quantity,
@@ -710,11 +781,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           cardAvailable: _cardAvailable,
           isDark: isDark,
           stripeError: _stripeError,
-          serviceName:
-              widget.reorderParams?.serviceName ??
-              _services[_serviceIdx!].title,
-          storeName:
-              widget.reorderParams?.storeName ?? _stores[_storeIdx!].name,
+          serviceName: rp?.serviceName ?? (_serviceIdx != null ? _services[_serviceIdx!].title : ''),
+          storeName: rp?.storeName ?? (_storeIdx != null ? _stores[_storeIdx!].name : ''),
           pickupInfo: '${_fmtDate(_pickupDate)} at $_pickupTime',
           deliveryInfo: '${_fmtDate(_deliveryDate)} at $_deliveryTime',
           onMethodChanged: (m) => setState(() => _paymentMethod = m),
@@ -742,11 +810,11 @@ class _ScheduleStep extends StatelessWidget {
   final ValueChanged<DateTime> onPickupDate, onDeliveryDate;
   final ValueChanged<String> onPickupTime, onDeliveryTime;
   final bool Function(DateTime) isClosedDay;
-  final String
-  processingLabel; // EC-25/33/42: dynamic label from processingTimeLabel()
+  final String processingLabel;
+  final bool Function(DateTime) pickupSelectablePredicate;
+  final bool Function(DateTime) deliverySelectablePredicate;
 
   const _ScheduleStep({
-    super.key,
     required this.minPickupDate,
     required this.maxPickupDate,
     required this.pickupDate,
@@ -764,6 +832,8 @@ class _ScheduleStep extends StatelessWidget {
     required this.minDeliveryDate,
     required this.isClosedDay,
     required this.processingLabel,
+    required this.pickupSelectablePredicate,
+    required this.deliverySelectablePredicate,
   });
 
   static String _fmt(DateTime? d) =>
@@ -811,9 +881,7 @@ class _ScheduleStep extends StatelessWidget {
           onTime: onPickupTime,
           minDate: minPickupDate,
           maxDate: maxPickupDate,
-          // EC-15
-          isClosedDay: isClosedDay,
-          // EC-01/02
+          selectablePredicate: pickupSelectablePredicate,
           noSlotsMessage: BusinessLogicUtils.noSlotsReason(pickupDate),
         ),
         const SizedBox(height: 12),
@@ -836,9 +904,7 @@ class _ScheduleStep extends StatelessWidget {
           maxDate: BusinessLogicUtils.getMaxPickupDate().add(
             Duration(days: BusinessLogicUtils.kStandardHours ~/ 8 + 2),
           ),
-          // EC-15 extended for delivery
-          isClosedDay: isClosedDay,
-          // EC-01/02/11
+          selectablePredicate: deliverySelectablePredicate,
           noSlotsMessage: BusinessLogicUtils.noSlotsReason(deliveryDate),
         ),
       ],
@@ -859,8 +925,7 @@ class _SchCard extends StatelessWidget {
   final InputDecoration Function(String, Color, bool) deco;
   final ValueChanged<DateTime> onDate;
   final ValueChanged<String> onTime;
-  final bool Function(DateTime)
-  isClosedDay; // EC-01/02: blocks weekends + holidays
+  final bool Function(DateTime) selectablePredicate;
 
   const _SchCard({
     required this.title,
@@ -876,7 +941,7 @@ class _SchCard extends StatelessWidget {
     required this.onDate,
     required this.onTime,
     required this.noSlotsMessage,
-    required this.isClosedDay,
+    required this.selectablePredicate,
     this.minDate,
     this.maxDate,
   });
@@ -936,11 +1001,10 @@ class _SchCard extends StatelessWidget {
                 onPressed: () async {
                   final now = DateTime.now();
                   final firstDate = minDate ?? now;
-                  // EC-15: cap to maxDate if provided, else 30-day window
                   final lastDate =
                       maxDate ?? BusinessLogicUtils.getMaxPickupDate();
                   DateTime initial =
-                      (date != null && !date!.isBefore(firstDate))
+                  (date != null && !date!.isBefore(firstDate))
                       ? date!
                       : firstDate;
                   final picked = await showDatePicker(
@@ -948,8 +1012,7 @@ class _SchCard extends StatelessWidget {
                     initialDate: initial,
                     firstDate: firstDate,
                     lastDate: lastDate,
-                    // EC-01/02: grey out weekends AND public holidays
-                    selectableDayPredicate: (DateTime val) => !isClosedDay(val),
+                    selectableDayPredicate: selectablePredicate,
                     builder: (ctx, child) => Theme(
                       data: Theme.of(ctx).copyWith(
                         colorScheme: ColorScheme.light(primary: accent),
@@ -963,64 +1026,33 @@ class _SchCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          if (!hasSlots && date != null)
-            Container(
-              padding: const EdgeInsets.all(14),
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.error.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.info_outline_rounded,
-                    color: AppColors.error,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      noSlotsMessage,
-                      style: GoogleFonts.alexandria(
-                        color: AppColors.error,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
+          DropdownButtonFormField<String>(
+            value: currentDisplayTime == 'Select time'
+                ? null
+                : currentDisplayTime,
+            hint: Text(
+              'Select time',
+              style: GoogleFonts.alexandria(fontSize: 14, color: Colors.grey),
+            ),
+            icon: Icon(Icons.keyboard_arrow_down_rounded, color: accent),
+            decoration: deco('Time', accent, isDark),
+            items: times
+                .map(
+                  (t) => DropdownMenuItem(
+                value: t,
+                child: Text(
+                  t,
+                  style: GoogleFonts.alexandria(fontSize: 14),
+                ),
               ),
             )
-          else
-            DropdownButtonFormField<String>(
-              value: currentDisplayTime == 'Select time'
-                  ? null
-                  : currentDisplayTime,
-              hint: Text(
-                'Select time',
-                style: GoogleFonts.alexandria(fontSize: 14, color: Colors.grey),
-              ),
-              icon: Icon(Icons.keyboard_arrow_down_rounded, color: accent),
-              decoration: deco('Time', accent, isDark),
-              items: times
-                  .map(
-                    (t) => DropdownMenuItem(
-                      value: t,
-                      child: Text(
-                        t,
-                        style: GoogleFonts.alexandria(fontSize: 14),
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: hasSlots
-                  ? (v) {
-                      if (v != null) onTime(v);
-                    }
-                  : null,
-            ),
+                .toList(),
+            onChanged: hasSlots
+                ? (v) {
+              if (v != null) onTime(v);
+            }
+                : null,
+          ),
         ],
       ),
     );
@@ -1035,7 +1067,6 @@ class _AddressStep extends StatefulWidget {
   final VoidCallback onChanged;
 
   const _AddressStep({
-    super.key,
     required this.addrCtrl,
     required this.noteCtrl,
     required this.isDark,
@@ -1119,7 +1150,7 @@ class _AddressStepState extends State<_AddressStep> {
                 GoogleMap(
                   gestureRecognizers: {
                     Factory<EagerGestureRecognizer>(
-                      () => EagerGestureRecognizer(),
+                          () => EagerGestureRecognizer(),
                     ),
                   },
                   initialCameraPosition: CameraPosition(
@@ -1186,6 +1217,41 @@ class _AddressStepState extends State<_AddressStep> {
                       ),
                     ),
                   ),
+                // UPDATED: Floating Address Bubble above the central pin
+                Align(
+                  alignment: Alignment.center,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 120),
+                    child: widget.addrCtrl.text.isEmpty || _isMoving
+                        ? const SizedBox.shrink()
+                        : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      constraints: const BoxConstraints(maxWidth: 250),
+                      decoration: BoxDecoration(
+                        color: widget.isDark ? AppColors.darkSurface : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        widget.addrCtrl.text,
+                        style: GoogleFonts.alexandria(
+                          fontSize: 11,
+                          color: widget.isDark ? Colors.white : AppColors.lightText,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ),
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 35),
@@ -1255,7 +1321,6 @@ class _PaymentStep extends StatelessWidget {
   final ValueChanged<int> onQuantityChanged;
 
   const _PaymentStep({
-    super.key,
     required this.selectedMethod,
     required this.perPcsPrice,
     required this.quantity,
@@ -1582,28 +1647,28 @@ class _BottomNav extends StatelessWidget {
               ),
               child: isLoading
                   ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
                   : Text(
-                      step < totalSteps
-                          ? 'Next'
-                          : (paymentMethod == PaymentMethod.stripe
-                                ? 'Pay Now'
-                                : 'Confirm'),
-                      style: GoogleFonts.alexandria(
-                        color: enabled
-                            ? Colors.white
-                            : (isDark
-                                  ? Colors.grey.shade500
-                                  : Colors.grey.shade400),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                step < totalSteps
+                    ? 'Next'
+                    : (paymentMethod == PaymentMethod.stripe
+                    ? 'Pay Now'
+                    : 'Confirm'),
+                style: GoogleFonts.alexandria(
+                  color: enabled
+                      ? Colors.white
+                      : (isDark
+                      ? Colors.grey.shade500
+                      : Colors.grey.shade400),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ),
@@ -1615,11 +1680,13 @@ class _BottomNav extends StatelessWidget {
 class _StepProgress extends StatelessWidget {
   final int step, totalSteps;
   final bool isDark;
+  final PageController pageController;
 
   const _StepProgress({
     required this.step,
     required this.totalSteps,
     required this.isDark,
+    required this.pageController,
   });
 
   @override
@@ -1630,51 +1697,100 @@ class _StepProgress extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       border: Border.all(color: AppColors.darkBorder),
     ),
-    child: Row(
-      children: List.generate(totalSteps * 2 - 1, (i) {
-        if (i.isEven) {
-          final s = i ~/ 2 + 1;
-          final done = s < step;
-          final active = s == step;
-          return Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              gradient: (done || active) ? AppColors.gradient : null,
-              color: (done || active)
-                  ? null
-                  : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: done
-                  ? const Icon(Icons.check, color: Colors.white, size: 16)
-                  : Text(
-                      '$s',
-                      style: GoogleFonts.alexandria(
-                        color: active ? Colors.white : Colors.grey,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-            ),
-          );
-        }
-        final done = (i ~/ 2 + 1) < step;
-        return Expanded(
-          child: Container(
-            height: 3,
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            decoration: BoxDecoration(
-              gradient: done ? AppColors.gradient : null,
-              color: done
-                  ? null
-                  : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
-              borderRadius: BorderRadius.circular(4),
+    child: Stack(
+      children: [
+        Positioned.fill(
+          child: Center(
+            child: Container(
+              height: 3,
+              margin: const EdgeInsets.symmetric(horizontal: 18),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
           ),
-        );
-      }),
+        ),
+        Positioned.fill(
+          child: Center(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return AnimatedBuilder(
+                  animation: pageController,
+                  builder: (context, child) {
+                    double page = pageController.hasClients ? (pageController.page ?? step - 1.0) : (step - 1.0);
+                    double progress = page / (totalSteps - 1);
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        height: 3,
+                        width: constraints.maxWidth * progress.clamp(0, 1),
+                        margin: const EdgeInsets.symmetric(horizontal: 18),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.gradient,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(totalSteps, (i) {
+            final s = i + 1;
+
+            return AnimatedBuilder(
+                animation: pageController,
+                builder: (context, child) {
+                  double page = pageController.hasClients ? (pageController.page ?? step - 1.0) : (step - 1.0);
+
+                  bool isDone = page > i;
+                  bool isActive = page.round() == i;
+
+                  Color circleColor = isDone || isActive ? AppColors.primary : (isDark ? Colors.grey.shade800 : Colors.grey.shade100);
+                  if (pageController.hasClients) {
+                    double distance = (page - i).abs();
+                    double t = (1.0 - distance).clamp(0.0, 1.0);
+                    circleColor = Color.lerp(
+                        isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                        AppColors.primary,
+                        isDone ? 1.0 : t
+                    )!;
+                  }
+
+                  return Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: circleColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isActive ? Colors.white.withOpacity(0.3) : Colors.transparent,
+                        width: 3,
+                      ),
+                    ),
+                    child: Center(
+                      child: isDone
+                          ? const Icon(Icons.check, color: Colors.white, size: 16)
+                          : Text(
+                        '$s',
+                        style: GoogleFonts.alexandria(
+                          color: isDone || isActive ? Colors.white : Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+            );
+          }),
+        ),
+      ],
     ),
   );
 }
@@ -1735,115 +1851,117 @@ class _PaymentOpt extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: selected
-            ? color.withOpacity(0.08)
-            : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
           color: selected
-              ? color
-              : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
-          width: selected ? 2 : 1,
+              ? color.withOpacity(0.08)
+              : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? color
+                : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            width: selected ? 2 : 1,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: selected
-                  ? color.withOpacity(0.12)
-                  : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              icon,
-              color: selected
-                  ? color
-                  : (isDark ? Colors.grey.shade400 : Colors.grey.shade500),
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.alexandria(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : AppColors.lightText,
-                      ),
-                    ),
-                    if (badge != null) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          badge!,
-                          style: GoogleFonts.alexandria(
-                            fontSize: 10,
-                            color: color,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.alexandria(
-                    fontSize: 12,
-                    color: isDark
-                        ? AppColors.darkSubtext
-                        : AppColors.lightSubtext,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: selected ? color : Colors.transparent,
-              border: Border.all(
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: selected
+                    ? color.withOpacity(0.12)
+                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                icon,
                 color: selected
                     ? color
-                    : (isDark ? Colors.grey.shade600 : Colors.grey.shade300),
-                width: 2,
+                    : (isDark ? Colors.grey.shade400 : Colors.grey.shade50),
+                size: 24,
               ),
             ),
-            child: selected
-                ? const Icon(Icons.check, color: Colors.white, size: 14)
-                : null,
-          ),
-        ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.alexandria(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppColors.lightText,
+                        ),
+                      ),
+                      if (badge != null) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            badge!,
+                            style: GoogleFonts.alexandria(
+                              fontSize: 10,
+                              color: color,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.alexandria(
+                      fontSize: 12,
+                      color: isDark
+                          ? AppColors.darkSubtext
+                          : AppColors.lightSubtext,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? color : Colors.transparent,
+                border: Border.all(
+                  color: selected
+                      ? color
+                      : (isDark ? Colors.grey.shade600 : Colors.grey.shade300),
+                  width: 2,
+                ),
+              ),
+              child: selected
+                  ? const Icon(Icons.check, color: Colors.white, size: 14)
+                  : null,
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _ServiceCard extends StatelessWidget {
@@ -1859,84 +1977,86 @@ class _ServiceCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: selected
-            ? (isDark
-                  ? AppColors.primary.withOpacity(0.15)
-                  : AppColors.primary.withOpacity(0.07))
-            : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
           color: selected
-              ? AppColors.primary
-              : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
-          width: selected ? 2 : 1,
+              ? (isDark
+              ? AppColors.primary.withOpacity(0.15)
+              : AppColors.primary.withOpacity(0.07))
+              : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: selected
+                ? AppColors.primary
+                : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            _ItemImage(
+              imageUrl: service.imageUrl,
+              fallbackIcon: Iconsax.drop,
+              selected: selected,
+              isDark: isDark,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    service.title,
+                    style: GoogleFonts.alexandria(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.lightText,
+                    ),
+                  ),
+                  if (service.subtitle.isNotEmpty)
+                    Text(
+                      service.subtitle,
+                      style: GoogleFonts.alexandria(
+                        fontSize: 12,
+                        color: isDark
+                            ? AppColors.darkSubtext
+                            : AppColors.lightSubtext,
+                      ),
+                      maxLines: 1,
+                    ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '৳${service.price.toStringAsFixed(0)}',
+                    style: GoogleFonts.alexandria(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              Container(
+                width: 28,
+                height: 28,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.gradient,
+                ),
+                child: const Icon(Icons.check, color: Colors.white, size: 16),
+              ),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          _ItemImage(
-            imageUrl: service.imageUrl,
-            fallbackIcon: Iconsax.drop,
-            selected: selected,
-            isDark: isDark,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  service.title,
-                  style: GoogleFonts.alexandria(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : AppColors.lightText,
-                  ),
-                ),
-                if (service.subtitle.isNotEmpty)
-                  Text(
-                    service.subtitle,
-                    style: GoogleFonts.alexandria(
-                      fontSize: 12,
-                      color: isDark
-                          ? AppColors.darkSubtext
-                          : AppColors.lightSubtext,
-                    ),
-                    maxLines: 1,
-                  ),
-                const SizedBox(height: 10),
-                Text(
-                  '৳${service.price.toStringAsFixed(0)}',
-                  style: GoogleFonts.alexandria(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (selected)
-            Container(
-              width: 28,
-              height: 28,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: AppColors.gradient,
-              ),
-              child: const Icon(Icons.check, color: Colors.white, size: 16),
-            ),
-        ],
-      ),
-    ),
-  );
+    );
+  }
 }
 
 class _StoreCard extends StatelessWidget {
@@ -1952,82 +2072,84 @@ class _StoreCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: selected
-            ? (isDark
-                  ? AppColors.primary.withOpacity(0.15)
-                  : AppColors.primary.withOpacity(0.07))
-            : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
           color: selected
-              ? AppColors.primary
-              : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
-          width: selected ? 2 : 1,
+              ? (isDark
+              ? AppColors.primary.withOpacity(0.15)
+              : AppColors.primary.withOpacity(0.07))
+              : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: selected
+                ? AppColors.primary
+                : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            _ItemImage(
+              imageUrl: store.logoUrl,
+              fallbackIcon: Iconsax.shop,
+              selected: selected,
+              isDark: isDark,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    store.name,
+                    style: GoogleFonts.alexandria(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.lightText,
+                    ),
+                  ),
+                  Text(
+                    store.address,
+                    style: GoogleFonts.alexandria(
+                      fontSize: 12,
+                      color: isDark
+                          ? AppColors.darkSubtext
+                          : AppColors.lightSubtext,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    store.distance,
+                    style: GoogleFonts.alexandria(
+                      fontSize: 11,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              Container(
+                width: 28,
+                height: 28,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.gradient,
+                ),
+                child: const Icon(Icons.check, color: Colors.white, size: 16),
+              ),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          _ItemImage(
-            imageUrl: store.logoUrl,
-            fallbackIcon: Iconsax.shop,
-            selected: selected,
-            isDark: isDark,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  store.name,
-                  style: GoogleFonts.alexandria(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : AppColors.lightText,
-                  ),
-                ),
-                Text(
-                  store.address,
-                  style: GoogleFonts.alexandria(
-                    fontSize: 12,
-                    color: isDark
-                        ? AppColors.darkSubtext
-                        : AppColors.lightSubtext,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  store.distance,
-                  style: GoogleFonts.alexandria(
-                    fontSize: 11,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (selected)
-            Container(
-              width: 28,
-              height: 28,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: AppColors.gradient,
-              ),
-              child: const Icon(Icons.check, color: Colors.white, size: 16),
-            ),
-        ],
-      ),
-    ),
-  );
+    );
+  }
 }
 
 class _ItemImage extends StatelessWidget {
@@ -2043,28 +2165,79 @@ class _ItemImage extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: 56,
-    height: 56,
-    decoration: BoxDecoration(
-      gradient: selected && imageUrl == null ? AppColors.gradient : null,
-      color: selected
-          ? null
-          : (isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9)),
-      borderRadius: BorderRadius.circular(15),
-    ),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(15),
-      child: imageUrl != null
-          ? CachedNetworkImage(
-              imageUrl: imageUrl!,
-              fit: BoxFit.cover,
-              errorWidget: (_, _, _) => Icon(
-                fallbackIcon,
-                color: selected ? Colors.white : Colors.grey,
-              ),
-            )
-          : Icon(fallbackIcon, color: selected ? Colors.white : Colors.grey),
-    ),
-  );
+  Widget build(BuildContext context) {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: selected && imageUrl == null ? AppColors.gradient : null,
+        color: selected
+            ? null
+            : (isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9)),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: imageUrl != null
+            ? CachedNetworkImage(
+          imageUrl: imageUrl!,
+          fit: BoxFit.cover,
+          errorWidget: (_, _, _) => Icon(
+            fallbackIcon,
+            color: selected ? Colors.white : Colors.grey,
+          ),
+        )
+            : Icon(fallbackIcon, color: selected ? Colors.white : Colors.grey),
+      ),
+    );
+  }
+}
+
+class _ServiceImage extends StatelessWidget {
+  final String? imageUrl;
+  final bool isDark;
+  const _ServiceImage({this.imageUrl, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 54,
+      width: 54,
+      decoration: BoxDecoration(
+        gradient: imageUrl == null ? AppColors.gradient : null,
+        color: imageUrl != null
+            ? (isDark ? AppColors.darkSurface : Colors.grey.shade100)
+            : null,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: AppColors.primary.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 3))
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: imageUrl != null
+            ? CachedNetworkImage(
+          imageUrl: imageUrl!,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Shimmer.fromColors(
+            baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+            highlightColor:
+            isDark ? Colors.grey[700]! : Colors.grey[100]!,
+            child: Container(color: Colors.white),
+          ),
+          errorWidget: (_, __, ___) => Container(
+              decoration: BoxDecoration(
+                  gradient: AppColors.gradient,
+                  borderRadius: BorderRadius.circular(16)),
+              child: const Icon(Icons.local_laundry_service,
+                  color: Colors.white, size: 28)),
+        )
+            : const Icon(Icons.local_laundry_service,
+            color: Colors.white, size: 28),
+      ),
+    );
+  }
 }

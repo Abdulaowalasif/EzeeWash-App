@@ -205,9 +205,9 @@ class _PoSchCard extends StatelessWidget {
                   final lastDate =
                       maxDate ?? BusinessLogicUtils.getMaxPickupDate();
                   DateTime initial =
-                      (date != null && !date!.isBefore(firstDate))
-                          ? date!
-                          : firstDate;
+                  (date != null && !date!.isBefore(firstDate))
+                      ? date!
+                      : firstDate;
                   final picked = await showDatePicker(
                     context: context,
                     initialDate: initial,
@@ -227,52 +227,24 @@ class _PoSchCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          // Time picker or "no slots" notice
-          if (!hasSlots && date != null)
-            Container(
-              padding: const EdgeInsets.all(14),
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border:
-                    Border.all(color: AppColors.error.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline_rounded,
-                      color: AppColors.error, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      noSlotsMessage,
-                      style: GoogleFonts.alexandria(
-                        color: AppColors.error,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            DropdownButtonFormField<String>(
-              value: currentDisplayTime,
-              hint: Text('Select time',
-                  style: GoogleFonts.alexandria(
-                      fontSize: 14, color: Colors.grey)),
-              icon: Icon(Icons.keyboard_arrow_down_rounded, color: accent),
-              decoration: deco('Time', accent, isDark),
-              items: times
-                  .map((t) => DropdownMenuItem(
-                        value: t,
-                        child: Text(t,
-                            style: GoogleFonts.alexandria(fontSize: 14)),
-                      ))
-                  .toList(),
-              onChanged: hasSlots ? (v) { if (v != null) onTime(v); } : null,
-            ),
+          // UPDATED: Removed the "no slots" error notice.
+          // Users will now only see available slots in the dropdown.
+          DropdownButtonFormField<String>(
+            value: currentDisplayTime,
+            hint: Text('Select time',
+                style: GoogleFonts.alexandria(
+                    fontSize: 14, color: Colors.grey)),
+            icon: Icon(Icons.keyboard_arrow_down_rounded, color: accent),
+            decoration: deco('Time', accent, isDark),
+            items: times
+                .map((t) => DropdownMenuItem(
+              value: t,
+              child: Text(t,
+                  style: GoogleFonts.alexandria(fontSize: 14)),
+            ))
+                .toList(),
+            onChanged: hasSlots ? (v) { if (v != null) onTime(v); } : null,
+          ),
         ],
       ),
     );

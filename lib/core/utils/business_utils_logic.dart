@@ -509,6 +509,109 @@ class BusinessLogicUtils {
     );
   }
 
+  // ─── Available Slots (capacity-filtered, for Order & Re-Order) ───────────
+  /// Like [getAvailableSlots] but additionally checks Supabase slot capacity
+  /// (EC-19/37/38/50/52) and removes fully-booked slots from the list.
+  ///
+  /// Use this on the **order** and **re-order** screens so users never see
+  /// slots that are at capacity.
+  static Future<List<String>> getAvailableSlotsFiltered(
+      String storeId,
+      DateTime date, {
+        bool isPickup = true,
+        int? minHourOverride,
+        List<String> categories = const [],
+        String zone = 'default',
+        bool isSubscriptionUser = false,
+        bool isVIP = false,
+        double orderValue = 0.0,
+        int activeRiders = 10,
+        int orderItemCount = 1,
+        StoreHours? storeOverride,
+      }) async {
+    final slots = getAvailableSlots(
+      date,
+      isPickup: isPickup,
+      minHourOverride: minHourOverride,
+      categories: categories,
+      zone: zone,
+      isSubscriptionUser: isSubscriptionUser,
+      storeOverride: storeOverride,
+    );
+
+    if (slots.isEmpty) return [];
+
+    // Check each slot's capacity concurrently for performance.
+    final checks = await Future.wait(
+      slots.map((slot) => isSlotAvailable(
+        storeId,
+        date,
+        slot,
+        isVIP: isVIP,
+        orderValue: orderValue,
+        activeRiders: activeRiders,
+        orderItemCount: orderItemCount,
+      )),
+    );
+
+    return [
+      for (int i = 0; i < slots.length; i++)
+        if (checks[i]) slots[i],
+    ];
+  }
+
+  /// Like [getDeliverySlots] but additionally filters out fully-booked slots.
+  ///
+  /// Use this on the **order** and **re-order** screens for delivery slot
+  /// selection so unavailable slots are never presented to the user.
+  static Future<List<String>> getDeliverySlotsFiltered(
+      String storeId,
+      DateTime deliveryDate, {
+        required DateTime pickupDate,
+        required String pickupTime,
+        required String serviceName,
+        List<String> categories = const [],
+        int totalItems = 1,
+        String zone = 'default',
+        bool isSubscriptionUser = false,
+        bool isVIP = false,
+        double orderValue = 0.0,
+        int activeRiders = 10,
+        int orderItemCount = 1,
+        StoreHours? storeOverride,
+      }) async {
+    final slots = getDeliverySlots(
+      deliveryDate,
+      pickupDate: pickupDate,
+      pickupTime: pickupTime,
+      serviceName: serviceName,
+      categories: categories,
+      totalItems: totalItems,
+      zone: zone,
+      isSubscriptionUser: isSubscriptionUser,
+      storeOverride: storeOverride,
+    );
+
+    if (slots.isEmpty) return [];
+
+    final checks = await Future.wait(
+      slots.map((slot) => isSlotAvailable(
+        storeId,
+        deliveryDate,
+        slot,
+        isVIP: isVIP,
+        orderValue: orderValue,
+        activeRiders: activeRiders,
+        orderItemCount: orderItemCount,
+      )),
+    );
+
+    return [
+      for (int i = 0; i < slots.length; i++)
+        if (checks[i]) slots[i],
+    ];
+  }
+
   // ─── Min Delivery DateTime ────────────────────────────────────────────────
   /// Counts [hoursNeeded] *business* hours forward from pickup moment.
   /// EC-09/10/12/25/32/33/34/53/58/60
