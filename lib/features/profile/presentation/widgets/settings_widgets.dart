@@ -3,14 +3,22 @@
 // All UI widgets for the settings screen, extracted so the screen only
 // owns state (editing toggle, receipt date) and BLoC wiring.
 //
+// All repeated decoration/styling now delegates to core widgets:
+//   AppCard           — surface container
+//   AppIconBox        — icon in a tinted box
+//   AppSectionLabel   — caps section label (caps: true)
+//   AppConfirmDialog  — sign-out confirm dialog
+//   AppGradientButton — save / gradient button
+//   AppSnackBar       — snack bar display
+//
 // Exports:
 //   SettingsProfileCard    – avatar + name/email/phone + edit toggle
 //   SettingsEditCard       – editable name/phone/address fields + save/cancel
 //   SettingsMenuCard       – bordered card wrapping a list of tiles with dividers
 //   SettingsMenuTile       – icon + label + trailing arrow list tile
 //   SettingsSwitchTile     – icon + label + Switch list tile
-//   SettingsSectionLabel   – small uppercased section heading
-//   SettingsLogoutButton   – red outlined sign-out button with confirm dialog
+//   SettingsSectionLabel   — thin wrapper over AppSectionLabel(caps: true)
+//   SettingsLogoutButton   – red outlined sign-out button
 //   SettingsReceiptPicker  – date + order dropdown + download tile
 
 import 'dart:io';
@@ -24,6 +32,9 @@ import 'package:printing/printing.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/service/pdf_service.dart';
+import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/common_widgets.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../orders/domain/entities/order_entity.dart';
 import '../../../orders/presentation/bloc/orders_bloc.dart';
@@ -34,6 +45,8 @@ import '../bloc/profile_event.dart';
 
 // ─── Section label ────────────────────────────────────────────────────────────
 
+/// Thin wrapper that renders a caps-style section label (ACCOUNT, SUPPORT…).
+/// Delegates to [AppSectionLabel] with [caps: true].
 class SettingsSectionLabel extends StatelessWidget {
   final String label;
   final bool isDark;
@@ -42,20 +55,8 @@ class SettingsSectionLabel extends StatelessWidget {
       {super.key, required this.label, required this.isDark});
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(left: 4),
-        child: Text(
-          label.toUpperCase(),
-          style: GoogleFonts.alexandria(
-            fontWeight: FontWeight.bold,
-            fontSize: 11,
-            letterSpacing: 1.2,
-            color: isDark
-                ? AppColors.darkSubtext
-                : AppColors.lightSubtext,
-          ),
-        ),
-      );
+  Widget build(BuildContext context) =>
+      AppSectionLabel(text: label, isDark: isDark, caps: true);
 }
 
 // ─── Profile card ─────────────────────────────────────────────────────────────
@@ -79,32 +80,26 @@ class SettingsProfileCard extends StatelessWidget {
   });
 
   Widget _avatarFallback() => Container(
-        color: AppColors.primary.withOpacity(0.1),
-        child: Center(
-          child: Text(
-            (profile.fullName?.isNotEmpty == true
-                    ? profile.fullName![0]
-                    : profile.email?[0] ?? 'U')
-                .toUpperCase(),
-            style: GoogleFonts.pacifico(
-                color: AppColors.primary, fontSize: 28),
-          ),
-        ),
-      );
+    color: AppColors.primary.withOpacity(0.1),
+    child: Center(
+      child: Text(
+        (profile.fullName?.isNotEmpty == true
+            ? profile.fullName![0]
+            : profile.email?[0] ?? 'U')
+            .toUpperCase(),
+        style: GoogleFonts.pacifico(
+            color: AppColors.primary, fontSize: 28),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-        ),
-      ),
+    return AppCard(
+      isDark: isDark,
       child: Row(
         children: [
+          // ── Avatar with camera badge ──────────────────────────────
           GestureDetector(
             onTap: onPickAvatar,
             child: Stack(
@@ -114,17 +109,15 @@ class SettingsProfileCard extends StatelessWidget {
                   height: 70,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(
-                        color: AppColors.primary, width: 2),
+                    border: Border.all(color: AppColors.primary, width: 2),
                   ),
                   child: ClipOval(
                     child: profile.avatarUrl != null
                         ? Image.network(
-                            profile.avatarUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                _avatarFallback(),
-                          )
+                      profile.avatarUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _avatarFallback(),
+                    )
                         : _avatarFallback(),
                   ),
                 ),
@@ -149,47 +142,35 @@ class SettingsProfileCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
+
+          // ── Name / email / phone ──────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   profile.fullName ?? 'User',
-                  style: GoogleFonts.alexandria(
-                    color: isDark ? Colors.white : AppColors.lightText,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
+                  style: AppTextStyles.sectionTitle(isDark),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   profile.email ?? '',
-                  style: GoogleFonts.alexandria(
-                    color: isDark
-                        ? AppColors.darkSubtext
-                        : AppColors.lightSubtext,
-                    fontSize: 13,
-                  ),
+                  style: AppTextStyles.subtitle(isDark),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (profile.phone != null) ...[
                   const SizedBox(height: 2),
-                  Text(
-                    profile.phone!,
-                    style: GoogleFonts.alexandria(
-                      color: isDark
-                          ? AppColors.darkSubtext
-                          : AppColors.lightSubtext,
-                      fontSize: 13,
-                    ),
-                  ),
+                  Text(profile.phone!,
+                      style: AppTextStyles.subtitle(isDark)),
                 ],
               ],
             ),
           ),
+
+          // ── Edit / loading button ─────────────────────────────────
           if (isUpdating)
             const SizedBox(
               width: 22,
@@ -200,17 +181,9 @@ class SettingsProfileCard extends StatelessWidget {
           else
             GestureDetector(
               onTap: onEditToggle,
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  isEditing ? Icons.close_rounded : Iconsax.edit,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
+              child: AppIconBox(
+                icon: isEditing ? Icons.close_rounded : Iconsax.edit,
+                borderRadius: 12,
               ),
             ),
         ],
@@ -237,141 +210,99 @@ class SettingsEditCard extends StatelessWidget {
   });
 
   InputDecoration _deco(String hint, IconData icon) => InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-        prefixIcon: Icon(icon,
-            color: AppColors.primary.withOpacity(0.7), size: 20),
-        filled: true,
-        fillColor: isDark
-            ? AppColors.darkBackground
-            : AppColors.lightBackground,
-        contentPadding: const EdgeInsets.all(16),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-              color: isDark
-                  ? AppColors.darkBorder
-                  : AppColors.lightBorder),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide:
-              const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
-      );
+    hintText: hint,
+    hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+    prefixIcon: Icon(icon,
+        color: AppColors.primary.withOpacity(0.7), size: 20),
+    filled: true,
+    fillColor:
+    isDark ? AppColors.darkBackground : AppColors.lightBackground,
+    contentPadding: const EdgeInsets.all(16),
+    border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide:
+      const BorderSide(color: AppColors.primary, width: 1.5),
+    ),
+  );
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          ),
+  Widget build(BuildContext context) => AppCard(
+    isDark: isDark,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Edit Profile', style: AppTextStyles.sectionTitle(isDark)),
+        const SizedBox(height: 18),
+        TextField(
+          controller: nameCtrl,
+          style: AppTextStyles.input,
+          decoration: _deco('Full name', Iconsax.user),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        const SizedBox(height: 12),
+        TextField(
+          controller: phoneCtrl,
+          style: AppTextStyles.input,
+          keyboardType: TextInputType.phone,
+          decoration: _deco('Phone number', Iconsax.call),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: addrCtrl,
+          style: AppTextStyles.input,
+          maxLines: 2,
+          decoration: _deco('Address', Icons.location_on_outlined),
+        ),
+        const SizedBox(height: 18),
+
+        // ── Cancel / Save buttons ─────────────────────────────────
+        Row(
           children: [
-            Text(
-              'Edit Profile',
-              style: GoogleFonts.alexandria(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: isDark ? Colors.white : AppColors.lightText,
+            Expanded(
+              child: OutlinedButton(
+                onPressed: onCancel,
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                      color: isDark
+                          ? Colors.white24
+                          : Colors.grey.shade300),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  'Cancel',
+                  style: AppTextStyles.body(isDark).copyWith(
+                      color: isDark ? Colors.white70 : Colors.black54),
+                ),
               ),
             ),
-            const SizedBox(height: 18),
-            TextField(
-              controller: nameCtrl,
-              style: GoogleFonts.alexandria(fontSize: 14),
-              decoration: _deco('Full name', Iconsax.user),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneCtrl,
-              style: GoogleFonts.alexandria(fontSize: 14),
-              keyboardType: TextInputType.phone,
-              decoration: _deco('Phone number', Iconsax.call),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: addrCtrl,
-              style: GoogleFonts.alexandria(fontSize: 14),
-              maxLines: 2,
-              decoration:
-                  _deco('Address', Icons.location_on_outlined),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onCancel,
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(
-                          color: isDark
-                              ? Colors.white24
-                              : Colors.grey.shade300),
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(
-                      'Cancel',
-                      style: GoogleFonts.alexandria(
-                          color: isDark
-                              ? Colors.white70
-                              : Colors.black54),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: AppColors.gradient,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      onPressed: onSave,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(
-                        'Save',
-                        style: GoogleFonts.alexandria(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: AppGradientButton(
+                label: 'Save',
+                onPressed: onSave,
+                verticalPadding: 13,
+                borderRadius: 12,
+              ),
             ),
           ],
         ),
-      );
+      ],
+    ),
+  );
 }
 
 // ─── Menu card ────────────────────────────────────────────────────────────────
 
+/// A bordered card wrapping a list of setting tiles with dividers between them.
 class SettingsMenuCard extends StatelessWidget {
   final List<Widget> items;
   final bool isDark;
@@ -380,31 +311,25 @@ class SettingsMenuCard extends StatelessWidget {
       {super.key, required this.items, required this.isDark});
 
   @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          ),
-        ),
-        child: Column(
-          children: List.generate(
-            items.length,
+  Widget build(BuildContext context) => AppCard(
+    isDark: isDark,
+    padding: EdgeInsets.zero,
+    borderRadius: 20,
+    child: Column(
+      children: List.generate(
+        items.length,
             (i) => Column(children: [
-              items[i],
-              if (i < items.length - 1)
-                Divider(
-                  height: 1,
-                  color: isDark
-                      ? AppColors.darkBorder
-                      : AppColors.lightBorder,
-                  indent: 56,
-                ),
-            ]),
-          ),
-        ),
-      );
+          items[i],
+          if (i < items.length - 1)
+            Divider(
+              height: 1,
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              indent: 56,
+            ),
+        ]),
+      ),
+    ),
+  );
 }
 
 // ─── Menu tile ────────────────────────────────────────────────────────────────
@@ -427,29 +352,19 @@ class SettingsMenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-        onTap: onTap,
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 18, color: AppColors.primary),
-        ),
-        title: Text(
-          label,
-          style: GoogleFonts.alexandria(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: isDark ? Colors.white : AppColors.lightText,
-          ),
-        ),
-        trailing: trailing ??
-            const Icon(Icons.arrow_forward_ios_rounded,
-                size: 14, color: Colors.grey),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      );
+    onTap: onTap,
+    leading: AppIconBox(icon: icon),
+    title: Text(
+      label,
+      style: AppTextStyles.body(isDark)
+          .copyWith(fontWeight: FontWeight.w500),
+    ),
+    trailing: trailing ??
+        const Icon(Icons.arrow_forward_ios_rounded,
+            size: 14, color: Colors.grey),
+    contentPadding:
+    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+  );
 }
 
 // ─── Switch tile ──────────────────────────────────────────────────────────────
@@ -472,31 +387,21 @@ class SettingsSwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 18, color: AppColors.primary),
-        ),
-        title: Text(
-          label,
-          style: GoogleFonts.alexandria(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: isDark ? Colors.white : AppColors.lightText,
-          ),
-        ),
-        trailing: Switch(
-          value: value,
-          onChanged: onChanged,
-          activeColor: Colors.white,
-          activeTrackColor: AppColors.primary,
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      );
+    leading: AppIconBox(icon: icon),
+    title: Text(
+      label,
+      style: AppTextStyles.body(isDark)
+          .copyWith(fontWeight: FontWeight.w500),
+    ),
+    trailing: Switch(
+      value: value,
+      onChanged: onChanged,
+      activeColor: Colors.white,
+      activeTrackColor: AppColors.primary,
+    ),
+    contentPadding:
+    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+  );
 }
 
 // ─── Logout button ────────────────────────────────────────────────────────────
@@ -506,69 +411,34 @@ class SettingsLogoutButton extends StatelessWidget {
 
   const SettingsLogoutButton({super.key, required this.isDark});
 
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20)),
-        title: Text('Sign Out?',
-            style: GoogleFonts.alexandria(
-                fontWeight: FontWeight.bold)),
-        content: Text(
-          'Are you sure you want to sign out?',
-          style: GoogleFonts.alexandria(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(),
-            child: Text('Cancel',
-                style: GoogleFonts.alexandria(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                )),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(dialogCtx).pop();
-              context
-                  .read<AuthBloc>()
-                  .add(const AuthSignOutRequested());
-            },
-            child: Text('Sign Out',
-                style: GoogleFonts.alexandria(
-                  color: AppColors.error,
-                  fontWeight: FontWeight.w600,
-                )),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: () => _showLogoutDialog(context),
-          icon: const Icon(Icons.logout_rounded,
-              color: AppColors.error),
-          label: Text(
-            'Sign Out',
-            style: GoogleFonts.alexandria(
-              color: AppColors.error,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(
-                color: AppColors.error.withOpacity(0.5)),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16)),
-          ),
-        ),
-      );
+    width: double.infinity,
+    child: OutlinedButton.icon(
+      onPressed: () => AppConfirmDialog.show(
+        context,
+        title: 'Sign Out?',
+        message: 'Are you sure you want to sign out?',
+        confirmLabel: 'Sign Out',
+        confirmColor: AppColors.error,
+        onConfirm: () => context
+            .read<AuthBloc>()
+            .add(const AuthSignOutRequested()),
+      ),
+      icon: const Icon(Icons.logout_rounded, color: AppColors.error),
+      label: Text(
+        'Sign Out',
+        style: AppTextStyles.buttonOutline
+            .copyWith(color: AppColors.error, fontWeight: FontWeight.bold),
+      ),
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(color: AppColors.error.withOpacity(0.5)),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16)),
+      ),
+    ),
+  );
 }
 
 // ─── Receipt picker ───────────────────────────────────────────────────────────
@@ -597,96 +467,38 @@ class _SettingsReceiptPickerState extends State<SettingsReceiptPicker> {
 
         final filtered = _selectedDate == null
             ? state.orders
-            : state.orders.where((o) =>
-                o.createdAt.year == _selectedDate!.year &&
-                o.createdAt.month == _selectedDate!.month &&
-                o.createdAt.day == _selectedDate!.day).toList();
+            : state.orders
+            .where((o) =>
+        o.createdAt.year == _selectedDate!.year &&
+            o.createdAt.month == _selectedDate!.month &&
+            o.createdAt.day == _selectedDate!.day)
+            .toList();
 
-        return Container(
+        return AppCard(
+          isDark: widget.isDark,
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: widget.isDark
-                ? AppColors.darkSurface
-                : AppColors.lightSurface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: widget.isDark
-                  ? AppColors.darkBorder
-                  : AppColors.lightBorder,
-            ),
-          ),
+          borderRadius: 20,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Date filter
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _selectedDate ?? DateTime.now(),
-                    firstDate: DateTime(2023),
-                    lastDate: DateTime.now(),
-                    builder: (ctx, child) => Theme(
-                      data: widget.isDark
-                          ? ThemeData.dark().copyWith(
-                              colorScheme: const ColorScheme.dark(
-                                  primary: AppColors.primary))
-                          : ThemeData.light().copyWith(
-                              colorScheme: const ColorScheme.light(
-                                  primary: AppColors.primary)),
-                      child: child!,
-                    ),
-                  );
-                  if (picked != null) {
+              // ── Date filter ───────────────────────────────────────
+              _DateFilterRow(
+                isDark: widget.isDark,
+                selectedDate: _selectedDate,
+                onDatePicked: (d) =>
                     setState(() {
-                      _selectedDate = picked;
+                      _selectedDate = d;
                       _selectedOrder = null;
-                    });
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: widget.isDark
-                          ? AppColors.darkBorder
-                          : AppColors.lightBorder,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Iconsax.calendar,
-                          size: 18, color: AppColors.primary),
-                      const SizedBox(width: 12),
-                      Text(
-                        _selectedDate == null
-                            ? 'Filter by Date (Optional)'
-                            : DateFormat('MMM dd, yyyy')
-                                .format(_selectedDate!),
-                        style: GoogleFonts.alexandria(
-                          fontSize: 13,
-                          color: widget.isDark
-                              ? Colors.white
-                              : AppColors.lightText,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (_selectedDate != null)
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 16),
-                          onPressed: () => setState(() {
-                            _selectedDate = null;
-                            _selectedOrder = null;
-                          }),
-                        ),
-                    ],
-                  ),
-                ),
+                    }),
+                onClear: () =>
+                    setState(() {
+                      _selectedDate = null;
+                      _selectedOrder = null;
+                    }),
               ),
               const SizedBox(height: 12),
-              // Order dropdown
+
+              // ── Order dropdown ────────────────────────────────────
               DropdownButtonFormField<OrderEntity>(
                 value: _selectedOrder,
                 isExpanded: true,
@@ -694,12 +506,7 @@ class _SettingsReceiptPickerState extends State<SettingsReceiptPicker> {
                   filtered.isEmpty
                       ? 'No orders on this date'
                       : 'Select Order Number',
-                  style: GoogleFonts.alexandria(
-                    fontSize: 13,
-                    color: widget.isDark
-                        ? AppColors.darkSubtext
-                        : AppColors.lightSubtext,
-                  ),
+                  style: AppTextStyles.subtitle(widget.isDark),
                 ),
                 dropdownColor: widget.isDark
                     ? AppColors.darkSurface
@@ -726,23 +533,19 @@ class _SettingsReceiptPickerState extends State<SettingsReceiptPicker> {
                 ),
                 items: filtered
                     .map((o) => DropdownMenuItem<OrderEntity>(
-                          value: o,
-                          child: Text(
-                            'Order #${o.orderNumber}',
-                            style: GoogleFonts.alexandria(
-                              fontSize: 14,
-                              color: widget.isDark
-                                  ? Colors.white
-                                  : AppColors.lightText,
-                            ),
-                          ),
-                        ))
+                  value: o,
+                  child: Text(
+                    'Order #${o.orderNumber}',
+                    style: AppTextStyles.body(widget.isDark),
+                  ),
+                ))
                     .toList(),
                 onChanged: filtered.isEmpty
                     ? null
                     : (v) => setState(() => _selectedOrder = v),
               ),
-              // Download button
+
+              // ── Download button ───────────────────────────────────
               if (_selectedOrder != null) ...[
                 const SizedBox(height: 16),
                 SettingsMenuTile(
@@ -771,29 +574,84 @@ class _SettingsReceiptPickerState extends State<SettingsReceiptPicker> {
     );
   }
 
-  Widget _emptyCard() => Container(
-        padding: const EdgeInsets.all(16),
+  Widget _emptyCard() => AppCard(
+    isDark: widget.isDark,
+    padding: const EdgeInsets.all(16),
+    borderRadius: 20,
+    child: Center(
+      child: Text('No orders found',
+          style: AppTextStyles.caption(widget.isDark)),
+    ),
+  );
+}
+
+// ─── Date filter row (private) ────────────────────────────────────────────────
+
+class _DateFilterRow extends StatelessWidget {
+  final bool isDark;
+  final DateTime? selectedDate;
+  final ValueChanged<DateTime> onDatePicked;
+  final VoidCallback onClear;
+
+  const _DateFilterRow({
+    required this.isDark,
+    required this.selectedDate,
+    required this.onDatePicked,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: selectedDate ?? DateTime.now(),
+          firstDate: DateTime(2023),
+          lastDate: DateTime.now(),
+          builder: (ctx, child) => Theme(
+            data: isDark
+                ? ThemeData.dark().copyWith(
+                colorScheme:
+                const ColorScheme.dark(primary: AppColors.primary))
+                : ThemeData.light().copyWith(
+                colorScheme:
+                const ColorScheme.light(primary: AppColors.primary)),
+            child: child!,
+          ),
+        );
+        if (picked != null) onDatePicked(picked);
+      },
+      child: Container(
+        padding:
+        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: widget.isDark
-              ? AppColors.darkSurface
-              : AppColors.lightSurface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: widget.isDark
-                ? AppColors.darkBorder
-                : AppColors.lightBorder,
+            color:
+            isDark ? AppColors.darkBorder : AppColors.lightBorder,
           ),
         ),
-        child: Center(
-          child: Text(
-            'No orders found',
-            style: GoogleFonts.alexandria(
-              fontSize: 12,
-              color: widget.isDark
-                  ? AppColors.darkSubtext
-                  : AppColors.lightSubtext,
+        child: Row(
+          children: [
+            const Icon(Iconsax.calendar,
+                size: 18, color: AppColors.primary),
+            const SizedBox(width: 12),
+            Text(
+              selectedDate == null
+                  ? 'Filter by Date (Optional)'
+                  : DateFormat('MMM dd, yyyy').format(selectedDate!),
+              style: AppTextStyles.body(isDark).copyWith(fontSize: 13),
             ),
-          ),
+            const Spacer(),
+            if (selectedDate != null)
+              IconButton(
+                icon: const Icon(Icons.close, size: 16),
+                onPressed: onClear,
+              ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }

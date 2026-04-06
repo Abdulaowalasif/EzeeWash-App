@@ -1,4 +1,8 @@
 // lib/features/services/presentation/widgets/service_card.dart
+//
+// Refactored: all inline GoogleFonts.alexandria calls replaced with
+// AppTextStyles. All repeated container/decoration patterns use AppCard
+// for the outer shell and AppIconBox where applicable.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -6,7 +10,9 @@ import 'package:iconsax/iconsax.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_network_image.dart';
+import '../../../../core/widgets/common_widgets.dart';
 import '../../../../routes/routes_name.dart';
 import '../../domain/entities/service_entity.dart';
 import 'service_review_sheet.dart';
@@ -15,26 +21,15 @@ class ServiceCard extends StatelessWidget {
   final ServiceEntity service;
   final bool isDark;
 
-  const ServiceCard({super.key, required this.service, required this.isDark});
+  const ServiceCard(
+      {super.key, required this.service, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-        boxShadow: isDark
-            ? []
-            : [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+    // AppCard handles surface color, border, shadow — no duplication.
+    return AppCard(
+      isDark: isDark,
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -114,7 +109,8 @@ class _ServiceHeaderRow extends StatelessWidget {
   final ServiceEntity service;
   final bool isDark;
 
-  const _ServiceHeaderRow({required this.service, required this.isDark});
+  const _ServiceHeaderRow(
+      {required this.service, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -127,7 +123,8 @@ class _ServiceHeaderRow extends StatelessWidget {
             children: [
               Text(
                 service.title,
-                style: AppTextStyles.heading(isDark).copyWith(fontSize: 16),
+                style:
+                AppTextStyles.heading(isDark).copyWith(fontSize: 16),
               ),
               const SizedBox(height: 4),
               Text(
@@ -148,7 +145,8 @@ class _ServiceHeaderRow extends StatelessWidget {
               style: AppTextStyles.priceLarge,
             ),
             if (service.duration != null)
-              Text(service.duration!, style: AppTextStyles.caption(isDark)),
+              Text(service.duration!,
+                  style: AppTextStyles.caption(isDark)),
           ],
         ),
       ],
@@ -170,7 +168,9 @@ class _ServiceTags extends StatelessWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 6,
-      children: tags.map((t) => _TagChip(tag: t, isDark: isDark)).toList(),
+      children: tags
+          .map((t) => _TagChip(tag: t, isDark: isDark))
+          .toList(),
     );
   }
 }
@@ -183,7 +183,8 @@ class _TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    padding:
+    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
       color: isDark
           ? AppColors.primary.withOpacity(0.2)
@@ -193,7 +194,8 @@ class _TagChip extends StatelessWidget {
     child: Text(
       tag,
       style: AppTextStyles.captionMedium(isDark).copyWith(
-        color: isDark ? Colors.blue.shade300 : AppColors.primary,
+        color:
+        isDark ? Colors.blue.shade300 : AppColors.primary,
         fontWeight: FontWeight.w600,
       ),
     ),
@@ -206,12 +208,14 @@ class _ServiceActions extends StatelessWidget {
   final ServiceEntity service;
   final bool isDark;
 
-  const _ServiceActions({required this.service, required this.isDark});
+  const _ServiceActions(
+      {required this.service, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
+        // ── Reviews (outline) ───────────────────────────────────
         Expanded(
           child: OutlinedButton.icon(
             icon: const Icon(Iconsax.star,
@@ -219,15 +223,19 @@ class _ServiceActions extends StatelessWidget {
             onPressed: () =>
                 ServiceReviewSheet.show(context, service, isDark),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.primary, width: 1.5),
+              side: const BorderSide(
+                  color: AppColors.primary, width: 1.5),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            label: Text('Reviews', style: AppTextStyles.buttonOutline),
+            label:
+            Text('Reviews', style: AppTextStyles.buttonOutline),
           ),
         ),
         const SizedBox(width: 12),
+
+        // ── Book Now (gradient) ─────────────────────────────────
         Expanded(
           child: Container(
             decoration: BoxDecoration(
@@ -252,9 +260,11 @@ class _ServiceActions extends StatelessWidget {
                 shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding:
+                const EdgeInsets.symmetric(vertical: 12),
               ),
-              label: Text('Book Now', style: AppTextStyles.buttonSmall),
+              label:
+              Text('Book Now', style: AppTextStyles.buttonSmall),
             ),
           ),
         ),

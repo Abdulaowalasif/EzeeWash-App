@@ -2,13 +2,13 @@
 //
 // Refactored: screen owns only state + BLoC wiring.
 // All UI widgets live in ../widgets/settings_widgets.dart.
+// Snack bars use AppSnackBar — no inline SnackBar construction.
 
 import 'dart:io';
 import 'package:ezzewash/core/widgets/gradient_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shimmer/shimmer.dart';
@@ -16,6 +16,9 @@ import 'package:shimmer/shimmer.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/utils/theme_prefs.dart';
+import '../../../../core/widgets/app_shimmer_box.dart';
+import '../../../../core/widgets/app_snack_bar.dart';
+import '../../../../core/widgets/common_widgets.dart';
 import '../../../../routes/routes_name.dart';
 import '../../domain/entities/profile_entity.dart';
 import '../bloc/profile_bloc.dart';
@@ -36,18 +39,8 @@ class SettingsScreen extends StatelessWidget {
       body: BlocConsumer<ProfileBloc, ProfileState>(
         listener: (ctx, state) {
           if (state is ProfileError) {
-            ScaffoldMessenger.of(ctx)
-              ..clearSnackBars()
-              ..showSnackBar(SnackBar(
-                content: Text(state.message,
-                    style: GoogleFonts.alexandria()),
-                backgroundColor: AppColors.error,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                margin: const EdgeInsets.all(16),
-                duration: const Duration(seconds: 4),
-              ));
+            AppSnackBar.show(ctx, state.message,
+                type: SnackBarType.error);
           }
         },
         builder: (ctx, state) {
@@ -75,25 +68,11 @@ class SettingsScreen extends StatelessWidget {
             children: [
               const GradientAppBar(title: 'Settings'),
               Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          color: AppColors.error, size: 48),
-                      const SizedBox(height: 12),
-                      Text('Could not load settings',
-                          style: GoogleFonts.alexandria(
-                              color: AppColors.error)),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => ctx
-                            .read<ProfileBloc>()
-                            .add(const ProfileLoadRequested()),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
+                child: AppEmptyState(
+                  icon: Icons.error_outline,
+                  message: 'Could not load settings',
+                  isDark: isDark,
+                  subtitle: 'Tap retry to try again',
                 ),
               ),
             ],
@@ -104,17 +83,11 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
+// ─── Loading shimmer ──────────────────────────────────────────────────────────
+
 class _SettingsShimmer extends StatelessWidget {
   final bool isDark;
   const _SettingsShimmer({required this.isDark});
-
-  Widget _box(double h) => Container(
-    height: h,
-    margin: const EdgeInsets.only(bottom: 4),
-    decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24)),
-  );
 
   @override
   Widget build(BuildContext context) => Column(
@@ -122,17 +95,18 @@ class _SettingsShimmer extends StatelessWidget {
       const GradientAppBar(title: 'Settings'),
       Expanded(
         child: Shimmer.fromColors(
-          baseColor:
-          isDark ? Colors.grey[800]! : Colors.grey[300]!,
-          highlightColor:
-          isDark ? Colors.grey[700]! : Colors.grey[100]!,
+          baseColor: AppShimmerColors.base(isDark),
+          highlightColor: AppShimmerColors.highlight(isDark),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(children: [
-              _box(110), const SizedBox(height: 20),
-              _box(160), const SizedBox(height: 20),
-              _box(220), const SizedBox(height: 20),
-              _box(130),
+              const AppShimmerBox(height: 110, radius: 24),
+              const SizedBox(height: 20),
+              const AppShimmerBox(height: 160, radius: 24),
+              const SizedBox(height: 20),
+              const AppShimmerBox(height: 220, radius: 24),
+              const SizedBox(height: 20),
+              const AppShimmerBox(height: 130, radius: 24),
             ]),
           ),
         ),
@@ -140,6 +114,8 @@ class _SettingsShimmer extends StatelessWidget {
     ],
   );
 }
+
+// ─── Main body ────────────────────────────────────────────────────────────────
 
 class _SettingsBody extends StatefulWidget {
   final ProfileEntity profile;
@@ -176,28 +152,25 @@ class _SettingsBodyState extends State<_SettingsBody> {
   void _save() {
     context.read<ProfileBloc>().add(ProfileUpdateRequested(
       fullName: _nameCtrl.text.trim().isEmpty
-          ? null : _nameCtrl.text.trim(),
+          ? null
+          : _nameCtrl.text.trim(),
       phone: _phoneCtrl.text.trim().isEmpty
-          ? null : _phoneCtrl.text.trim(),
+          ? null
+          : _phoneCtrl.text.trim(),
       address: _addrCtrl.text.trim().isEmpty
-          ? null : _addrCtrl.text.trim(),
+          ? null
+          : _addrCtrl.text.trim(),
     ));
     setState(() => _editing = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Profile updated!', style: GoogleFonts.alexandria()),
-      backgroundColor: AppColors.success,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.all(16),
-    ));
+    AppSnackBar.show(context, 'Profile updated!');
   }
 
   Future<void> _pickAvatar() async {
     final picked = await ImagePicker()
         .pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (picked == null || !mounted) return;
-    context.read<ProfileBloc>()
+    context
+        .read<ProfileBloc>()
         .add(ProfileAvatarUpdateRequested(File(picked.path)));
   }
 
@@ -237,6 +210,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
                     onCancel: () => setState(() => _editing = false),
                   ),
                 ],
+
                 const SizedBox(height: 24),
                 SettingsSectionLabel(label: 'Account', isDark: isDark),
                 const SizedBox(height: 10),
@@ -245,8 +219,8 @@ class _SettingsBodyState extends State<_SettingsBody> {
                     icon: Iconsax.lock,
                     label: 'Change Password',
                     isDark: isDark,
-                    onTap: () => context
-                        .push(RoutesName.changePasswordNavigate),
+                    onTap: () =>
+                        context.push(RoutesName.changePasswordNavigate),
                   ),
                   SettingsSwitchTile(
                     icon: Iconsax.moon,
@@ -257,11 +231,13 @@ class _SettingsBodyState extends State<_SettingsBody> {
                         v ? ThemeMode.dark : ThemeMode.light),
                   ),
                 ]),
+
                 const SizedBox(height: 24),
                 SettingsSectionLabel(
                     label: 'Order Receipts', isDark: isDark),
                 const SizedBox(height: 10),
                 SettingsReceiptPicker(isDark: isDark),
+
                 const SizedBox(height: 24),
                 SettingsSectionLabel(label: 'Support', isDark: isDark),
                 const SizedBox(height: 10),
@@ -287,6 +263,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
                     onTap: () {},
                   ),
                 ]),
+
                 const SizedBox(height: 32),
                 SettingsLogoutButton(isDark: isDark),
                 const SizedBox(height: 12),
