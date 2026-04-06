@@ -23,12 +23,12 @@ import '../../../../core/widgets/order_shared/app_summary_row.dart';
 import '../../domain/entities/order_entity.dart';
 import '../bloc/orders_bloc.dart';
 import '../bloc/orders_state.dart';
-import '../widgets/track_order_cleaning_panel.dart';
-import '../widgets/track_order_details_card.dart';
-import '../widgets/track_order_hero_card.dart';
-import '../widgets/track_order_info_panel.dart';
-import '../widgets/track_order_map_view.dart';
-import '../widgets/track_order_rating_sheet.dart';
+import '../widgets/track order/track_order_cleaning_panel.dart';
+import '../widgets/track order/track_order_details_card.dart';
+import '../widgets/track order/track_order_hero_card.dart';
+import '../widgets/track order/track_order_info_panel.dart';
+import '../widgets/track order/track_order_map_view.dart';
+import '../widgets/track order/track_order_rating_sheet.dart';
 
 // ─── Phase enum (exported for child widgets) ──────────────────────────────────
 
@@ -74,18 +74,12 @@ extension OrderPhaseX on String {
   }
 }
 
-// ─── Rating event (exported for rating sheet) ─────────────────────────────────
-
 enum RatingEvent { pickup, delivery }
-
-// ─── Internal rating memory ───────────────────────────────────────────────────
 
 class _RatingMemory {
   bool shownForPickup = false;
   bool shownForDelivery = false;
 }
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
 
 class TrackOrderScreen extends StatefulWidget {
   final String? orderId;
@@ -98,6 +92,7 @@ class TrackOrderScreen extends StatefulWidget {
 
 class _TrackOrderScreenState extends State<TrackOrderScreen> {
   final _ratingMem = _RatingMemory();
+  bool _isSheetVisible = false;
 
   StreamSubscription? _orderSub;
   String? _trackingOrderId;
@@ -122,37 +117,44 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
         .stream(primaryKey: ['id'])
         .eq('id', orderId)
         .listen((data) {
-      if (data.isNotEmpty && mounted) {
-        setState(() {
-          _liveStatus = data.first['status'];
-          _liveProgress = (data.first['progress'] as num?)?.toDouble();
-          _livePickupRiderId = data.first['pickup_rider_id'];
-          _liveDeliveryRiderId = data.first['delivery_rider_id'];
+          if (data.isNotEmpty && mounted) {
+            setState(() {
+              _liveStatus = data.first['status'];
+              _liveProgress = (data.first['progress'] as num?)?.toDouble();
+              _livePickupRiderId = data.first['pickup_rider_id'];
+              _liveDeliveryRiderId = data.first['delivery_rider_id'];
+            });
+          }
         });
-      }
-    });
   }
 
   Future<void> _checkRating(
-      BuildContext ctx, OrderEntity order, bool isDark) async {
-    if (_ratingMem.shownForPickup && _ratingMem.shownForDelivery) return;
+    BuildContext ctx,
+    OrderEntity order,
+    bool isDark,
+  ) async {
+    if (_isSheetVisible ||
+        (_ratingMem.shownForPickup && _ratingMem.shownForDelivery))
+      return;
 
     final effectiveStatus = _liveStatus ?? order.status;
     final phase = effectiveStatus.phase;
     final prefs = await SharedPreferences.getInstance();
 
-    final pickupId =
-        _livePickupRiderId ?? order.pickupRiderId ?? order.riderId;
-    final isPickupDone = phase.index >=
-            OrderPhase.riderHeadingToStore.index &&
+    final pickupId = _livePickupRiderId ?? order.pickupRiderId ?? order.riderId;
+    final isPickupDone =
+        phase.index >= OrderPhase.riderHeadingToStore.index &&
         phase != OrderPhase.cancelled;
 
     if (isPickupDone && !_ratingMem.shownForPickup && pickupId != null) {
       final handled = prefs.getBool('rated_pickup_${order.id}') ?? false;
       if (!handled) {
+        _isSheetVisible = true;
         _ratingMem.shownForPickup = true;
         if (ctx.mounted) {
-          _showRatingSheet(ctx, order, isDark, RatingEvent.pickup);
+          await _showRatingSheet(ctx, order, isDark, RatingEvent.pickup);
+          _isSheetVisible = false;
+          if (mounted) _checkRating(ctx, order, isDark);
           return;
         }
       } else {
@@ -165,12 +167,13 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     if (phase == OrderPhase.delivered &&
         !_ratingMem.shownForDelivery &&
         deliveryId != null) {
-      final handled =
-          prefs.getBool('rated_delivery_${order.id}') ?? false;
+      final handled = prefs.getBool('rated_delivery_${order.id}') ?? false;
       if (!handled) {
+        _isSheetVisible = true;
         _ratingMem.shownForDelivery = true;
         if (ctx.mounted) {
-          _showRatingSheet(ctx, order, isDark, RatingEvent.delivery);
+          await _showRatingSheet(ctx, order, isDark, RatingEvent.delivery);
+          _isSheetVisible = false;
         }
       } else {
         _ratingMem.shownForDelivery = true;
@@ -178,29 +181,31 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     }
   }
 
-  void _showRatingSheet(BuildContext ctx, OrderEntity order, bool isDark,
-      RatingEvent evt) {
-    if (!context.mounted) return;
-    showModalBottomSheet(
-      context: context,
+  Future<void> _showRatingSheet(
+    BuildContext ctx,
+    OrderEntity order,
+    bool isDark,
+    RatingEvent evt,
+  ) async {
+    if (!ctx.mounted) return;
+
+    await showModalBottomSheet(
+      context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black54,
       isDismissible: true,
       enableDrag: true,
-      builder: (_) => TrackOrderRatingSheet(
-        order: order,
-        isDark: isDark,
-        eventType: evt,
-      ),
-    ).then((_) async {
-      final p = await SharedPreferences.getInstance();
-      final key = evt == RatingEvent.pickup
-          ? 'rated_pickup_${order.id}'
-          : 'rated_delivery_${order.id}';
-      await p.setBool(key, true);
-      if (mounted) setState(() {});
-    });
+      builder: (_) =>
+          TrackOrderRatingSheet(order: order, isDark: isDark, eventType: evt),
+    );
+
+    final p = await SharedPreferences.getInstance();
+    final key = evt == RatingEvent.pickup
+        ? 'rated_pickup_${order.id}'
+        : 'rated_delivery_${order.id}';
+    await p.setBool(key, true);
+    if (mounted) setState(() {});
   }
 
   @override
@@ -208,16 +213,16 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       appBar: const GradientAppBar(title: 'Track Order'),
       body: BlocBuilder<OrdersBloc, OrdersState>(
         builder: (context, state) {
           OrderEntity? order;
           if (state is OrdersLoaded && widget.orderId != null) {
             try {
-              order = state.orders
-                  .firstWhere((o) => o.id == widget.orderId);
+              order = state.orders.firstWhere((o) => o.id == widget.orderId);
             } catch (_) {}
           }
           if (order == null &&
@@ -227,7 +232,9 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
           }
           if (order == null) {
             return AppEmptyState(
-                message: 'No active order found', isDark: isDark);
+              message: 'No active order found',
+              isDark: isDark,
+            );
           }
 
           _listenToOrderUpdates(order.id);
@@ -250,8 +257,6 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   }
 }
 
-// ─── Content router ───────────────────────────────────────────────────────────
-
 class _TrackContent extends StatelessWidget {
   final OrderEntity order;
   final bool isDark;
@@ -270,9 +275,11 @@ class _TrackContent extends StatelessWidget {
   });
 
   String get _status => liveStatus ?? order.status;
-  double get _progress =>
-      liveProgress ?? OrderStatus.getProgress(_status);
+
+  double get _progress => liveProgress ?? OrderStatus.getProgress(_status);
+
   String get _statusLabel => OrderStatus.format(_status);
+
   OrderPhase get _phase => _status.phase;
 
   String? get _activeRiderId {
@@ -355,8 +362,9 @@ class _TrackContent extends StatelessWidget {
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints:
-              BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
+          constraints: BoxConstraints(
+            maxWidth: Responsive.maxContentWidth(context),
+          ),
           child: Column(
             children: [
               TrackOrderHeroCard(
@@ -382,8 +390,6 @@ class _TrackContent extends StatelessWidget {
   }
 }
 
-// ─── Map panel wrapper ────────────────────────────────────────────────────────
-
 class _MapPanelWrapper extends StatelessWidget {
   final OrderEntity order;
   final bool isDark;
@@ -400,83 +406,103 @@ class _MapPanelWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-        children: [
-          TrackOrderMapView(
-            order: order,
-            isDark: isDark,
-            phase: phase,
-            activeRiderId: activeRiderId,
-          ),
-          const SizedBox(height: 18),
-          TrackOrderDetailsCard(
-              order: order, isDark: isDark, phase: phase),
-        ],
-      );
+    children: [
+      TrackOrderMapView(
+        order: order,
+        isDark: isDark,
+        phase: phase,
+        activeRiderId: activeRiderId,
+      ),
+      const SizedBox(height: 18),
+      TrackOrderDetailsCard(order: order, isDark: isDark, phase: phase),
+    ],
+  );
 }
-
-// ─── Phase banner resolver ─────────────────────────────────────────────────────
 
 class _PhaseBannerResolver extends StatelessWidget {
   final OrderPhase phase;
   final bool isDark;
 
-  const _PhaseBannerResolver(
-      {required this.phase, required this.isDark});
-
-  static const _configs = <OrderPhase, _PhaseCfg>{};
+  const _PhaseBannerResolver({required this.phase, required this.isDark});
 
   _PhaseCfg get _cfg {
     switch (phase) {
       case OrderPhase.waiting:
-        return const _PhaseCfg(Iconsax.clock, AppColors.warning,
-            'Preparing Order', 'We are processing your order details.');
+        return const _PhaseCfg(
+          Iconsax.clock,
+          AppColors.warning,
+          'Preparing Order',
+          'We are processing your order details.',
+        );
       case OrderPhase.riderComingToPickup:
-        return const _PhaseCfg(Iconsax.car, AppColors.primary,
-            'Rider Dispatched',
-            'A rider is on their way to pick up your laundry.');
+        return const _PhaseCfg(
+          Iconsax.car,
+          AppColors.primary,
+          'Rider Dispatched',
+          'A rider is on their way to pick up your laundry.',
+        );
       case OrderPhase.riderHeadingToStore:
-        return const _PhaseCfg(Iconsax.truck_fast, AppColors.warning,
-            'Heading to Store',
-            'Rider is taking your items to the facility.');
+        return const _PhaseCfg(
+          Iconsax.truck_fast,
+          AppColors.warning,
+          'Heading to Store',
+          'Rider is taking your items to the facility.',
+        );
       case OrderPhase.atStore:
-        return const _PhaseCfg(Iconsax.shop, Color(0xFF8B5CF6),
-            'Items at the Store', 'Your laundry has safely arrived.');
+        return const _PhaseCfg(
+          Iconsax.shop,
+          Color(0xFF8B5CF6),
+          'Items at the Store',
+          'Your laundry has safely arrived.',
+        );
       case OrderPhase.cleaning:
-        return const _PhaseCfg(Iconsax.refresh, AppColors.info,
-            'Cleaning in Progress',
-            'Our team is washing & drying your laundry.');
+        return const _PhaseCfg(
+          Iconsax.refresh,
+          AppColors.info,
+          'Cleaning in Progress',
+          'Our team is washing & drying your laundry.',
+        );
       case OrderPhase.ready:
-        return const _PhaseCfg(Iconsax.box_1, AppColors.success,
-            'Packed & Ready',
-            'Your laundry is fresh and ready to be dispatched.');
+        return const _PhaseCfg(
+          Iconsax.box_1,
+          AppColors.success,
+          'Packed & Ready',
+          'Your laundry is fresh and ready to be dispatched.',
+        );
       case OrderPhase.riderComingToDeliver:
-        return const _PhaseCfg(Iconsax.truck_fast, Color(0xFF8B5CF6),
-            'On the Way',
-            'Your fresh laundry is headed to your address.');
+        return const _PhaseCfg(
+          Iconsax.truck_fast,
+          Color(0xFF8B5CF6),
+          'On the Way',
+          'Your fresh laundry is headed to your address.',
+        );
       default:
-        return const _PhaseCfg(Iconsax.info_circle, AppColors.primary,
-            'Processing', 'Your order is being handled.');
+        return const _PhaseCfg(
+          Iconsax.info_circle,
+          AppColors.primary,
+          'Processing',
+          'Your order is being handled.',
+        );
     }
   }
 
   @override
   Widget build(BuildContext context) => AppPhaseBanner(
-        icon: _cfg.icon,
-        color: _cfg.color,
-        title: _cfg.title,
-        subtitle: _cfg.subtitle,
-        isDark: isDark,
-      );
+    icon: _cfg.icon,
+    color: _cfg.color,
+    title: _cfg.title,
+    subtitle: _cfg.subtitle,
+    isDark: isDark,
+  );
 }
 
 class _PhaseCfg {
   final IconData icon;
   final Color color;
   final String title, subtitle;
+
   const _PhaseCfg(this.icon, this.color, this.title, this.subtitle);
 }
-
-// ─── Delivered view ───────────────────────────────────────────────────────────
 
 class _DeliveredView extends StatelessWidget {
   final OrderEntity order;
@@ -486,32 +512,45 @@ class _DeliveredView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AppStatusResultView(
+    isDark: isDark,
+    iconData: Icons.check_rounded,
+    gradient: AppColors.gradient,
+    glowColor: AppColors.primary,
+    title: 'Order Delivered!',
+    subtitle: 'Your laundry has been delivered.\nThank you for using EzeeWash!',
+    borderColor: AppColors.primary,
+    summaryRows: [
+      AppSummaryRow(
+        icon: Icons.tag_rounded,
+        label: 'Order',
+        value: '#${order.orderNumber}',
         isDark: isDark,
-        iconData: Icons.check_rounded,
-        gradient: AppColors.gradient,
-        glowColor: AppColors.primary,
-        title: 'Order Delivered!',
-        subtitle:
-            'Your laundry has been delivered.\nThank you for using EzeeWash!',
-        borderColor: AppColors.primary,
-        summaryRows: [
-          AppSummaryRow(icon: Icons.tag_rounded, label: 'Order',
-              value: '#${order.orderNumber}', isDark: isDark),
-          AppSummaryRow(icon: Iconsax.drop, label: 'Service',
-              value: order.serviceName, isDark: isDark),
-          AppSummaryRow(icon: Iconsax.shop, label: 'Store',
-              value: order.storeName, isDark: isDark),
-          AppSummaryRow(icon: Iconsax.money, label: 'Total Paid',
-              value: '৳${order.totalPrice.toStringAsFixed(0)}',
-              isDark: isDark, highlight: true),
-        ],
-        buttonLabel: 'Done',
-        buttonColor: AppColors.primary,
-        onButton: () => context.pop(),
-      );
+      ),
+      AppSummaryRow(
+        icon: Iconsax.drop,
+        label: 'Service',
+        value: order.serviceName,
+        isDark: isDark,
+      ),
+      AppSummaryRow(
+        icon: Iconsax.shop,
+        label: 'Store',
+        value: order.storeName,
+        isDark: isDark,
+      ),
+      AppSummaryRow(
+        icon: Iconsax.money,
+        label: 'Total Paid',
+        value: '৳${order.totalPrice.toStringAsFixed(0)}',
+        isDark: isDark,
+        highlight: true,
+      ),
+    ],
+    buttonLabel: 'Done',
+    buttonColor: AppColors.primary,
+    onButton: () => context.pop(),
+  );
 }
-
-// ─── Cancelled view ───────────────────────────────────────────────────────────
 
 class _CancelledView extends StatelessWidget {
   final OrderEntity order;
@@ -521,30 +560,42 @@ class _CancelledView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AppStatusResultView(
+    isDark: isDark,
+    iconData: Icons.close_rounded,
+    gradient: const LinearGradient(
+      colors: [AppColors.error, Color(0xFFEF4444)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+    glowColor: AppColors.error,
+    title: 'Order Cancelled',
+    subtitle:
+        'This order has been cancelled and no charges were applied.\nWe hope to serve you again soon.',
+    borderColor: AppColors.error,
+    summaryRows: [
+      AppSummaryRow(
+        icon: Icons.tag_rounded,
+        label: 'Order',
+        value: '#${order.orderNumber}',
         isDark: isDark,
-        iconData: Icons.close_rounded,
-        gradient: const LinearGradient(
-          colors: [AppColors.error, Color(0xFFEF4444)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        glowColor: AppColors.error,
-        title: 'Order Cancelled',
-        subtitle: 'This order has been cancelled and no charges were applied.\n'
-            'We hope to serve you again soon.',
-        borderColor: AppColors.error,
-        summaryRows: [
-          AppSummaryRow(icon: Icons.tag_rounded, label: 'Order',
-              value: '#${order.orderNumber}', isDark: isDark),
-          AppSummaryRow(icon: Iconsax.drop, label: 'Service',
-              value: order.serviceName, isDark: isDark),
-          AppSummaryRow(icon: Iconsax.shop, label: 'Store',
-              value: order.storeName, isDark: isDark),
-        ],
-        buttonLabel: 'Go Back',
-        buttonColor: AppColors.error,
-        buttonOutlined: true,
-        onButton: () => context.pop(),
-        animDuration: const Duration(milliseconds: 600),
-      );
+      ),
+      AppSummaryRow(
+        icon: Iconsax.drop,
+        label: 'Service',
+        value: order.serviceName,
+        isDark: isDark,
+      ),
+      AppSummaryRow(
+        icon: Iconsax.shop,
+        label: 'Store',
+        value: order.storeName,
+        isDark: isDark,
+      ),
+    ],
+    buttonLabel: 'Go Back',
+    buttonColor: AppColors.error,
+    buttonOutlined: true,
+    onButton: () => context.pop(),
+    animDuration: const Duration(milliseconds: 600),
+  );
 }

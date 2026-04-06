@@ -5,11 +5,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../../core/constants/app_color.dart';
-import '../../../../core/widgets/order_shared/app_pulse_icon.dart';
-import '../../domain/entities/order_entity.dart';
+import '../../../../../core/constants/app_color.dart';
+import '../../../../../core/widgets/order_shared/app_pulse_icon.dart';
+import '../../../domain/entities/order_entity.dart';
 import 'track_order_details_card.dart';
-import '../screens/track_order_screen.dart' show OrderPhase;
+import '../../screens/track_order_screen.dart' show OrderPhase;
 
 class TrackOrderInfoPanel extends StatelessWidget {
   final IconData icon;

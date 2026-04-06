@@ -18,6 +18,7 @@ import '../../../../core/constants/app_color.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/utils/business_utils_logic.dart';
 import '../../../../routes/routes_name.dart';
 import '../../../../core/widgets/gradient_app_bar.dart';
 import '../../domain/entities/place_orders_params.dart';
@@ -116,6 +117,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
 
   bool _stripeLoading = false;
   String? _stripeError;
+  bool _isCheckingAvailability = false;
 
   List<String> _pickupTimeSlots = [];
   List<String> _deliveryTimeSlots = [];
@@ -139,9 +141,11 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     final rp = widget.reorderParams;
     if (rp != null) {
       _quantity = rp.itemCount;
-      _pickupDate = rp.pickupDate;
+      // EC-14: Clamp stale dates — reorderParams may carry a past date if the
+      // user opens a reorder days after it was first triggered.
+      _pickupDate = BusinessLogicUtils.clampToMinPickupDate(rp.pickupDate);
       _pickupTime = rp.pickupTime;
-      _deliveryDate = rp.deliveryDate;
+      _deliveryDate = BusinessLogicUtils.clampToMinPickupDate(rp.deliveryDate);
       _deliveryTime = rp.deliveryTime;
       _addrCtrl.text = rp.pickupAddress;
       _noteCtrl.text = rp.specialInstructions ?? '';
@@ -152,122 +156,95 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       _dataLoading = false;
       _refreshTimeSlots();
     } else {
-      _pickupDate = _minPickupDate;
+      _pickupDate = BusinessLogicUtils.getMinPickupDate();
       _pickupTime = 'Select time';
-      _deliveryDate = _pickupDate.add(
-        const Duration(days: 1),
-      ); // Initial placeholder
+      _deliveryDate = _pickupDate;
       _deliveryTime = 'Select time';
       _loadData();
     }
     _addrCtrl.addListener(() => setState(() {}));
   }
 
-  // ─── LOGIC FIXES FOR BUSINESS HOUR TIMER ───────────────────────────────────
+  // ─── REAL WORLD BUSINESS LOGIC (delegated to BusinessLogicUtils) ───────────
+
+  // EC-01/02/22/48/55: blocks all closed-day types
+  bool _isClosedDay(DateTime date) => BusinessLogicUtils.isClosedDay(date);
+
+  DateTime get _minPickupDate => BusinessLogicUtils.getMinPickupDate();
+
+  // EC-15: max 30-day advance booking window
+  DateTime get _maxPickupDate => BusinessLogicUtils.getMaxPickupDate();
 
   bool get _isExpress =>
       _serviceIdx != null && _services[_serviceIdx!].category == 'Express';
 
-  DateTime get _minPickupDate {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    // Cutoff at 7:00 PM (19:00). If past cutoff, next day is earliest.
-    return now.hour >= 19 ? today.add(const Duration(days: 1)) : today;
-  }
+  String get _serviceName =>
+      _serviceIdx != null ? _services[_serviceIdx!].title : '';
 
-  DateTime get _minDeliveryDate {
-    DateTime dt = _getMinDeliveryDateTime(_pickupDate, _pickupTime);
-    return DateTime(dt.year, dt.month, dt.day);
-  }
+  // EC-25/33/42: collect all categories in the order for processing-time calculation
+  List<String> get _categories =>
+      _serviceIdx != null ? [_services[_serviceIdx!].category] : const [];
 
-  String _formatHour(int h) {
-    int displayHour = h > 12 ? h - 12 : (h == 0 ? 12 : h);
-    String amPm = h >= 12 ? 'PM' : 'AM';
-    String hourStr = displayHour.toString().padLeft(2, '0');
-    return '$hourStr:00 $amPm';
-  }
+  List<String> _getPickupTimes(DateTime date) =>
+      BusinessLogicUtils.getAvailableSlots(
+        date,
+        isPickup: true,
+        categories: _categories, // EC-49
+      );
 
-  int _parseHour(String timeStr) {
-    if (timeStr.isEmpty || timeStr == 'Select time') return 8;
-    try {
-      List<String> parts = timeStr.split(' ');
-      int h = int.parse(parts[0].split(':')[0]);
-      if (parts.length > 1) {
-        if (parts[1] == 'PM' && h != 12) h += 12;
-        if (parts[1] == 'AM' && h == 12) h = 0;
-      }
-      return h;
-    } catch (_) {
-      return 8;
-    }
-  }
+  DateTime _calculateMinDeliveryDateTime(DateTime pDate, String pTime) =>
+      BusinessLogicUtils.calculateMinDelivery(
+        pDate,
+        pTime,
+        _serviceName,
+        categories: _categories, // EC-25/33/42
+        totalItems: _quantity, // EC-32
+      );
 
-  List<String> _getPickupTimes(DateTime date) {
-    final now = DateTime.now();
-    int startHour = 8;
-    int endHour = 19; // Latest pickup slot at 7 PM
+  List<String> _getDeliveryTimes(DateTime dDate) =>
+      BusinessLogicUtils.getDeliverySlots(
+        dDate,
+        pickupDate: _pickupDate,
+        pickupTime: _pickupTime,
+        serviceName: _serviceName,
+        categories: _categories,
+        // EC-25/33/42
+        totalItems: _quantity, // EC-32
+      );
 
-    if (date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day) {
-      // Show from current + 1h
-      startHour = now.hour + 1;
-      if (startHour < 8) startHour = 8;
-    }
+  // ─── SLOT CAPPING AVAILABILITY CHECK ──────────────────────────────────────
 
-    if (startHour > endHour) return [];
+  Future<bool> _checkSlotAvailability() async {
+    if (_pickupTime == 'Select time' || _storeIdx == null) return true;
 
-    List<String> times = [];
-    for (int i = startHour; i <= endHour; i++) {
-      times.add(_formatHour(i));
-    }
-    return times;
-  }
-
-  DateTime _getMinDeliveryDateTime(DateTime pDate, String pTime) {
-    int pHour = _parseHour(pTime);
-    DateTime current = DateTime(pDate.year, pDate.month, pDate.day, pHour);
-
-    // Express = 5 business hours (8am-8pm window).
-    // Standard = 12 business hours (effectively 24 physical hours).
-    int hoursNeeded = _isExpress ? 5 : 12;
-
-    while (hoursNeeded > 0) {
-      // If we are at or after closing (8:00 PM), move to next day opening (8:00 AM)
-      if (current.hour >= 20) {
-        current = DateTime(current.year, current.month, current.day + 1, 8);
-      }
-
-      // Advance by one business hour
-      current = current.add(const Duration(hours: 1));
-      hoursNeeded--;
+    // EC-27: validate the slot is still in the future with 2h buffer
+    if (!BusinessLogicUtils.isSubmissionStillValid(_pickupDate, _pickupTime)) {
+      AppSnackBar.show(
+        context,
+        'Your selected pickup time has passed the 2-hour booking window. Please choose a later slot.',
+        isError: true,
+      );
+      return false;
     }
 
-    return current;
-  }
+    setState(() => _isCheckingAvailability = true);
+    final available = await BusinessLogicUtils.isSlotAvailable(
+      _stores[_storeIdx!].id,
+      _pickupDate,
+      _pickupTime,
+      orderValue: _totalPrice, // EC-45: high-value priority
+      orderItemCount: _quantity, // EC-38: unit saturation guard
+    );
+    if (mounted) setState(() => _isCheckingAvailability = false);
 
-  List<String> _getDeliveryTimes(DateTime dDate) {
-    DateTime minDelDateTime = _getMinDeliveryDateTime(_pickupDate, _pickupTime);
-    int startHour = 8;
-    int endHour = 20; // Delivery until 8 PM
-
-    bool isSameAsMinDay =
-        dDate.year == minDelDateTime.year &&
-            dDate.month == minDelDateTime.month &&
-            dDate.day == minDelDateTime.day;
-
-    if (isSameAsMinDay) {
-      startHour = minDelDateTime.hour;
-      if (startHour < 8) startHour = 8;
+    if (!available) {
+      AppSnackBar.show(
+        context,
+        'This slot is fully booked (${BusinessLogicUtils.kSlotLimit}-order limit). Please pick another time.',
+        isError: true,
+      );
     }
-
-    if (startHour > endHour) return [];
-
-    List<String> times = [];
-    for (int i = startHour; i <= endHour; i++) {
-      times.add(_formatHour(i));
-    }
-    return times;
+    return available;
   }
 
   // ─── HANDLERS ─────────────────────────────────────────────────────────────
@@ -279,15 +256,22 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           ? _pickupTimeSlots.first
           : 'Select time';
     }
-
     _syncDelivery();
   }
 
   void _syncDelivery() {
-    DateTime minD = _minDeliveryDate;
-    if (_deliveryDate.isBefore(minD)) {
-      _deliveryDate = minD;
+    final minRequired = BusinessLogicUtils.getMinDeliveryDate(
+      _pickupDate,
+      _pickupTime,
+      _serviceName,
+      categories: _categories, // EC-25/33/42
+      totalItems: _quantity, // EC-32
+    );
+
+    if (_deliveryDate.isBefore(minRequired)) {
+      _deliveryDate = minRequired;
     }
+
     _deliveryTimeSlots = _getDeliveryTimes(_deliveryDate);
     if (!_deliveryTimeSlots.contains(_deliveryTime)) {
       _deliveryTime = _deliveryTimeSlots.isNotEmpty
@@ -355,7 +339,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         int? preIdx;
         if (widget.preSelectedServiceId != null) {
           final idx = services.indexWhere(
-                (s) => s.id == widget.preSelectedServiceId,
+            (s) => s.id == widget.preSelectedServiceId,
           );
           if (idx != -1) preIdx = idx;
         }
@@ -380,6 +364,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   }
 
   bool get _canProceed {
+    if (_isCheckingAvailability) return false;
     switch (_step) {
       case 1:
         return _serviceIdx != null;
@@ -483,7 +468,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             e.error.localizedMessage ?? 'Payment failed',
             isError: true,
           );
-          // Insert order when Stripe payment fails
           context.read<OrdersBloc>().add(
             OrderPlaceRequested(_buildParams(method: PaymentMethod.stripe)),
           );
@@ -500,7 +484,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           'Payment setup failed. Please try again.',
           isError: true,
         );
-        // Insert order when Stripe setup fails
         context.read<OrdersBloc>().add(
           OrderPlaceRequested(_buildParams(method: PaymentMethod.stripe)),
         );
@@ -524,12 +507,12 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
 
     return BlocListener<OrdersBloc, OrdersState>(
       listener: (context, state) {
-        if (state is OrderPlaced)
+        if (state is OrderPlaced) {
           context.go(
             '${RoutesName.orders}/${RoutesName.confirmedOrders}',
             extra: state.orderNumber,
           );
-        else if (state is OrdersError) {
+        } else if (state is OrdersError) {
           setState(() => _stripeLoading = false);
           AppSnackBar.show(context, state.message, isError: true);
         }
@@ -538,9 +521,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         backgroundColor: isDark
             ? AppColors.darkBackground
             : AppColors.lightBackground,
-        appBar: const GradientAppBar(
-          title: 'Book Service',
-        ),
+        appBar: const GradientAppBar(title: 'Book Service'),
         body: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
@@ -568,18 +549,18 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                             color: isDark ? Colors.white : AppColors.lightText,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _stepSubtitle,
-                          style: GoogleFonts.alexandria(
-                            fontSize: 13,
-                            color: isDark
-                                ? AppColors.darkSubtext
-                                : AppColors.lightSubtext,
+                        if (_step == 4)
+                          Text(
+                            _stepSubtitle,
+                            style: GoogleFonts.alexandria(
+                              fontSize: 13,
+                              color: isDark
+                                  ? AppColors.darkSubtext
+                                  : AppColors.lightSubtext,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
                       ],
                     ),
                   ),
@@ -599,8 +580,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                     enabled: _canProceed,
                     isDark: isDark,
                     isLoading:
-                    context.watch<OrdersBloc>().state is OrderPlacing ||
-                        _stripeLoading,
+                        (context.watch<OrdersBloc>().state is OrderPlacing) ||
+                        _stripeLoading ||
+                        _isCheckingAvailability,
                     paymentMethod: _paymentMethod,
                     onBack: () {
                       if (_step == 1 ||
@@ -609,10 +591,12 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                       else
                         setState(() => _step--);
                     },
-                    onNext: () {
-                      if (_step == 2) {
-                        _refreshTimeSlots();
+                    onNext: () async {
+                      if (_step == 3) {
+                        bool available = await _checkSlotAvailability();
+                        if (!available) return;
                       }
+                      if (_step == 2) _refreshTimeSlots();
                       if (_step < 5)
                         setState(() => _step++);
                       else
@@ -658,7 +642,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           key: const ValueKey(1),
           children: List.generate(
             _services.length,
-                (i) => _ServiceCard(
+            (i) => _ServiceCard(
               service: _services[i],
               selected: _serviceIdx == i,
               isDark: isDark,
@@ -671,7 +655,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           key: const ValueKey(2),
           children: List.generate(
             _stores.length,
-                (i) => _StoreCard(
+            (i) => _StoreCard(
               store: _stores[i],
               selected: _storeIdx == i,
               isDark: isDark,
@@ -683,6 +667,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         return _ScheduleStep(
           key: const ValueKey(3),
           minPickupDate: _minPickupDate,
+          maxPickupDate: _maxPickupDate,
           pickupDate: _pickupDate,
           pickupTime: _pickupTime,
           deliveryDate: _deliveryDate,
@@ -695,8 +680,15 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           onPickupTime: _handlePickupTimeChanged,
           onDeliveryDate: _handleDeliveryDateChanged,
           onDeliveryTime: (t) => setState(() => _deliveryTime = t),
-          minDeliveryDate: _minDeliveryDate,
-          maxDeliveryDate: null,
+          minDeliveryDate: _calculateMinDeliveryDateTime(
+            _pickupDate,
+            _pickupTime,
+          ),
+          isClosedDay: _isClosedDay,
+          processingLabel: BusinessLogicUtils.processingTimeLabel(
+            _serviceName,
+            categories: _categories, // EC-25/33/42
+          ),
         );
       case 4:
         return _AddressStep(
@@ -719,10 +711,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           isDark: isDark,
           stripeError: _stripeError,
           serviceName:
-          widget.reorderParams?.serviceName ??
+              widget.reorderParams?.serviceName ??
               _services[_serviceIdx!].title,
           storeName:
-          widget.reorderParams?.storeName ?? _stores[_storeIdx!].name,
+              widget.reorderParams?.storeName ?? _stores[_storeIdx!].name,
           pickupInfo: '${_fmtDate(_pickupDate)} at $_pickupTime',
           deliveryInfo: '${_fmtDate(_deliveryDate)} at $_deliveryTime',
           onMethodChanged: (m) => setState(() => _paymentMethod = m),
@@ -734,25 +726,29 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     }
   }
 
-  String _fmtDate(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  String _fmtDate(DateTime d) => BusinessLogicUtils.formatDate(d);
 }
 
 // ─── Schedule Step Component ──────────────────────────────────────────────────
 
 class _ScheduleStep extends StatelessWidget {
   final DateTime pickupDate, deliveryDate;
-  final DateTime? minDeliveryDate, maxDeliveryDate;
+  final DateTime minDeliveryDate;
   final DateTime minPickupDate;
+  final DateTime maxPickupDate;
   final String pickupTime, deliveryTime;
   final bool isDark, isExpress;
   final List<String> pickupTimeSlots, deliveryTimeSlots;
   final ValueChanged<DateTime> onPickupDate, onDeliveryDate;
   final ValueChanged<String> onPickupTime, onDeliveryTime;
+  final bool Function(DateTime) isClosedDay;
+  final String
+  processingLabel; // EC-25/33/42: dynamic label from processingTimeLabel()
 
   const _ScheduleStep({
     super.key,
     required this.minPickupDate,
+    required this.maxPickupDate,
     required this.pickupDate,
     required this.deliveryDate,
     required this.pickupTime,
@@ -765,13 +761,13 @@ class _ScheduleStep extends StatelessWidget {
     required this.onDeliveryDate,
     required this.onPickupTime,
     required this.onDeliveryTime,
-    this.minDeliveryDate,
-    this.maxDeliveryDate,
+    required this.minDeliveryDate,
+    required this.isClosedDay,
+    required this.processingLabel,
   });
 
-  static String _fmt(DateTime? d) => d == null
-      ? ''
-      : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  static String _fmt(DateTime? d) =>
+      d == null ? '' : BusinessLogicUtils.formatDate(d);
 
   static InputDecoration _deco(String label, Color accent, bool isDark) =>
       InputDecoration(
@@ -814,11 +810,13 @@ class _ScheduleStep extends StatelessWidget {
           onDate: onPickupDate,
           onTime: onPickupTime,
           minDate: minPickupDate,
-          maxDate: null,
-          noSlotsMessage:
-          'No pickup slots available today. Please choose another date.',
+          maxDate: maxPickupDate,
+          // EC-15
+          isClosedDay: isClosedDay,
+          // EC-01/02
+          noSlotsMessage: BusinessLogicUtils.noSlotsReason(pickupDate),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         _SchCard(
           title: 'Delivery Schedule',
           icon: Iconsax.arrow_down_2,
@@ -835,10 +833,13 @@ class _ScheduleStep extends StatelessWidget {
           onDate: onDeliveryDate,
           onTime: onDeliveryTime,
           minDate: minDeliveryDate,
-          maxDate: maxDeliveryDate,
-          noSlotsMessage: isExpress
-              ? 'No same-day slots with 5h gap. Choose a later date.'
-              : 'No delivery slots available for this date.',
+          maxDate: BusinessLogicUtils.getMaxPickupDate().add(
+            Duration(days: BusinessLogicUtils.kStandardHours ~/ 8 + 2),
+          ),
+          // EC-15 extended for delivery
+          isClosedDay: isClosedDay,
+          // EC-01/02/11
+          noSlotsMessage: BusinessLogicUtils.noSlotsReason(deliveryDate),
         ),
       ],
     );
@@ -858,6 +859,8 @@ class _SchCard extends StatelessWidget {
   final InputDecoration Function(String, Color, bool) deco;
   final ValueChanged<DateTime> onDate;
   final ValueChanged<String> onTime;
+  final bool Function(DateTime)
+  isClosedDay; // EC-01/02: blocks weekends + holidays
 
   const _SchCard({
     required this.title,
@@ -873,6 +876,7 @@ class _SchCard extends StatelessWidget {
     required this.onDate,
     required this.onTime,
     required this.noSlotsMessage,
+    required this.isClosedDay,
     this.minDate,
     this.maxDate,
   });
@@ -932,15 +936,20 @@ class _SchCard extends StatelessWidget {
                 onPressed: () async {
                   final now = DateTime.now();
                   final firstDate = minDate ?? now;
+                  // EC-15: cap to maxDate if provided, else 30-day window
+                  final lastDate =
+                      maxDate ?? BusinessLogicUtils.getMaxPickupDate();
                   DateTime initial =
-                  (date != null && !date!.isBefore(firstDate))
+                      (date != null && !date!.isBefore(firstDate))
                       ? date!
                       : firstDate;
                   final picked = await showDatePicker(
                     context: context,
                     initialDate: initial,
                     firstDate: firstDate,
-                    lastDate: maxDate ?? DateTime(now.year + 1),
+                    lastDate: lastDate,
+                    // EC-01/02: grey out weekends AND public holidays
+                    selectableDayPredicate: (DateTime val) => !isClosedDay(val),
                     builder: (ctx, child) => Theme(
                       data: Theme.of(ctx).copyWith(
                         colorScheme: ColorScheme.light(primary: accent),
@@ -998,18 +1007,18 @@ class _SchCard extends StatelessWidget {
               items: times
                   .map(
                     (t) => DropdownMenuItem(
-                  value: t,
-                  child: Text(
-                    t,
-                    style: GoogleFonts.alexandria(fontSize: 14),
-                  ),
-                ),
-              )
+                      value: t,
+                      child: Text(
+                        t,
+                        style: GoogleFonts.alexandria(fontSize: 14),
+                      ),
+                    ),
+                  )
                   .toList(),
               onChanged: hasSlots
                   ? (v) {
-                if (v != null) onTime(v);
-              }
+                      if (v != null) onTime(v);
+                    }
                   : null,
             ),
         ],
@@ -1018,7 +1027,7 @@ class _SchCard extends StatelessWidget {
   }
 }
 
-// ─── Remaining Components (Address, Payment, etc.) ────────────────────────────
+// ─── Remaining Components ─────────────────────────────────────────────────────
 
 class _AddressStep extends StatefulWidget {
   final TextEditingController addrCtrl, noteCtrl;
@@ -1110,7 +1119,7 @@ class _AddressStepState extends State<_AddressStep> {
                 GoogleMap(
                   gestureRecognizers: {
                     Factory<EagerGestureRecognizer>(
-                          () => EagerGestureRecognizer(),
+                      () => EagerGestureRecognizer(),
                     ),
                   },
                   initialCameraPosition: CameraPosition(
@@ -1164,7 +1173,7 @@ class _AddressStepState extends State<_AddressStep> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Location denied — enable in App Settings or drag the pin',
+                              'Location denied — enable in settings or drag the pin',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: widget.isDark
@@ -1218,7 +1227,7 @@ class _AddressStepState extends State<_AddressStep> {
           controller: widget.noteCtrl,
           maxLines: 3,
           decoration: InputDecoration(
-            hintText: 'Add specific notes or instructions...',
+            hintText: 'Add specific notes...',
             filled: true,
             fillColor: widget.isDark
                 ? AppColors.darkSurface
@@ -1454,7 +1463,7 @@ class _PaymentStep extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        'Available for orders ৳100 or more. Add more pieces to unlock.',
+                        'Requires ৳100 minimum.',
                         style: GoogleFonts.alexandria(
                           fontSize: 11,
                           color: Colors.grey.shade400,
@@ -1477,7 +1486,6 @@ class _PaymentStep extends StatelessWidget {
               ),
             ),
           ),
-
         const SizedBox(height: 20),
       ],
     );
@@ -1561,15 +1569,6 @@ class _BottomNav extends StatelessWidget {
                   ? null
                   : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
               borderRadius: BorderRadius.circular(14),
-              boxShadow: enabled
-                  ? [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-                  : [],
             ),
             child: ElevatedButton(
               onPressed: enabled && !isLoading ? onNext : null,
@@ -1583,28 +1582,28 @@ class _BottomNav extends StatelessWidget {
               ),
               child: isLoading
                   ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : Text(
-                step < totalSteps
-                    ? 'Next'
-                    : (paymentMethod == PaymentMethod.stripe
-                    ? 'Pay Now'
-                    : 'Confirm'),
-                style: GoogleFonts.alexandria(
-                  color: enabled
-                      ? Colors.white
-                      : (isDark
-                      ? Colors.grey.shade500
-                      : Colors.grey.shade400),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+                      step < totalSteps
+                          ? 'Next'
+                          : (paymentMethod == PaymentMethod.stripe
+                                ? 'Pay Now'
+                                : 'Confirm'),
+                      style: GoogleFonts.alexandria(
+                        color: enabled
+                            ? Colors.white
+                            : (isDark
+                                  ? Colors.grey.shade500
+                                  : Colors.grey.shade400),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -1651,13 +1650,13 @@ class _StepProgress extends StatelessWidget {
               child: done
                   ? const Icon(Icons.check, color: Colors.white, size: 16)
                   : Text(
-                '$s',
-                style: GoogleFonts.alexandria(
-                  color: active ? Colors.white : Colors.grey,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
+                      '$s',
+                      style: GoogleFonts.alexandria(
+                        color: active ? Colors.white : Colors.grey,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
             ),
           );
         }
@@ -1704,15 +1703,6 @@ class _QtyBtn extends StatelessWidget {
             ? null
             : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
         borderRadius: BorderRadius.circular(14),
-        boxShadow: enabled
-            ? [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.25),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ]
-            : [],
       ),
       child: Icon(
         icon,
@@ -1761,15 +1751,6 @@ class _PaymentOpt extends StatelessWidget {
               : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
           width: selected ? 2 : 1,
         ),
-        boxShadow: selected
-            ? [
-          BoxShadow(
-            color: color.withOpacity(0.15),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ]
-            : [],
       ),
       child: Row(
         children: [
@@ -1887,8 +1868,8 @@ class _ServiceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected
             ? (isDark
-            ? AppColors.primary.withOpacity(0.15)
-            : AppColors.primary.withOpacity(0.07))
+                  ? AppColors.primary.withOpacity(0.15)
+                  : AppColors.primary.withOpacity(0.07))
             : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
@@ -1980,8 +1961,8 @@ class _StoreCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected
             ? (isDark
-            ? AppColors.primary.withOpacity(0.15)
-            : AppColors.primary.withOpacity(0.07))
+                  ? AppColors.primary.withOpacity(0.15)
+                  : AppColors.primary.withOpacity(0.07))
             : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
@@ -2076,13 +2057,13 @@ class _ItemImage extends StatelessWidget {
       borderRadius: BorderRadius.circular(15),
       child: imageUrl != null
           ? CachedNetworkImage(
-        imageUrl: imageUrl!,
-        fit: BoxFit.cover,
-        errorWidget: (_, _, _) => Icon(
-          fallbackIcon,
-          color: selected ? Colors.white : Colors.grey,
-        ),
-      )
+              imageUrl: imageUrl!,
+              fit: BoxFit.cover,
+              errorWidget: (_, _, _) => Icon(
+                fallbackIcon,
+                color: selected ? Colors.white : Colors.grey,
+              ),
+            )
           : Icon(fallbackIcon, color: selected ? Colors.white : Colors.grey),
     ),
   );

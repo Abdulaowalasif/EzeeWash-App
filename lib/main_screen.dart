@@ -33,10 +33,6 @@ class _MainScreenState extends State<MainScreen> {
       (prev is AuthAuthenticated) != (curr is AuthAuthenticated),
       builder: (context, authState) {
         return Scaffold(
-          // GoRouter's StatefulShellRoute.indexedStack preserves every
-          // branch's widget tree and scroll position automatically.
-          // No AnimatedSwitcher wrapper is needed here — branch switching
-          // is instant and state is never lost.
           body: widget.navigationShell,
           bottomNavigationBar: authState is AuthAuthenticated
               ? _BottomNav(
@@ -82,19 +78,21 @@ class _BottomNav extends StatelessWidget {
               final tabWidth = constraints.maxWidth / 5;
               return Stack(
                 children: [
-                  // --- RESTORED SNUG PILL DESIGN ---
+                  // --- UPDATED PILL DESIGN: BIGGER, RECTANGULAR, AND SPACIOUS ---
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOutCubic,
                     left: currentIndex * tabWidth,
-                    top: 12,
-                    bottom: 12,
+                    top: 6,      // Reduced top offset to make the bg taller
+                    bottom: 10,   // Reduced bottom offset to make the bg taller
                     width: tabWidth,
                     child: Center(
                       child: Container(
-                        width: tabWidth * 0.75, // Wraps snug around the icon
+                        // Increased width to 85% for better internal padding/fit
+                        width: tabWidth * 0.85,
                         decoration: BoxDecoration(
                           gradient: AppColors.gradient,
+                          // Reduced radius from 16 to 10 for a "more rectangle" feel
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(

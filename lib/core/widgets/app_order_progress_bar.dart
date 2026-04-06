@@ -28,27 +28,34 @@ class AppOrderProgressBar extends StatelessWidget {
     final clamped = progress.clamp(0.0, 1.0);
     final color = OrderStatus.getColor(OrderStatus.getDisplayStatus(status));
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(
-            value: clamped,
-            minHeight: 6,
-            backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
-            valueColor: AlwaysStoppedAnimation(color),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            '${(clamped * 100).toInt()}% Complete',
-            style: AppTextStyles.captionMedium(isDark),
-          ),
-        ),
-      ],
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 1000),
+      curve: Curves.easeOutQuart,
+      tween: Tween<double>(begin: 0.0, end: clamped),
+      builder: (context, value, child) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: value,
+                minHeight: 6,
+                backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation(color),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '${(value * 100).toInt()}% Complete',
+                style: AppTextStyles.captionMedium(isDark),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

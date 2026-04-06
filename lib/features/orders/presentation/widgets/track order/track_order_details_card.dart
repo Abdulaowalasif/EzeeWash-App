@@ -6,11 +6,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
-import '../../../../core/constants/app_color.dart';
-import '../../../../core/widgets/order_shared/app_info_tile.dart';
-import '../../../../core/widgets/order_shared/app_surface_card.dart';
-import '../../domain/entities/order_entity.dart';
-import '../screens/track_order_screen.dart' show OrderPhase;
+import '../../../../../core/constants/app_color.dart';
+import '../../../../../core/widgets/order_shared/app_info_tile.dart';
+import '../../../../../core/widgets/order_shared/app_surface_card.dart';
+import '../../../domain/entities/order_entity.dart';
+import '../../screens/track_order_screen.dart' show OrderPhase;
 
 class TrackOrderDetailsCard extends StatelessWidget {
   final OrderEntity order;
