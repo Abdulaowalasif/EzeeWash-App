@@ -28,12 +28,12 @@ class ServiceCard extends StatelessWidget {
         boxShadow: isDark
             ? []
             : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 15,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,14 +75,14 @@ class _ServiceHeroImage extends StatelessWidget {
         width: double.infinity,
         child: imageUrl != null
             ? AppNetworkImage(
-                url: imageUrl,
-                width: double.infinity,
-                height: 140,
-                radius: 0,
-                isDark: isDark,
-                fallbackIcon: Icons.local_laundry_service_rounded,
-                fallbackIconSize: 56,
-              )
+          url: imageUrl,
+          width: double.infinity,
+          height: 140,
+          radius: 0,
+          isDark: isDark,
+          fallbackIcon: Icons.local_laundry_service_rounded,
+          fallbackIconSize: 56,
+        )
             : _ImageFallback(isDark: isDark),
       ),
     );
@@ -95,17 +95,17 @@ class _ImageFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        color: isDark
-            ? AppColors.primary.withOpacity(0.15)
-            : AppColors.primary.withOpacity(0.08),
-        child: Center(
-          child: Icon(
-            Icons.local_laundry_service_rounded,
-            size: 56,
-            color: AppColors.primary.withOpacity(0.4),
-          ),
-        ),
-      );
+    color: isDark
+        ? AppColors.primary.withOpacity(0.15)
+        : AppColors.primary.withOpacity(0.08),
+    child: Center(
+      child: Icon(
+        Icons.local_laundry_service_rounded,
+        size: 56,
+        color: AppColors.primary.withOpacity(0.4),
+      ),
+    ),
+  );
 }
 
 // ─── Title + price row ────────────────────────────────────────────────────────
@@ -183,21 +183,21 @@ class _TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: isDark
-              ? AppColors.primary.withOpacity(0.2)
-              : AppColors.primary.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          tag,
-          style: AppTextStyles.captionMedium(isDark).copyWith(
-            color: isDark ? Colors.blue.shade300 : AppColors.primary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    decoration: BoxDecoration(
+      color: isDark
+          ? AppColors.primary.withOpacity(0.2)
+          : AppColors.primary.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      tag,
+      style: AppTextStyles.captionMedium(isDark).copyWith(
+        color: isDark ? Colors.blue.shade300 : AppColors.primary,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
 }
 
 // ─── Reviews + Book Now buttons ───────────────────────────────────────────────

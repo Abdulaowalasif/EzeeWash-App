@@ -22,12 +22,12 @@ class ServiceSearchBar extends StatelessWidget {
         boxShadow: isDark
             ? []
             : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: TextField(
         onChanged: (val) =>

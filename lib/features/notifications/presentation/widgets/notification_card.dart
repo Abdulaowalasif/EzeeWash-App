@@ -110,8 +110,8 @@ class _CardBody extends StatelessWidget {
         decoration: BoxDecoration(
           color: isUnread
               ? (isDark
-                  ? AppColors.primary.withOpacity(0.12)
-                  : AppColors.primary.withOpacity(0.05))
+              ? AppColors.primary.withOpacity(0.12)
+              : AppColors.primary.withOpacity(0.05))
               : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
@@ -122,12 +122,12 @@ class _CardBody extends StatelessWidget {
           boxShadow: isDark
               ? []
               : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

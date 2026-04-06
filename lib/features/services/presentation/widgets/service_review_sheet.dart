@@ -104,7 +104,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
           .order('created_at', ascending: false);
 
       final reviews =
-          (data as List).map((e) => _Review.fromJson(e)).toList();
+      (data as List).map((e) => _Review.fromJson(e)).toList();
       final dist = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
       double sum = 0;
       for (final r in reviews) {
@@ -140,7 +140,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
         decoration: BoxDecoration(
           color: bg,
           borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(28)),
+          const BorderRadius.vertical(top: Radius.circular(28)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.18),
@@ -161,18 +161,18 @@ class _ReviewSheetState extends State<_ReviewSheet> {
               child: _loading
                   ? const AppLoadingIndicator()
                   : _error != null
-                      ? _ErrorState(
-                          message: _error!,
-                          onRetry: _load,
-                          isDark: widget.isDark,
-                        )
-                      : _ReviewListView(
-                          reviews: _reviews,
-                          avg: _avg,
-                          dist: _dist,
-                          isDark: widget.isDark,
-                          scrollCtrl: scrollCtrl,
-                        ),
+                  ? _ErrorState(
+                message: _error!,
+                onRetry: _load,
+                isDark: widget.isDark,
+              )
+                  : _ReviewListView(
+                reviews: _reviews,
+                avg: _avg,
+                dist: _dist,
+                isDark: widget.isDark,
+                scrollCtrl: scrollCtrl,
+              ),
             ),
           ],
         ),
@@ -216,7 +216,7 @@ class _ReviewListView extends StatelessWidget {
                 if (reviews.isNotEmpty) ...[
                   AppSectionLabel(
                     text:
-                        '${reviews.length} Review${reviews.length == 1 ? '' : 's'}',
+                    '${reviews.length} Review${reviews.length == 1 ? '' : 's'}',
                     isDark: isDark,
                   ),
                   const SizedBox(height: 10),
@@ -227,21 +227,21 @@ class _ReviewListView extends StatelessWidget {
         ),
         reviews.isEmpty
             ? SliverFillRemaining(
-                child: AppEmptyState(
-                    message: 'No reviews yet.', isDark: isDark))
+            child: AppEmptyState(
+                message: 'No reviews yet.', isDark: isDark))
             : SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (_, i) => _ReviewTile(
-                      review: reviews[i],
-                      isDark: isDark,
-                      showDivider: i < reviews.length - 1,
-                    ),
-                    childCount: reviews.length,
-                  ),
-                ),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+                  (_, i) => _ReviewTile(
+                review: reviews[i],
+                isDark: isDark,
+                showDivider: i < reviews.length - 1,
               ),
+              childCount: reviews.length,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -396,7 +396,7 @@ class _ReviewTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initials =
-        review.userName.isNotEmpty ? review.userName[0].toUpperCase() : '?';
+    review.userName.isNotEmpty ? review.userName[0].toUpperCase() : '?';
 
     return Column(
       children: [
@@ -413,21 +413,21 @@ class _ReviewTile extends StatelessWidget {
                     shape: BoxShape.circle, gradient: AppColors.gradient),
                 child: review.userAvatar != null
                     ? ClipOval(
-                        child: AppNetworkImage(
-                          url: review.userAvatar,
-                          width: 38,
-                          height: 38,
-                          radius: 19,
-                          isDark: isDark,
-                        ),
-                      )
+                  child: AppNetworkImage(
+                    url: review.userAvatar,
+                    width: 38,
+                    height: 38,
+                    radius: 19,
+                    isDark: isDark,
+                  ),
+                )
                     : Center(
-                        child: Text(
-                          initials,
-                          style: AppTextStyles.onGradientTitle
-                              .copyWith(fontSize: 15),
-                        ),
-                      ),
+                  child: Text(
+                    initials,
+                    style: AppTextStyles.onGradientTitle
+                        .copyWith(fontSize: 15),
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -532,30 +532,30 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline,
-                  color: AppColors.error, size: 44),
-              const SizedBox(height: 12),
-              Text(message,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.caption(isDark)
-                      .copyWith(color: AppColors.error)),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: onRetry,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: Text('Retry', style: AppTextStyles.button),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline,
+              color: AppColors.error, size: 44),
+          const SizedBox(height: 12),
+          Text(message,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.caption(isDark)
+                  .copyWith(color: AppColors.error)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: onRetry,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Retry', style: AppTextStyles.button),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }

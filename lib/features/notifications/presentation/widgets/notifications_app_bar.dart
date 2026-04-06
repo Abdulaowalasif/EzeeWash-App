@@ -42,7 +42,7 @@ class NotificationsAppBar extends StatelessWidget
                 .add(const NotificationsMarkAllReadRequested()),
             child: Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
