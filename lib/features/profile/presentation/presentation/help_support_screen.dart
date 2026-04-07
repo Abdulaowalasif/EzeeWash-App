@@ -81,15 +81,8 @@ class HelpSupportScreen extends StatelessWidget {
                   isDark: isDark,
                   child: Row(
                     children: [
-                      // gradient icon (special case — gradient bg, not tint)
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          gradient: AppColors.gradient,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(Icons.headset_mic_rounded,
-                            color: Colors.white, size: 26),
+                      const AppGradientIconBox(
+                        icon: Icons.headset_mic_rounded,
                       ),
                       const SizedBox(width: 16),
                       Expanded(

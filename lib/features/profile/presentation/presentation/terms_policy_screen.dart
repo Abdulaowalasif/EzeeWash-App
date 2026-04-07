@@ -88,15 +88,11 @@ class TermsPolicyScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(children: [
-                        // Gradient icon box (special case — gradient fill)
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            gradient: AppColors.gradient,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.description_rounded,
-                              color: Colors.white, size: 20),
+                        AppGradientIconBox(
+                          icon: Icons.description_rounded,
+                          size: 20,
+                          padding: 10,
+                          borderRadius: 12,
                         ),
                         const SizedBox(width: 12),
                         Text('Welcome to Ezee Wash',

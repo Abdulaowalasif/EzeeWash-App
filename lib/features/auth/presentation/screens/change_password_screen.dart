@@ -19,6 +19,8 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_snack_bar.dart';
 import '../../../../core/widgets/common_widgets.dart';
 import '../../../../core/widgets/gradient_app_bar.dart';
+import '../../../../core/widgets/auth/app_password_strength_field.dart'
+    show PasswordValidator;
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -48,37 +50,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     _newCtrl.dispose();
     _confirmCtrl.dispose();
     super.dispose();
-  }
-
-  // ── Password strength ──────────────────────────────────────────────────────
-
-  int _strengthScore(String pw) {
-    int score = 0;
-    if (pw.length >= 8) score++;
-    if (pw.contains(RegExp(r'[A-Z]'))) score++;
-    if (pw.contains(RegExp(r'[0-9]'))) score++;
-    if (pw.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'))) score++;
-    return score;
-  }
-
-  Color _strengthColor(int score) {
-    switch (score) {
-      case 1: return AppColors.error;
-      case 2: return AppColors.warning;
-      case 3: return AppColors.info;
-      case 4: return AppColors.success;
-      default: return AppColors.error;
-    }
-  }
-
-  String _strengthLabel(int score) {
-    switch (score) {
-      case 1: return 'Weak';
-      case 2: return 'Fair';
-      case 3: return 'Good';
-      case 4: return 'Strong';
-      default: return 'Weak';
-    }
   }
 
   Future<bool> _verifyCurrentPassword(String current) async {
@@ -146,7 +117,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final pw = _newCtrl.text;
-    final score = pw.isNotEmpty ? _strengthScore(pw) : 0;
+    final score = pw.isNotEmpty ? PasswordValidator.score(pw) : 0;
 
     return Scaffold(
       appBar: const GradientAppBar(title: 'Change Password'),
@@ -220,8 +191,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 child: pw.isNotEmpty
                     ? _StrengthBar(
                   score: score,
-                  color: _strengthColor(score),
-                  label: _strengthLabel(score),
+                  color: PasswordValidator.strengthColor(score),
+                  label: PasswordValidator.strengthLabel(score),
                 )
                     : const SizedBox.shrink(),
               ),
@@ -502,13 +473,10 @@ class _RequirementsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rules = [
-      _Rule('At least 8 characters', password.length >= 8),
-      _Rule('One uppercase letter',
-          password.contains(RegExp(r'[A-Z]'))),
-      _Rule(
-          'One number', password.contains(RegExp(r'[0-9]'))),
-      _Rule('One special character',
-          password.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'))),
+      _Rule('At least 8 characters', PasswordValidator.hasMinLength(password)),
+      _Rule('One uppercase letter', PasswordValidator.hasUppercase(password)),
+      _Rule('One number', PasswordValidator.hasDigit(password)),
+      _Rule('One special character', PasswordValidator.hasSpecialChar(password)),
     ];
 
     return AppCard(
