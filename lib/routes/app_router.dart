@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/di/injection_container.dart';
 import '../core/screens/error_screen.dart';
 import '../core/service/notification_service.dart';
 import '../core/utils/onboarding_prefs.dart';
@@ -16,10 +15,9 @@ import '../features/home/presentation/screens/home_screen.dart';
 import '../features/notifications/presentation/screens/notification_screen.dart';
 import '../features/onboarding/presentation/screen/onboarding_screen.dart';
 import '../features/orders/presentation/bloc/orders_bloc.dart';
+import '../features/orders/presentation/models/reorder_params.dart';
 import '../features/orders/presentation/screens/booking_confirmed_screen.dart';
 import '../features/orders/presentation/screens/order_screen.dart';
-import '../features/orders/presentation/screens/order_screen.dart'
-    show ReorderParams;
 import '../features/orders/presentation/screens/place_order_screen.dart';
 import '../features/orders/presentation/screens/track_order_screen.dart';
 import '../features/profile/presentation/presentation/chat_bot_screen.dart';
@@ -237,6 +235,6 @@ CustomTransitionPage<void> _fade(Widget child, GoRouterState state) =>
       key: state.pageKey,
       child: child,
       transitionDuration: const Duration(milliseconds: 450),
-      transitionsBuilder: (_, animation, __, child) =>
+      transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: animation, child: child),
     );

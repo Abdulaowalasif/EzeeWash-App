@@ -73,7 +73,7 @@ class _TrackOrderCleaningPanelState extends State<TrackOrderCleaningPanel>
       final phase = e.key / positions.length;
       return AnimatedBuilder(
         animation: _bubbleCtrl,
-        builder: (_, __) {
+        builder: (_, _) {
           final t = (_bubbleCtrl.value + phase) % 1.0;
           final opacity =
               math.sin(t * math.pi).clamp(0.0, 1.0) * 0.65;
@@ -122,7 +122,7 @@ class _TrackOrderCleaningPanelState extends State<TrackOrderCleaningPanel>
               // Outer pulse ring
               AnimatedBuilder(
                 animation: _pulseCtrl,
-                builder: (_, __) => Transform.scale(
+                builder: (_, _) => Transform.scale(
                   scale: 0.95 + 0.1 * _pulseCtrl.value,
                   child: Container(
                     width: 160,
@@ -137,7 +137,7 @@ class _TrackOrderCleaningPanelState extends State<TrackOrderCleaningPanel>
               // Inner pulse ring
               AnimatedBuilder(
                 animation: _pulseCtrl,
-                builder: (_, __) => Transform.scale(
+                builder: (_, _) => Transform.scale(
                   scale: 1.0 +
                       0.07 *
                           math.sin(_pulseCtrl.value * math.pi),
@@ -154,7 +154,7 @@ class _TrackOrderCleaningPanelState extends State<TrackOrderCleaningPanel>
               // Spinning arc
               AnimatedBuilder(
                 animation: _spinCtrl,
-                builder: (_, __) => Transform.rotate(
+                builder: (_, _) => Transform.rotate(
                   angle: _spinCtrl.value * 2 * math.pi,
                   child: CustomPaint(
                     size: const Size(90, 90),

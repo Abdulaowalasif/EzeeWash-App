@@ -1,13 +1,11 @@
 // lib/features/profile/presentation/presentation/terms_policy_screen.dart
 //
-// Refactored: all duplicated widget patterns replaced with core widgets.
-//   _PolicyTile   → AppCard (inline — title + body, no expansion needed)
-//   footer        → AppBrandFooter
-//   intro icon    → AppIconBox
-//   section label → AppSectionLabel
+// Refactored: _PolicyTile → AppCard (inline, always expanded)
+//             footer → AppBrandFooter
+//             section label → AppSectionLabel
+//             GoogleFonts inline → AppTextStyles
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -72,8 +70,8 @@ class TermsPolicyScreen extends StatelessWidget {
       appBar: GradientAppBar(title: 'Terms & Policy'),
       body: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-              maxWidth: Responsive.maxContentWidth(context)),
+          constraints:
+          BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.symmetric(
@@ -90,23 +88,19 @@ class TermsPolicyScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(children: [
-                        // gradient icon box (special case — gradient bg)
+                        // Gradient icon box (special case — gradient fill)
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             gradient: AppColors.gradient,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(
-                              Icons.description_rounded,
-                              color: Colors.white,
-                              size: 20),
+                          child: const Icon(Icons.description_rounded,
+                              color: Colors.white, size: 20),
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          'Welcome to Ezee Wash',
-                          style: AppTextStyles.sectionTitle(isDark),
-                        ),
+                        Text('Welcome to Ezee Wash',
+                            style: AppTextStyles.sectionTitle(isDark)),
                       ]),
                       const SizedBox(height: 12),
                       Text(
@@ -115,7 +109,6 @@ class TermsPolicyScreen extends StatelessWidget {
                             .copyWith(fontSize: 13),
                       ),
                       const SizedBox(height: 12),
-                      // Last updated badge
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -123,10 +116,9 @@ class TermsPolicyScreen extends StatelessWidget {
                           color: AppColors.primary.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(
-                          'Last updated: January 2025',
-                          style: AppTextStyles.price.copyWith(fontSize: 11),
-                        ),
+                        child: Text('Last updated: January 2025',
+                            style: AppTextStyles.price
+                                .copyWith(fontSize: 11)),
                       ),
                     ],
                   ),
@@ -139,10 +131,7 @@ class TermsPolicyScreen extends StatelessWidget {
 
                 // ── Policy tiles ────────────────────────────────────
                 ..._policies.map((p) => _PolicyTile(
-                  title: p.title,
-                  body: p.body,
-                  isDark: isDark,
-                )),
+                    title: p.title, body: p.body, isDark: isDark)),
 
                 const SizedBox(height: 32),
                 const AppBrandFooter(),
@@ -156,10 +145,7 @@ class TermsPolicyScreen extends StatelessWidget {
   }
 }
 
-// ─── Policy tile ──────────────────────────────────────────────────────────────
-//
-// Unlike FAQ items, policy sections are always expanded (no tap to reveal).
-// Uses AppCard for surface styling, AppTextStyles for text.
+// ─── Policy tile (always-expanded) ───────────────────────────────────────────
 
 class _PolicyTile extends StatelessWidget {
   final String title;
@@ -179,19 +165,16 @@ class _PolicyTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: AppTextStyles.body(isDark).copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-            ),
-          ),
+          Text(title,
+              style: AppTextStyles.body(isDark).copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              )),
           const SizedBox(height: 8),
-          Text(
-            body,
-            style: AppTextStyles.bodyLong(isDark).copyWith(fontSize: 13),
-          ),
+          Text(body,
+              style:
+              AppTextStyles.bodyLong(isDark).copyWith(fontSize: 13)),
         ],
       ),
     );

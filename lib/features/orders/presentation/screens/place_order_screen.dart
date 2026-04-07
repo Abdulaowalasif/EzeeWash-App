@@ -14,19 +14,17 @@ import 'package:shimmer/shimmer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/utils/business_utils_logic.dart';
 import '../../../../routes/routes_name.dart';
-import '../../../../core/widgets/gradient_app_bar.dart';
 import '../../domain/entities/place_orders_params.dart';
 import '../bloc/order_event.dart';
 import '../bloc/orders_bloc.dart';
 import '../bloc/orders_state.dart';
-import '../screens/order_screen.dart' show ReorderParams;
+import '../models/reorder_params.dart';
 
 // ─── Local DB models ──────────────────────────────────────────────────────────
 
@@ -546,11 +544,12 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _dataError = e.toString();
           _dataLoading = false;
         });
+      }
     }
   }
 
@@ -662,10 +661,11 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                         if (!available) return;
                       }
                       if (_step == 2) await _refreshTimeSlots();
-                      if (_step < 5)
+                      if (_step < 5) {
                         _moveToStep(_step + 1);
-                      else
+                      } else {
                         _onConfirm();
+                      }
                     },
                   ),
                 ],
@@ -1035,7 +1035,7 @@ class _SchCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           DropdownButtonFormField<String>(
-            value: currentDisplayTime == 'Select time'
+            initialValue: currentDisplayTime == 'Select time'
                 ? null
                 : currentDisplayTime,
             hint: Text(
@@ -1099,8 +1099,9 @@ class _AddressStepState extends State<_AddressStep> {
 
   Future<void> _requestAndLocate() async {
     LocationPermission status = await Geolocator.checkPermission();
-    if (status == LocationPermission.denied)
+    if (status == LocationPermission.denied) {
       status = await Geolocator.requestPermission();
+    }
     if (!mounted) return;
     if (status == LocationPermission.always ||
         status == LocationPermission.whileInUse) {
@@ -2200,7 +2201,7 @@ class _ItemImage extends StatelessWidget {
 class _ServiceImage extends StatelessWidget {
   final String? imageUrl;
   final bool isDark;
-  const _ServiceImage({this.imageUrl, required this.isDark});
+  const _ServiceImage({required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -2226,13 +2227,13 @@ class _ServiceImage extends StatelessWidget {
             ? CachedNetworkImage(
           imageUrl: imageUrl!,
           fit: BoxFit.cover,
-          placeholder: (_, __) => Shimmer.fromColors(
+          placeholder: (_, _) => Shimmer.fromColors(
             baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
             highlightColor:
             isDark ? Colors.grey[700]! : Colors.grey[100]!,
             child: Container(color: Colors.white),
           ),
-          errorWidget: (_, __, ___) => Container(
+          errorWidget: (_, _, _) => Container(
               decoration: BoxDecoration(
                   gradient: AppColors.gradient,
                   borderRadius: BorderRadius.circular(16)),

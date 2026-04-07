@@ -1,4 +1,7 @@
 // lib/features/home/presentation/widgets/home_quick_actions.dart
+//
+// Refactored: AppTextStyles replaces inline style references.
+// Logic unchanged — AppColors.gradient and surface colors preserved.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -10,7 +13,6 @@ import '../../../../routes/routes_name.dart';
 
 class HomeQuickActions extends StatelessWidget {
   final bool isDark;
-
   const HomeQuickActions({super.key, required this.isDark});
 
   @override
@@ -71,27 +73,23 @@ class _ActionButton extends StatelessWidget {
           border: filled
               ? null
               : Border.all(
-                  color: AppColors.primary.withOpacity(0.4),
-                  width: 1.5,
-                ),
+              color: AppColors.primary.withOpacity(0.4), width: 1.5),
           boxShadow: filled
               ? [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ]
               : [],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: filled ? Colors.white : AppColors.primary,
-              size: 20,
-            ),
+            Icon(icon,
+                color: filled ? Colors.white : AppColors.primary,
+                size: 20),
             const SizedBox(width: 8),
             Text(
               label,

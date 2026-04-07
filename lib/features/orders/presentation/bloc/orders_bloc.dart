@@ -148,7 +148,9 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       ) async {
     if (state is OrderPlacing ||
         state is OrderPlaced ||
-        state is OrderCancelling) return;
+        state is OrderCancelling) {
+      return;
+    }
 
     final prevShowActive =
     state is OrdersLoaded ? (state as OrdersLoaded).showActive : true;

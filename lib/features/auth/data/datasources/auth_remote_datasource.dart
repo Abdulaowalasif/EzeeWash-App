@@ -249,8 +249,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           .eq('id', userId)
           .limit(1);
 
-      if (rows == null || (rows as List).isEmpty) return null;
-      return rows.first as Map<String, dynamic>;
+      if ((rows as List).isEmpty) return null;
+      return rows.first;
     } catch (_) {
       return null;
     }

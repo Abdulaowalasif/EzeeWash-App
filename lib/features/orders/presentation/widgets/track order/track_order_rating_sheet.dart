@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../core/constants/app_color.dart';
-import '../../../../../core/widgets/order_shared/app_rider_avatar.dart';
 import '../../../domain/entities/order_entity.dart';
 import '../../screens/track_order_screen.dart' show RatingEvent;
 
@@ -168,7 +167,7 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
           child: ClipOval(
             child: photo != null
                 ? Image.network(photo, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
+                    errorBuilder: (_, _, _) =>
                         _fallback(name))
                 : _fallback(name),
           ),
@@ -201,7 +200,7 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
             final s = i + 1;
             return AnimatedBuilder(
               animation: _starAnims[i],
-              builder: (_, __) => Transform.scale(
+              builder: (_, _) => Transform.scale(
                 scale: _stars >= s ? _starAnims[i].value : 1.0,
                 child: GestureDetector(
                   onTap: () => _onStar(s),

@@ -1,4 +1,8 @@
 // lib/features/notifications/presentation/widgets/notification_card.dart
+//
+// Refactored: AppCard replaces raw Container+BoxDecoration on card body.
+//             AppIconBox replaces the repeated icon-in-tinted-box pattern.
+//             AppTextStyles replaces all inline text style construction.
 
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
@@ -6,14 +10,13 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/common_widgets.dart';
 import '../../domain/entities/notification_entity.dart';
 
 class NotificationCard extends StatelessWidget {
   final NotificationEntity notification;
   final bool isDark;
   final VoidCallback onTap;
-
-  /// Non-null only when unread — powers the swipe-to-read action.
   final VoidCallback? onMarkRead;
 
   const NotificationCard({
@@ -23,8 +26,6 @@ class NotificationCard extends StatelessWidget {
     required this.onTap,
     this.onMarkRead,
   });
-
-  // ─── Type helpers ──────────────────────────────────────────────────────────
 
   IconData get _icon {
     switch (notification.type) {
@@ -45,9 +46,8 @@ class NotificationCard extends StatelessWidget {
   }
 
   bool get _isNavigable =>
-      notification.type == 'order_update' && notification.orderId != null;
-
-  // ─── Build ─────────────────────────────────────────────────────────────────
+      notification.type == 'order_update' &&
+          notification.orderId != null;
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +68,7 @@ class NotificationCard extends StatelessWidget {
         direction: DismissDirection.endToStart,
         confirmDismiss: (_) async {
           onMarkRead?.call();
-          return false; // bloc handles the UI update optimistically
+          return false;
         },
         background: _SwipeBackground(isDark: isDark),
         child: card,
@@ -132,37 +132,34 @@ class _CardBody extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Type icon
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: iconColor, size: 20),
+            // Type icon — uses AppIconBox
+            AppIconBox(
+              icon: icon,
+              color: iconColor,
+              iconSize: 20,
+              borderRadius: 12,
             ),
             const SizedBox(width: 14),
-            // Text content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _TitleRow(
-                      notification: notification,
-                      isDark: isDark,
-                      isUnread: isUnread),
-                  const SizedBox(height: 4),
-                  Text(
-                    notification.body,
-                    style: AppTextStyles.subtitle(isDark)
-                        .copyWith(height: 1.4),
+                    notification: notification,
+                    isDark: isDark,
+                    isUnread: isUnread,
                   ),
+                  const SizedBox(height: 4),
+                  Text(notification.body,
+                      style: AppTextStyles.subtitle(isDark)
+                          .copyWith(height: 1.4)),
                   const SizedBox(height: 6),
                   _MetaRow(
-                      notification: notification,
-                      isDark: isDark,
-                      isUnread: isUnread,
-                      isNavigable: isNavigable),
+                    notification: notification,
+                    isDark: isDark,
+                    isUnread: isUnread,
+                    isNavigable: isNavigable,
+                  ),
                 ],
               ),
             ),
@@ -190,12 +187,11 @@ class _TitleRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Text(
-            notification.title,
-            style: AppTextStyles.rowTitle(isDark).copyWith(
-              fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
-            ),
-          ),
+          child: Text(notification.title,
+              style: AppTextStyles.rowTitle(isDark).copyWith(
+                fontWeight:
+                isUnread ? FontWeight.bold : FontWeight.w600,
+              )),
         ),
         const SizedBox(width: 8),
         if (isUnread)
@@ -244,7 +240,6 @@ class _MetaRow extends StatelessWidget {
               .withOpacity(0.7),
         ),
       ),
-      // "Track order" pill for new navigable notifications
       if (isNavigable && isUnread) ...[
         const SizedBox(width: 8),
         Container(
@@ -258,18 +253,15 @@ class _MetaRow extends StatelessWidget {
             children: [
               Icon(Iconsax.location, size: 10, color: AppColors.primary),
               const SizedBox(width: 3),
-              Text(
-                'Track order',
-                style: AppTextStyles.tiny(isDark).copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text('Track order',
+                  style: AppTextStyles.tiny(isDark).copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  )),
             ],
           ),
         ),
       ],
-      // Chevron for already-read navigable notifications
       if (isNavigable && !isUnread)
         Padding(
           padding: const EdgeInsets.only(left: 6),
@@ -305,11 +297,9 @@ class _SwipeBackground extends StatelessWidget {
         children: [
           Icon(Iconsax.tick_circle, color: AppColors.primary, size: 22),
           const SizedBox(height: 4),
-          Text(
-            'Mark read',
-            style: AppTextStyles.captionMedium(isDark)
-                .copyWith(color: AppColors.primary),
-          ),
+          Text('Mark read',
+              style: AppTextStyles.captionMedium(isDark)
+                  .copyWith(color: AppColors.primary)),
         ],
       ),
     );

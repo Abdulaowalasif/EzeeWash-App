@@ -1,12 +1,14 @@
 // lib/features/home/presentation/widgets/home_recent_orders.dart
+//
+// Refactored: AppCard replaces raw Container+BoxDecoration for order card.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../../../core/widgets/app_order_progress_bar.dart';
 import '../../../../core/widgets/app_shimmer_box.dart';
@@ -17,7 +19,6 @@ import '../../../orders/presentation/bloc/orders_state.dart';
 
 class HomeRecentOrders extends StatelessWidget {
   final bool isDark;
-
   const HomeRecentOrders({super.key, required this.isDark});
 
   @override
@@ -31,26 +32,24 @@ class HomeRecentOrders extends StatelessWidget {
           final recent = state.orders.take(2).toList();
           if (recent.isEmpty) {
             return Center(
-              child: Text(
-                'No orders yet. Book your first service!',
-                style: AppTextStyles.caption(isDark),
-              ),
+              child: Text('No orders yet. Book your first service!',
+                  style: AppTextStyles.caption(isDark)),
             );
           }
           return Column(
             children: recent
                 .map((order) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: RecentOrderCard(
-                        orderId: order.id,
-                        orderNumber: '#${order.orderNumber}',
-                        serviceName: order.serviceName,
-                        status: order.status,
-                        progress: order.progress,
-                        imageUrl: order.serviceImageUrl.toString(),
-                        isDark: isDark,
-                      ),
-                    ))
+              padding: const EdgeInsets.only(bottom: 12),
+              child: RecentOrderCard(
+                orderId: order.id,
+                orderNumber: '#${order.orderNumber}',
+                serviceName: order.serviceName,
+                status: order.status,
+                progress: order.progress,
+                imageUrl: order.serviceImageUrl.toString(),
+                isDark: isDark,
+              ),
+            ))
                 .toList(),
           );
         }
@@ -60,27 +59,26 @@ class HomeRecentOrders extends StatelessWidget {
   }
 }
 
-// ─── Shimmer skeleton ─────────────────────────────────────────────────────────
+// ─── Shimmer ──────────────────────────────────────────────────────────────────
 
 class _RecentOrdersShimmer extends StatelessWidget {
   final bool isDark;
-
   const _RecentOrdersShimmer({required this.isDark});
 
   @override
   Widget build(BuildContext context) => Shimmer.fromColors(
-        baseColor: AppShimmerColors.base(isDark),
-        highlightColor: AppShimmerColors.highlight(isDark),
-        child: Column(
-          children: List.generate(
-            2,
+    baseColor: AppShimmerColors.base(isDark),
+    highlightColor: AppShimmerColors.highlight(isDark),
+    child: Column(
+      children: List.generate(
+        2,
             (_) => const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: AppShimmerBox(height: 120, radius: 18),
-            ),
-          ),
+          padding: EdgeInsets.only(bottom: 12),
+          child: AppShimmerBox(height: 120, radius: 18),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 // ─── Order card ───────────────────────────────────────────────────────────────
@@ -108,25 +106,12 @@ class RecentOrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push(RoutesName.trackOrdersNavigate, extra: orderId),
-      child: Container(
+      onTap: () =>
+          context.push(RoutesName.trackOrdersNavigate, extra: orderId),
+      child: AppCard(
+        isDark: isDark,
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          ),
-          boxShadow: isDark
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 15,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-        ),
+        borderRadius: 18,
         child: Column(
           children: [
             _OrderCardHeader(

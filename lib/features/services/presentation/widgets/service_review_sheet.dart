@@ -343,7 +343,7 @@ class _ReviewSummaryBar extends StatelessWidget {
                         tween: Tween(begin: 0, end: frac),
                         duration: const Duration(milliseconds: 600),
                         curve: Curves.easeOut,
-                        builder: (_, v, __) => LinearProgressIndicator(
+                        builder: (_, v, _) => LinearProgressIndicator(
                           value: v,
                           minHeight: 5,
                           backgroundColor: isDark

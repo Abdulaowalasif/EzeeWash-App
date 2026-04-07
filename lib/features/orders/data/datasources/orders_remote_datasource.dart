@@ -62,7 +62,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
   @override
   Future<OrderModel> placeOrder(String userId, PlaceOrderParams params) async {
     try {
-      String? _fmtDate(DateTime? d) {
+      String? fmtDate(DateTime? d) {
         if (d == null) return null;
         return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       }
@@ -79,9 +79,9 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         'total_price': params.totalPrice,
         'pickup_address': params.pickupAddress,
         'delivery_address': params.deliveryAddress ?? params.pickupAddress,
-        'pickup_date': _fmtDate(params.pickupDate),
+        'pickup_date': fmtDate(params.pickupDate),
         'pickup_time': params.pickupTime,
-        'delivery_date': _fmtDate(params.deliveryDate),
+        'delivery_date': fmtDate(params.deliveryDate),
         'delivery_time': params.deliveryTime,
         'special_instructions': params.specialInstructions,
         'status': AppConstants.orderPending,

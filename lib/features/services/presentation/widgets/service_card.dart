@@ -12,7 +12,6 @@ import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_network_image.dart';
-import '../../../../core/widgets/common_widgets.dart';
 import '../../../../routes/routes_name.dart';
 import '../../domain/entities/service_entity.dart';
 import 'service_review_sheet.dart';

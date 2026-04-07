@@ -9,6 +9,7 @@ export 'app_card.dart';
 export 'common_widgets.dart';
 export 'app_network_image.dart';
 export 'app_shimmer_box.dart';
+export 'app_shimmer_list.dart';       // ← NEW: replaces copy-pasted shimmer lists
 export 'app_status_badge.dart';
 export 'app_order_progress_bar.dart';
 export 'app_section_header.dart';

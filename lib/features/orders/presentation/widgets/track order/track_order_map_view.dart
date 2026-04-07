@@ -270,8 +270,9 @@ class _TrackOrderMapViewState extends State<TrackOrderMapView> {
             onMapCreated: (ctrl) {
               if (!_cc.isCompleted) _cc.complete(ctrl);
               _mapCtrl = ctrl;
-              if (widget.isDark)
+              if (widget.isDark) {
                 ctrl.setMapStyle(AppConstants.darkMapStyle);
+              }
             },
             myLocationEnabled: false,
             myLocationButtonEnabled: false,
@@ -322,8 +323,9 @@ class _TrackOrderMapViewState extends State<TrackOrderMapView> {
             onMapCreated: (ctrl) {
               if (!_cc.isCompleted) _cc.complete(ctrl);
               _mapCtrl = ctrl;
-              if (widget.isDark)
+              if (widget.isDark) {
                 ctrl.setMapStyle(AppConstants.darkMapStyle);
+              }
             },
             myLocationEnabled: false,
             myLocationButtonEnabled: false,

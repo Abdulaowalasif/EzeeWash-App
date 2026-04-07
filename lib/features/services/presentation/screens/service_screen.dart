@@ -102,8 +102,8 @@ class _ServiceLoadingBody extends StatelessWidget {
                 Responsive.horizontalPadding(context), 30,
               ),
               itemCount: 5,
-              separatorBuilder: (_, __) => const SizedBox(height: 16),
-              itemBuilder: (_, __) =>
+              separatorBuilder: (_, _) => const SizedBox(height: 16),
+              itemBuilder: (_, _) =>
               const AppShimmerBox(height: 280, radius: 24),
             ),
           ),
@@ -207,7 +207,7 @@ class _ServiceLoadedBody extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   padding: EdgeInsets.zero,
                   itemCount: state.filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  separatorBuilder: (_, _) => const SizedBox(height: 16),
                   itemBuilder: (context, i) => ServiceCard(
                     service: state.filtered[i],
                     isDark: isDark,

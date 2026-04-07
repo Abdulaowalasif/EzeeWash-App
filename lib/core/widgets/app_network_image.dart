@@ -47,8 +47,8 @@ class AppNetworkImage extends StatelessWidget {
             ? CachedNetworkImage(
           imageUrl: url!,
           fit: fit,
-          placeholder: (_, __) => _shimmer(),
-          errorWidget: (_, __, ___) => _fallback(),
+          placeholder: (_, _) => _shimmer(),
+          errorWidget: (_, _, _) => _fallback(),
         )
             : _fallback(),
       ),

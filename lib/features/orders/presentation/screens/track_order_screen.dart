@@ -134,8 +134,9 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     bool isDark,
   ) async {
     if (_isSheetVisible ||
-        (_ratingMem.shownForPickup && _ratingMem.shownForDelivery))
+        (_ratingMem.shownForPickup && _ratingMem.shownForDelivery)) {
       return;
+    }
 
     final effectiveStatus = _liveStatus ?? order.status;
     final phase = effectiveStatus.phase;

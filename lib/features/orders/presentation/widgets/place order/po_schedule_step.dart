@@ -230,7 +230,7 @@ class _PoSchCard extends StatelessWidget {
           // UPDATED: Removed the "no slots" error notice.
           // Users will now only see available slots in the dropdown.
           DropdownButtonFormField<String>(
-            value: currentDisplayTime,
+            initialValue: currentDisplayTime,
             hint: Text('Select time',
                 style: GoogleFonts.alexandria(
                     fontSize: 14, color: Colors.grey)),

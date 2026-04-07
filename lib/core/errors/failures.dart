@@ -1,9 +1,33 @@
-// lib/core/errors/failures.dart
 import 'package:equatable/equatable.dart';
 
 abstract class Failure extends Equatable {
   final String message;
   const Failure(this.message);
+
+  /// Converts technical exceptions into user-friendly strings.
+  String get userMessage {
+    final msg = message.toLowerCase();
+
+    // Handle Supabase/Connection drops (common when phone locks)
+    if (msg.contains('clientexception') ||
+        msg.contains('socketexception') ||
+        msg.contains('connection closed')) {
+      return 'Connection lost. Please check your internet and try again.';
+    }
+
+    // Handle Timeouts
+    if (msg.contains('timeout')) {
+      return 'The request took too long. Please try again.';
+    }
+
+    // Handle Authentication issues
+    if (this is AuthFailure) {
+      return message; // Usually Auth messages are already user-friendly
+    }
+
+    // Default simplified message for everything else
+    return 'Something went wrong. Please try again later.';
+  }
 
   @override
   List<Object> get props => [message];

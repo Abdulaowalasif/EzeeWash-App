@@ -70,7 +70,7 @@ class AppRiderAvatar extends StatelessWidget {
                 ? Image.network(
               photoUrl!,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _fallback(),
+              errorBuilder: (_, _, _) => _fallback(),
             )
                 : _fallback(),
           ),

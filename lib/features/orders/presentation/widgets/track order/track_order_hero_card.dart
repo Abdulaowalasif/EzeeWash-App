@@ -97,7 +97,7 @@ class TrackOrderHeroCard extends StatelessWidget {
                 tween: Tween(begin: 0.0, end: progress.clamp(0.0, 1.0)),
                 duration: const Duration(milliseconds: 800),
                 curve: Curves.easeOutCubic,
-                builder: (_, v, __) => ClipRRect(
+                builder: (_, v, _) => ClipRRect(
                   borderRadius: BorderRadius.circular(6),
                   child: LinearProgressIndicator(
                     value: v,

@@ -1,19 +1,7 @@
 // lib/features/orders/presentation/widgets/order_list/order_list_widgets.dart
-//
-// All UI widgets for the order list screen (order_screen.dart), extracted
-// into one focused file so the screen only holds state + BLoC wiring.
-//
-// Exports:
-//   OrderCard          – rich order tile with status badge, action buttons
-//   OrdersToggle       – Active / History pill toggle
-//   OrderActiveFilterBar – horizontal scrolling active-filter chips
-//   OrdersShimmer      – skeleton loading state
-//   OrderEmptyState    – empty placeholder
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
@@ -21,13 +9,14 @@ import 'package:shimmer/shimmer.dart';
 
 import '../../../../../core/constants/app_color.dart';
 import '../../../../../core/constants/order_status.dart';
+import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/utils/responsive.dart';
+import '../../../../../core/widgets/app_card.dart';
+import '../../../../../core/widgets/app_shimmer_box.dart';
 import '../../../../../core/widgets/app_status_badge.dart';
 import '../../../../../core/widgets/common_widgets.dart';
 import '../../../../../routes/routes_name.dart';
 import '../../../domain/entities/order_entity.dart';
-import '../../bloc/order_event.dart';
-import '../../bloc/orders_bloc.dart';
 
 // ─── OrderCard ────────────────────────────────────────────────────────────────
 
@@ -47,41 +36,22 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayStatus =
-        OrderStatus.getDisplayStatus(order.status);
+    final displayStatus = OrderStatus.getDisplayStatus(order.status);
     final statusColor = OrderStatus.getColor(displayStatus);
     final progress =
-        OrderStatus.getProgress(order.status).clamp(0.0, 1.0);
+    OrderStatus.getProgress(order.status).clamp(0.0, 1.0);
 
     return GestureDetector(
       onTap: onPress,
-      child: Container(
-        decoration: BoxDecoration(
-          color:
-              isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color:
-                isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          ),
-          boxShadow: isDark
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-        ),
+      child: AppCard(
+        isDark: isDark,
+        padding: EdgeInsets.zero,
         child: Column(
           children: [
-            // Header row
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
               child: Row(
                 children: [
-                  // Service image/icon
                   Container(
                     width: 52,
                     height: 52,
@@ -91,43 +61,31 @@ class OrderCard extends StatelessWidget {
                     ),
                     child: order.serviceImageUrl != null
                         ? ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: CachedNetworkImage(
-                              imageUrl: order.serviceImageUrl!,
-                              fit: BoxFit.cover,
-                              errorWidget: (_, __, ___) => const Icon(
-                                  Iconsax.drop,
-                                  color: Colors.white,
-                                  size: 24),
-                            ),
-                          )
+                      borderRadius: BorderRadius.circular(14),
+                      child: CachedNetworkImage(
+                        imageUrl: order.serviceImageUrl!,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, _, _) => const Icon(
+                            Iconsax.drop,
+                            color: Colors.white,
+                            size: 24),
+                      ),
+                    )
                         : const Icon(Iconsax.drop,
-                            color: Colors.white, size: 24),
+                        color: Colors.white, size: 24),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          order.serviceName,
-                          style: GoogleFonts.alexandria(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: isDark
-                                ? Colors.white
-                                : AppColors.lightText,
-                          ),
-                        ),
+                        Text(order.serviceName,
+                            style: AppTextStyles.cardTitle(isDark)
+                                .copyWith(fontSize: 15)),
                         const SizedBox(height: 3),
                         Text(
                           '#${order.orderNumber} · ${order.storeName}',
-                          style: GoogleFonts.alexandria(
-                            fontSize: 12,
-                            color: isDark
-                                ? AppColors.darkSubtext
-                                : AppColors.lightSubtext,
-                          ),
+                          style: AppTextStyles.subtitle(isDark),
                         ),
                       ],
                     ),
@@ -136,35 +94,20 @@ class OrderCard extends StatelessWidget {
                 ],
               ),
             ),
-            // Progress bar (active orders only)
             if (!isHistory)
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18),
+                padding: const EdgeInsets.symmetric(horizontal: 18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Progress',
-                          style: GoogleFonts.alexandria(
-                            fontSize: 11,
-                            color: isDark
-                                ? AppColors.darkSubtext
-                                : AppColors.lightSubtext,
-                          ),
-                        ),
-                        Text(
-                          '${(progress * 100).toInt()}%',
-                          style: GoogleFonts.alexandria(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: statusColor,
-                          ),
-                        ),
+                        Text('Progress',
+                            style: AppTextStyles.caption(isDark)),
+                        Text('${(progress * 100).toInt()}%',
+                            style: AppTextStyles.captionMedium(isDark)
+                                .copyWith(color: statusColor)),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -181,7 +124,6 @@ class OrderCard extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 14),
-            // Footer
             Container(
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
               decoration: BoxDecoration(
@@ -194,18 +136,16 @@ class OrderCard extends StatelessWidget {
                 ),
               ),
               child: Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _FooterInfo(
                     icon: Iconsax.calendar_1,
-                    label: _fmtDate(order.createdAt),
+                    label: DateFormat('dd MMM yyyy').format(order.createdAt),
                     isDark: isDark,
                   ),
                   _FooterInfo(
                     icon: Iconsax.money,
-                    label:
-                        '৳${order.totalPrice.toStringAsFixed(0)}',
+                    label: '৳${order.totalPrice.toStringAsFixed(0)}',
                     isDark: isDark,
                     highlight: true,
                   ),
@@ -221,9 +161,6 @@ class OrderCard extends StatelessWidget {
       ),
     );
   }
-
-  String _fmtDate(DateTime d) =>
-      DateFormat('dd MMM yyyy').format(d);
 }
 
 class _FooterInfo extends StatelessWidget {
@@ -241,31 +178,26 @@ class _FooterInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        children: [
-          Icon(icon,
-              size: 14,
-              color: highlight
-                  ? AppColors.primary
-                  : (isDark
-                      ? AppColors.darkSubtext
-                      : AppColors.lightSubtext)),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: GoogleFonts.alexandria(
-              fontSize: 12,
-              fontWeight: highlight
-                  ? FontWeight.bold
-                  : FontWeight.normal,
-              color: highlight
-                  ? AppColors.primary
-                  : (isDark
-                      ? AppColors.darkSubtext
-                      : AppColors.lightSubtext),
-            ),
-          ),
-        ],
-      );
+    children: [
+      Icon(icon,
+          size: 14,
+          color: highlight
+              ? AppColors.primary
+              : (isDark
+              ? AppColors.darkSubtext
+              : AppColors.lightSubtext)),
+      const SizedBox(width: 5),
+      Text(label,
+          style: AppTextStyles.caption(isDark).copyWith(
+            fontWeight: highlight
+                ? FontWeight.bold
+                : FontWeight.normal,
+            color: highlight
+                ? AppColors.primary
+                : null,
+          )),
+    ],
+  );
 }
 
 class _TrackButton extends StatelessWidget {
@@ -275,68 +207,59 @@ class _TrackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: () => context.push(
-            RoutesName.trackOrdersNavigate,
-            extra: order.id),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(
-            gradient: AppColors.gradient,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text('Track',
-              style: GoogleFonts.alexandria(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              )),
-        ),
-      );
+    onTap: () => context.push(RoutesName.trackOrdersNavigate,
+        extra: order.id),
+    child: Container(
+      padding:
+      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        gradient: AppColors.gradient,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text('Track',
+          style: AppTextStyles.buttonSmall),
+    ),
+  );
 }
 
 class _ReorderButton extends StatelessWidget {
   final OrderEntity order;
   final bool isDark;
-  const _ReorderButton(
-      {required this.order, required this.isDark});
+  const _ReorderButton({required this.order, required this.isDark});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: () => context.push(
-            RoutesName.placeOrdersNavigate,
-            extra: order),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-                color: AppColors.primary.withOpacity(0.3)),
-          ),
-          child: Text('Reorder',
-              style: GoogleFonts.alexandria(
-                color: AppColors.primary,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              )),
-        ),
-      );
+    onTap: () => context.push(RoutesName.placeOrdersNavigate,
+        extra: order),
+    child: Container(
+      padding:
+      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+            color: AppColors.primary.withOpacity(0.3)),
+      ),
+      child: Text('Reorder', style: AppTextStyles.buttonOutline.copyWith(fontSize: 12)),
+    ),
+  );
 }
 
 // ─── OrdersToggle ─────────────────────────────────────────────────────────────
+
 
 class OrdersToggle extends StatelessWidget {
   final bool showActive;
   final bool isDark;
   final ValueChanged<bool> onChanged;
+  final PageController pageController;
 
   const OrdersToggle({
     super.key,
     required this.showActive,
     required this.isDark,
     required this.onChanged,
+    required this.pageController,
   });
 
   @override
@@ -345,60 +268,137 @@ class OrdersToggle extends StatelessWidget {
       height: 54,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color:
-            isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: isDark
+            ? []
+            : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
-      child: Row(
+      child: Stack(
         children: [
-          _ToggleBtn(
-            label: 'Active',
-            active: showActive,
-            onTap: () => onChanged(true),
+          // ─── Sliding Selection Background ───
+          AnimatedBuilder(
+            animation: pageController,
+            builder: (context, child) {
+              double page = showActive ? 0.0 : 1.0;
+
+              // Sync with PageView scroll progress
+              if (pageController.hasClients && pageController.position.haveDimensions) {
+                page = pageController.page ?? page;
+              }
+
+              page = page.clamp(0.0, 1.0);
+              // Calculate alignment: 0.0 page -> -1.0 alignment, 1.0 page -> 1.0 alignment
+              final alignmentX = (page * 2) - 1.0;
+
+              return Align(
+                alignment: Alignment(alignmentX, 0.0),
+                child: FractionallySizedBox(
+                  widthFactor: 0.5,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: AppColors.gradient,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
-          _ToggleBtn(
-            label: 'History',
-            active: !showActive,
-            onTap: () => onChanged(false),
+
+          // ─── Tab Labels ───
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(true),
+                  child: Center(
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 150),
+                      style: AppTextStyles.caption(true).copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: showActive
+                            ? Colors.white
+                            : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
+                      ),
+                      child: const Text('Active Orders'),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(false),
+                  child: Center(
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 150),
+                      style: AppTextStyles.caption(true).copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: !showActive
+                            ? Colors.white
+                            : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
+                      ),
+                      child: const Text('Order History'),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 }
-
 class _ToggleBtn extends StatelessWidget {
   final String label;
   final bool active;
   final VoidCallback onTap;
 
-  const _ToggleBtn(
-      {required this.label,
-      required this.active,
-      required this.onTap});
+  const _ToggleBtn({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => Expanded(
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: active ? AppColors.gradient : null,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(
-                label,
-                style: GoogleFonts.alexandria(
-                  color: active ? Colors.white : Colors.grey,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ),
+    child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          gradient: active ? AppColors.gradient : null,
+          borderRadius: BorderRadius.circular(12),
         ),
-      );
+        child: Center(
+          child: Text(label,
+              style: AppTextStyles.body(false).copyWith(
+                color: active ? Colors.white : Colors.grey,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              )),
+        ),
+      ),
+    ),
+  );
 }
 
 // ─── OrderActiveFilterBar ─────────────────────────────────────────────────────
@@ -421,22 +421,19 @@ class OrderActiveFilterBar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         children: [
           ...chips.map((c) => Container(
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: AppColors.primary.withOpacity(0.3)),
-                ),
-                child: Text(c,
-                    style: GoogleFonts.alexandria(
-                      fontSize: 11,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    )),
-              )),
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                  color: AppColors.primary.withOpacity(0.3)),
+            ),
+            child: Text(c,
+                style: AppTextStyles.captionMedium(false)
+                    .copyWith(color: AppColors.primary)),
+          )),
           GestureDetector(
             onTap: onClear,
             child: Container(
@@ -452,11 +449,8 @@ class OrderActiveFilterBar extends StatelessWidget {
                       size: 12, color: AppColors.error),
                   const SizedBox(width: 4),
                   Text('Clear',
-                      style: GoogleFonts.alexandria(
-                        fontSize: 11,
-                        color: AppColors.error,
-                        fontWeight: FontWeight.w600,
-                      )),
+                      style: AppTextStyles.captionMedium(false)
+                          .copyWith(color: AppColors.error)),
                 ],
               ),
             ),
@@ -485,10 +479,8 @@ class OrdersShimmer extends StatelessWidget {
           constraints: BoxConstraints(
               maxWidth: Responsive.maxContentWidth(context)),
           child: Shimmer.fromColors(
-            baseColor:
-                isDark ? Colors.grey[800]! : Colors.grey[300]!,
-            highlightColor:
-                isDark ? Colors.grey[700]! : Colors.grey[100]!,
+            baseColor: AppShimmerColors.base(isDark),
+            highlightColor: AppShimmerColors.highlight(isDark),
             child: Column(
               children: [
                 Container(
@@ -500,17 +492,15 @@ class OrdersShimmer extends StatelessWidget {
                 const SizedBox(height: 20),
                 Expanded(
                   child: ListView.separated(
-                    physics:
-                        const NeverScrollableScrollPhysics(),
+                    physics: const NeverScrollableScrollPhysics(),
                     itemCount: 4,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(height: 16),
-                    itemBuilder: (_, __) => Container(
+                    separatorBuilder: (_, _) =>
+                    const SizedBox(height: 16),
+                    itemBuilder: (_, _) => Container(
                       height: 160,
                       decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius:
-                              BorderRadius.circular(24)),
+                          borderRadius: BorderRadius.circular(24)),
                     ),
                   ),
                 ),
@@ -525,6 +515,7 @@ class OrdersShimmer extends StatelessWidget {
 
 // ─── OrderEmptyState ──────────────────────────────────────────────────────────
 
+/// Thin wrapper over [AppEmptyState] kept for call-site backwards compatibility.
 class OrderEmptyState extends StatelessWidget {
   final bool showActive;
   final bool isDark;
@@ -539,34 +530,19 @@ class OrderEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            isFiltered ? Iconsax.search_normal : Iconsax.box,
-            size: 64,
-            color: isDark
-                ? AppColors.darkSubtext
-                : AppColors.lightSubtext,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            isFiltered
-                ? 'No matches'
-                : (showActive
-                    ? 'No active orders'
-                    : 'No history'),
-            style: GoogleFonts.alexandria(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              color: isDark
-                  ? AppColors.darkSubtext
-                  : AppColors.lightSubtext,
-            ),
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: isFiltered
+          ? Iconsax.search_normal
+          : (showActive ? Iconsax.truck_fast : Iconsax.box),
+      message: isFiltered
+          ? 'No orders match your filters'
+          : (showActive ? 'No active orders' : 'No completed orders'),
+      subtitle: isFiltered
+          ? 'Try adjusting or clearing your filters'
+          : (showActive
+          ? 'Tap + to book your first laundry service'
+          : 'Completed orders will appear here'),
+      isDark: isDark,
     );
   }
 }

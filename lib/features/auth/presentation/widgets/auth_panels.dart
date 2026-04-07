@@ -436,11 +436,13 @@ class AuthSignInPanel extends StatelessWidget {
               isDark: isDark,
               type: TextInputType.emailAddress,
               validator: (v) {
-                if (v == null || v.trim().isEmpty)
+                if (v == null || v.trim().isEmpty) {
                   return 'Email is required';
+                }
                 if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.\w+')
-                    .hasMatch(v.trim()))
+                    .hasMatch(v.trim())) {
                   return 'Enter a valid email';
+                }
                 return null;
               },
             ),
@@ -531,11 +533,13 @@ class AuthSignUpPanel extends StatelessWidget {
               isDark: isDark,
               type: TextInputType.emailAddress,
               validator: (v) {
-                if (v == null || v.trim().isEmpty)
+                if (v == null || v.trim().isEmpty) {
                   return 'Email is required';
+                }
                 if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.\w+')
-                    .hasMatch(v.trim()))
+                    .hasMatch(v.trim())) {
                   return 'Enter a valid email';
+                }
                 return null;
               },
             ),
@@ -557,8 +561,9 @@ class AuthSignUpPanel extends StatelessWidget {
               obscure: true,
               autovalidate: true,
               validator: (v) {
-                if (v == null || v.isEmpty)
+                if (v == null || v.isEmpty) {
                   return 'Please confirm your password';
+                }
                 if (v != passCtrl.text) return 'Passwords do not match';
                 return null;
               },
@@ -670,11 +675,13 @@ class AuthForgotPanel extends StatelessWidget {
               isDark: isDark,
               type: TextInputType.emailAddress,
               validator: (v) {
-                if (v == null || v.trim().isEmpty)
+                if (v == null || v.trim().isEmpty) {
                   return 'Email is required';
+                }
                 if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.\w+')
-                    .hasMatch(v.trim()))
+                    .hasMatch(v.trim())) {
                   return 'Enter a valid email';
+                }
                 return null;
               },
             ),

@@ -89,7 +89,7 @@ class NotificationService {
   // loginAndWaitForSubscription()
   // =========================================================================
   static Future<void> loginAndWaitForSubscription(String userId) async {
-    final alreadyGranted = await OneSignal.Notifications.permission;
+    final alreadyGranted = OneSignal.Notifications.permission;
     if (!alreadyGranted) {
       await OneSignal.Notifications.requestPermission(true);
     }

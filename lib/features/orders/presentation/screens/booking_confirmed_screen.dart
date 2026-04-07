@@ -1,36 +1,37 @@
 // lib/features/orders/presentation/screens/booking_confirmed_screen.dart
+//
+// Refactored: AppCard replaces raw Container+BoxDecoration
+//             AppIconBox replaces _InfoRow icon container
+//             AppGradientButton replaces inline gradient button
+//             AppTextStyles replaces GoogleFonts inline calls
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
+
 import '../../../../routes/routes_name.dart';
 import '../../../../core/constants/app_color.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/widgets.dart';
-import '../../../../core/widgets/gradient_app_bar.dart';
 
 class BookingConfirmedScreen extends StatelessWidget {
   final String orderNumber;
-
   const BookingConfirmedScreen({super.key, required this.orderNumber});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: isDark
-          ? AppColors.darkBackground
-          : AppColors.lightBackground,
+      backgroundColor:
+      isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: const GradientAppBar(
-        title: 'Booking Confirmed',
-        backEnabled: false,
-      ),
+          title: 'Booking Confirmed', backEnabled: false),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: Responsive.maxContentWidth(context),
-            ),
+                maxWidth: Responsive.maxContentWidth(context)),
             child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(
                 horizontal: Responsive.horizontalPadding(context),
@@ -39,64 +40,34 @@ class BookingConfirmedScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // ── Animation ─────────────────────────────────────
                   OrderSuccessAnimation(
-                    title: "Order Confirmed!",
+                    title: 'Order Confirmed!',
                     subtitle:
-                    "Your laundry request has been received.\nWe are assigning a rider now.",
+                    'Your laundry request has been received.\nWe are assigning a rider now.',
                     isDark: isDark,
                   ),
-
                   const SizedBox(height: 20),
 
-                  // ── Order badge ────────────────────────────────────
+                  // ── Order badge ─────────────────────────────────────
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 9,
-                    ),
+                        horizontal: 18, vertical: 9),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
-                        color: AppColors.primary.withOpacity(0.25),
-                      ),
+                          color: AppColors.primary.withOpacity(0.25)),
                     ),
-                    child: Text(
-                      'Order #$orderNumber',
-                      style: GoogleFonts.alexandria(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
+                    child: Text('Order #$orderNumber',
+                        style: AppTextStyles.buttonOutline
+                            .copyWith(fontSize: 13)),
                   ),
                   const SizedBox(height: 32),
 
-                  // ── Summary card ───────────────────────────────────
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.darkSurface
-                          : AppColors.lightSurface,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                        color: isDark
-                            ? AppColors.darkBorder
-                            : AppColors.lightBorder,
-                      ),
-                      boxShadow: isDark
-                          ? []
-                          : [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
-                          blurRadius: 14,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
+                  // ── Summary card ────────────────────────────────────
+                  AppCard(
+                    isDark: isDark,
+                    borderRadius: 22,
                     child: Column(
                       children: [
                         _InfoRow(
@@ -133,77 +104,32 @@ class BookingConfirmedScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 28),
 
-                  // ── Back to Home ───────────────────────────────────
-                  SizedBox(
-                    width: double.infinity,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: AppColors.gradient,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withOpacity(0.3),
-                            blurRadius: 14,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton.icon(
-                        onPressed: () => context.go(RoutesName.home),
-                        icon: const Icon(
-                          Icons.home_rounded,
-                          color: Colors.white,
-                        ),
-                        label: Text(
-                          'Back to Home',
-                          style: GoogleFonts.alexandria(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
+                  AppGradientButton(
+                    label: 'Back to Home',
+                    icon: Icons.home_rounded,
+                    onPressed: () => context.go(RoutesName.home),
+                    verticalPadding: 16,
+                    borderRadius: 16,
                   ),
-
                   const SizedBox(height: 12),
 
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () => context.go(RoutesName.orders),
-                      icon: const Icon(
-                        Icons.receipt_long_rounded,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                      label: Text(
-                        'View My Orders',
-                        style: GoogleFonts.alexandria(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      icon: const Icon(Icons.receipt_long_rounded,
+                          color: AppColors.primary, size: 20),
+                      label: Text('View My Orders',
+                          style: AppTextStyles.buttonOutline),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(
-                          color: AppColors.primary,
-                          width: 1.5,
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                            color: AppColors.primary, width: 1.5),
+                        padding:
+                        const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                            borderRadius: BorderRadius.circular(16)),
                       ),
                     ),
                   ),
@@ -216,6 +142,8 @@ class BookingConfirmedScreen extends StatelessWidget {
     );
   }
 }
+
+// ─── Info row ─────────────────────────────────────────────────────────────────
 
 class _InfoRow extends StatelessWidget {
   final IconData icon;
@@ -235,36 +163,16 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: color, size: 18),
-        ),
+        AppIconBox(icon: icon, color: color, borderRadius: 12),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: GoogleFonts.alexandria(
-                  fontSize: 11,
-                  color: isDark
-                      ? AppColors.darkSubtext
-                      : AppColors.lightSubtext,
-                ),
-              ),
-              Text(
-                value,
-                style: GoogleFonts.alexandria(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : AppColors.lightText,
-                ),
-              ),
+              Text(label, style: AppTextStyles.caption(isDark)),
+              Text(value,
+                  style: AppTextStyles.rowTitle(isDark)
+                      .copyWith(fontSize: 14)),
             ],
           ),
         ),
@@ -272,6 +180,8 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
+
+// ─── Success animation (public — reused by other screens) ─────────────────────
 
 class OrderSuccessAnimation extends StatefulWidget {
   final String title;
@@ -286,7 +196,8 @@ class OrderSuccessAnimation extends StatefulWidget {
   });
 
   @override
-  State<OrderSuccessAnimation> createState() => _OrderSuccessAnimationState();
+  State<OrderSuccessAnimation> createState() =>
+      _OrderSuccessAnimationState();
 }
 
 class _OrderSuccessAnimationState extends State<OrderSuccessAnimation>
@@ -299,9 +210,7 @@ class _OrderSuccessAnimationState extends State<OrderSuccessAnimation>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
+        vsync: this, duration: const Duration(milliseconds: 700));
     _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
     _ctrl.forward();
@@ -318,7 +227,6 @@ class _OrderSuccessAnimationState extends State<OrderSuccessAnimation>
     return Column(
       children: [
         const SizedBox(height: 24),
-        // Animated checkmark with Blue Primary Theme
         FadeTransition(
           opacity: _fade,
           child: ScaleTransition(
@@ -327,7 +235,6 @@ class _OrderSuccessAnimationState extends State<OrderSuccessAnimation>
               padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                // Changed from Success Green to Primary Blue Gradient
                 gradient: AppColors.gradient,
                 boxShadow: [
                   BoxShadow(
@@ -337,11 +244,8 @@ class _OrderSuccessAnimationState extends State<OrderSuccessAnimation>
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.check_rounded,
-                color: Colors.white,
-                size: 60,
-              ),
+              child: const Icon(Icons.check_rounded,
+                  color: Colors.white, size: 60),
             ),
           ),
         ),
@@ -350,26 +254,13 @@ class _OrderSuccessAnimationState extends State<OrderSuccessAnimation>
           opacity: _fade,
           child: Column(
             children: [
-              Text(
-                widget.title,
-                style: GoogleFonts.alexandria(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: widget.isDark ? Colors.white : AppColors.lightText,
-                ),
-              ),
+              Text(widget.title,
+                  style: AppTextStyles.heading(widget.isDark)
+                      .copyWith(fontSize: 26)),
               const SizedBox(height: 8),
-              Text(
-                widget.subtitle,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.alexandria(
-                  fontSize: 14,
-                  color: widget.isDark
-                      ? AppColors.darkSubtext
-                      : AppColors.lightSubtext,
-                  height: 1.5,
-                ),
-              ),
+              Text(widget.subtitle,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodyLong(widget.isDark)),
             ],
           ),
         ),

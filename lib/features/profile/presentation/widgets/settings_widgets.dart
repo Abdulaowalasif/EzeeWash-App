@@ -1,32 +1,20 @@
 // lib/features/profile/presentation/widgets/settings_widgets.dart
 //
-// All UI widgets for the settings screen, extracted so the screen only
-// owns state (editing toggle, receipt date) and BLoC wiring.
+// All UI widgets for the Settings screen.
+// The screen (settings_screen.dart) owns only state + BLoC wiring.
 //
-// All repeated decoration/styling now delegates to core widgets:
-//   AppCard           — surface container
-//   AppIconBox        — icon in a tinted box
-//   AppSectionLabel   — caps section label (caps: true)
-//   AppConfirmDialog  — sign-out confirm dialog
-//   AppGradientButton — save / gradient button
-//   AppSnackBar       — snack bar display
-//
-// Exports:
-//   SettingsProfileCard    – avatar + name/email/phone + edit toggle
-//   SettingsEditCard       – editable name/phone/address fields + save/cancel
-//   SettingsMenuCard       – bordered card wrapping a list of tiles with dividers
-//   SettingsMenuTile       – icon + label + trailing arrow list tile
-//   SettingsSwitchTile     – icon + label + Switch list tile
-//   SettingsSectionLabel   — thin wrapper over AppSectionLabel(caps: true)
-//   SettingsLogoutButton   – red outlined sign-out button
-//   SettingsReceiptPicker  – date + order dropdown + download tile
+// DRY improvements vs original:
+//   • AppCard         replaces raw Container+BoxDecoration on every card
+//   • AppIconBox      replaces repeated icon-in-tinted-box pattern
+//   • AppTextStyles   replaces inline GoogleFonts.alexandria calls
+//   • AppGradientButton replaces duplicate gradient button construction
+//   • AppConfirmDialog  replaces inline showDialog / AlertDialog
+//   • AppSectionLabel(caps:true) replaces duplicate SettingsSectionLabel logic
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 
@@ -40,17 +28,13 @@ import '../../../orders/domain/entities/order_entity.dart';
 import '../../../orders/presentation/bloc/orders_bloc.dart';
 import '../../../orders/presentation/bloc/orders_state.dart';
 import '../../domain/entities/profile_entity.dart';
-import '../bloc/profile_bloc.dart';
-import '../bloc/profile_event.dart';
 
 // ─── Section label ────────────────────────────────────────────────────────────
 
-/// Thin wrapper that renders a caps-style section label (ACCOUNT, SUPPORT…).
-/// Delegates to [AppSectionLabel] with [caps: true].
+/// Thin backwards-compatible wrapper — delegates to AppSectionLabel(caps:true).
 class SettingsSectionLabel extends StatelessWidget {
   final String label;
   final bool isDark;
-
   const SettingsSectionLabel(
       {super.key, required this.label, required this.isDark});
 
@@ -99,7 +83,7 @@ class SettingsProfileCard extends StatelessWidget {
       isDark: isDark,
       child: Row(
         children: [
-          // ── Avatar with camera badge ──────────────────────────────
+          // ── Avatar ───────────────────────────────────────────────
           GestureDetector(
             onTap: onPickAvatar,
             child: Stack(
@@ -113,11 +97,9 @@ class SettingsProfileCard extends StatelessWidget {
                   ),
                   child: ClipOval(
                     child: profile.avatarUrl != null
-                        ? Image.network(
-                      profile.avatarUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _avatarFallback(),
-                    )
+                        ? Image.network(profile.avatarUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _avatarFallback())
                         : _avatarFallback(),
                   ),
                 ),
@@ -155,22 +137,19 @@ class SettingsProfileCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  profile.email ?? '',
-                  style: AppTextStyles.subtitle(isDark),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(profile.email ?? '',
+                    style: AppTextStyles.subtitle(isDark),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
                 if (profile.phone != null) ...[
                   const SizedBox(height: 2),
-                  Text(profile.phone!,
-                      style: AppTextStyles.subtitle(isDark)),
+                  Text(profile.phone!, style: AppTextStyles.subtitle(isDark)),
                 ],
               ],
             ),
           ),
 
-          // ── Edit / loading button ─────────────────────────────────
+          // ── Edit / spinner ────────────────────────────────────────
           if (isUpdating)
             const SizedBox(
               width: 22,
@@ -211,7 +190,7 @@ class SettingsEditCard extends StatelessWidget {
 
   InputDecoration _deco(String hint, IconData icon) => InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+    hintStyle: AppTextStyles.hint(isDark).copyWith(fontSize: 13),
     prefixIcon: Icon(icon,
         color: AppColors.primary.withOpacity(0.7), size: 20),
     filled: true,
@@ -228,8 +207,7 @@ class SettingsEditCard extends StatelessWidget {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide:
-      const BorderSide(color: AppColors.primary, width: 1.5),
+      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
     ),
   );
 
@@ -261,8 +239,6 @@ class SettingsEditCard extends StatelessWidget {
           decoration: _deco('Address', Icons.location_on_outlined),
         ),
         const SizedBox(height: 18),
-
-        // ── Cancel / Save buttons ─────────────────────────────────
         Row(
           children: [
             Expanded(
@@ -270,18 +246,16 @@ class SettingsEditCard extends StatelessWidget {
                 onPressed: onCancel,
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(
-                      color: isDark
-                          ? Colors.white24
-                          : Colors.grey.shade300),
+                      color:
+                      isDark ? Colors.white24 : Colors.grey.shade300),
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
-                child: Text(
-                  'Cancel',
-                  style: AppTextStyles.body(isDark).copyWith(
-                      color: isDark ? Colors.white70 : Colors.black54),
-                ),
+                child: Text('Cancel',
+                    style: AppTextStyles.body(isDark).copyWith(
+                        color:
+                        isDark ? Colors.white70 : Colors.black54)),
               ),
             ),
             const SizedBox(width: 12),
@@ -302,7 +276,6 @@ class SettingsEditCard extends StatelessWidget {
 
 // ─── Menu card ────────────────────────────────────────────────────────────────
 
-/// A bordered card wrapping a list of setting tiles with dividers between them.
 class SettingsMenuCard extends StatelessWidget {
   final List<Widget> items;
   final bool isDark;
@@ -354,11 +327,9 @@ class SettingsMenuTile extends StatelessWidget {
   Widget build(BuildContext context) => ListTile(
     onTap: onTap,
     leading: AppIconBox(icon: icon),
-    title: Text(
-      label,
-      style: AppTextStyles.body(isDark)
-          .copyWith(fontWeight: FontWeight.w500),
-    ),
+    title: Text(label,
+        style: AppTextStyles.body(isDark)
+            .copyWith(fontWeight: FontWeight.w500)),
     trailing: trailing ??
         const Icon(Icons.arrow_forward_ios_rounded,
             size: 14, color: Colors.grey),
@@ -388,15 +359,13 @@ class SettingsSwitchTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListTile(
     leading: AppIconBox(icon: icon),
-    title: Text(
-      label,
-      style: AppTextStyles.body(isDark)
-          .copyWith(fontWeight: FontWeight.w500),
-    ),
+    title: Text(label,
+        style: AppTextStyles.body(isDark)
+            .copyWith(fontWeight: FontWeight.w500)),
     trailing: Switch(
       value: value,
       onChanged: onChanged,
-      activeColor: Colors.white,
+      activeThumbColor: Colors.white,
       activeTrackColor: AppColors.primary,
     ),
     contentPadding:
@@ -408,7 +377,6 @@ class SettingsSwitchTile extends StatelessWidget {
 
 class SettingsLogoutButton extends StatelessWidget {
   final bool isDark;
-
   const SettingsLogoutButton({super.key, required this.isDark});
 
   @override
@@ -425,12 +393,12 @@ class SettingsLogoutButton extends StatelessWidget {
             .read<AuthBloc>()
             .add(const AuthSignOutRequested()),
       ),
-      icon: const Icon(Icons.logout_rounded, color: AppColors.error),
-      label: Text(
-        'Sign Out',
-        style: AppTextStyles.buttonOutline
-            .copyWith(color: AppColors.error, fontWeight: FontWeight.bold),
-      ),
+      icon:
+      const Icon(Icons.logout_rounded, color: AppColors.error),
+      label: Text('Sign Out',
+          style: AppTextStyles.buttonOutline.copyWith(
+              color: AppColors.error,
+              fontWeight: FontWeight.bold)),
       style: OutlinedButton.styleFrom(
         side: BorderSide(color: AppColors.error.withOpacity(0.5)),
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -445,7 +413,6 @@ class SettingsLogoutButton extends StatelessWidget {
 
 class SettingsReceiptPicker extends StatefulWidget {
   final bool isDark;
-
   const SettingsReceiptPicker({super.key, required this.isDark});
 
   @override
@@ -464,7 +431,6 @@ class _SettingsReceiptPickerState extends State<SettingsReceiptPicker> {
         if (state is! OrdersLoaded || state.orders.isEmpty) {
           return _emptyCard();
         }
-
         final filtered = _selectedDate == null
             ? state.orders
             : state.orders
@@ -481,26 +447,21 @@ class _SettingsReceiptPickerState extends State<SettingsReceiptPicker> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Date filter ───────────────────────────────────────
               _DateFilterRow(
                 isDark: widget.isDark,
                 selectedDate: _selectedDate,
-                onDatePicked: (d) =>
-                    setState(() {
-                      _selectedDate = d;
-                      _selectedOrder = null;
-                    }),
-                onClear: () =>
-                    setState(() {
-                      _selectedDate = null;
-                      _selectedOrder = null;
-                    }),
+                onDatePicked: (d) => setState(() {
+                  _selectedDate = d;
+                  _selectedOrder = null;
+                }),
+                onClear: () => setState(() {
+                  _selectedDate = null;
+                  _selectedOrder = null;
+                }),
               ),
               const SizedBox(height: 12),
-
-              // ── Order dropdown ────────────────────────────────────
               DropdownButtonFormField<OrderEntity>(
-                value: _selectedOrder,
+                initialValue: _selectedOrder,
                 isExpanded: true,
                 hint: Text(
                   filtered.isEmpty
@@ -534,29 +495,23 @@ class _SettingsReceiptPickerState extends State<SettingsReceiptPicker> {
                 items: filtered
                     .map((o) => DropdownMenuItem<OrderEntity>(
                   value: o,
-                  child: Text(
-                    'Order #${o.orderNumber}',
-                    style: AppTextStyles.body(widget.isDark),
-                  ),
+                  child: Text('Order #${o.orderNumber}',
+                      style: AppTextStyles.body(widget.isDark)),
                 ))
                     .toList(),
                 onChanged: filtered.isEmpty
                     ? null
                     : (v) => setState(() => _selectedOrder = v),
               ),
-
-              // ── Download button ───────────────────────────────────
               if (_selectedOrder != null) ...[
                 const SizedBox(height: 16),
                 SettingsMenuTile(
                   icon: Iconsax.receipt_2,
                   label: 'Download Receipt',
                   isDark: widget.isDark,
-                  trailing: Icon(
-                    Icons.download_for_offline_rounded,
-                    size: 20,
-                    color: AppColors.primary.withOpacity(0.8),
-                  ),
+                  trailing: Icon(Icons.download_for_offline_rounded,
+                      size: 20,
+                      color: AppColors.primary.withOpacity(0.8)),
                   onTap: () async {
                     final pdf = await PdfService.generateOrderInvoice(
                         _selectedOrder!);
@@ -612,25 +567,22 @@ class _DateFilterRow extends StatelessWidget {
           builder: (ctx, child) => Theme(
             data: isDark
                 ? ThemeData.dark().copyWith(
-                colorScheme:
-                const ColorScheme.dark(primary: AppColors.primary))
+                colorScheme: const ColorScheme.dark(
+                    primary: AppColors.primary))
                 : ThemeData.light().copyWith(
-                colorScheme:
-                const ColorScheme.light(primary: AppColors.primary)),
+                colorScheme: const ColorScheme.light(
+                    primary: AppColors.primary)),
             child: child!,
           ),
         );
         if (picked != null) onDatePicked(picked);
       },
       child: Container(
-        padding:
-        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color:
-            isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          ),
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
         ),
         child: Row(
           children: [
@@ -646,9 +598,8 @@ class _DateFilterRow extends StatelessWidget {
             const Spacer(),
             if (selectedDate != null)
               IconButton(
-                icon: const Icon(Icons.close, size: 16),
-                onPressed: onClear,
-              ),
+                  icon: const Icon(Icons.close, size: 16),
+                  onPressed: onClear),
           ],
         ),
       ),

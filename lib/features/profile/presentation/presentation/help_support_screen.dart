@@ -1,16 +1,16 @@
 // lib/features/profile/presentation/presentation/help_support_screen.dart
 //
-// Refactored: all duplicated widget patterns replaced with core widgets.
-//   _FaqTile      → AppExpandableTile
-//   _ContactRow   → AppContactRow
-//   footer        → AppBrandFooter
-//   hero/contact card → AppCard
+// Refactored: private _FaqTile → AppExpandableTile
+//             private _ContactRow → AppContactRow
+//             footer → AppBrandFooter
+//             hero icon → AppIconBox (gradient variant)
+//             GoogleFonts inline → AppTextStyles
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_color.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/common_widgets.dart';
@@ -43,7 +43,7 @@ class HelpSupportScreen extends StatelessWidget {
   ];
 
   Future<void> _launchUrl(String urlString) async {
-    final Uri uri = Uri.parse(urlString);
+    final uri = Uri.parse(urlString);
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
@@ -65,8 +65,8 @@ class HelpSupportScreen extends StatelessWidget {
       appBar: GradientAppBar(title: 'Help & Support'),
       body: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-              maxWidth: Responsive.maxContentWidth(context)),
+          constraints:
+          BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.symmetric(
@@ -81,38 +81,28 @@ class HelpSupportScreen extends StatelessWidget {
                   isDark: isDark,
                   child: Row(
                     children: [
-                      AppIconBox(
-                        icon: Icons.headset_mic_rounded,
-                        iconSize: 26,
-                        padding: 14,
-                        borderRadius: 16,
-                        color: AppColors.primary,
+                      // gradient icon (special case — gradient bg, not tint)
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.gradient,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.headset_mic_rounded,
+                            color: Colors.white, size: 26),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              "We're Here to Help!",
-                              style: GoogleFonts.alexandria(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isDark
-                                    ? Colors.white
-                                    : AppColors.lightText,
-                              ),
-                            ),
+                            Text("We're Here to Help!",
+                                style: AppTextStyles.sectionTitle(isDark)
+                                    .copyWith(fontSize: 16)),
                             const SizedBox(height: 4),
-                            Text(
-                              'Your satisfaction is our priority.',
-                              style: GoogleFonts.alexandria(
-                                fontSize: 13,
-                                color: isDark
-                                    ? AppColors.darkSubtext
-                                    : AppColors.lightSubtext,
-                              ),
-                            ),
+                            Text('Your satisfaction is our priority.',
+                                style: AppTextStyles.subtitle(isDark)
+                                    .copyWith(fontSize: 13)),
                           ],
                         ),
                       ),
@@ -122,8 +112,7 @@ class HelpSupportScreen extends StatelessWidget {
 
                 const SizedBox(height: 28),
                 AppSectionLabel(
-                    text: '📌 Frequently Asked Questions',
-                    isDark: isDark),
+                    text: '📌 Frequently Asked Questions', isDark: isDark),
                 const SizedBox(height: 14),
 
                 // ── FAQ tiles ───────────────────────────────────────

@@ -52,7 +52,7 @@ class _AppPulseIconState extends State<AppPulseIcon>
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _ctrl,
-    builder: (_, __) => Transform.scale(
+    builder: (_, _) => Transform.scale(
       scale: 1.0 + 0.1 * _ctrl.value,
       child: Container(
         padding: EdgeInsets.all(widget.containerSize),

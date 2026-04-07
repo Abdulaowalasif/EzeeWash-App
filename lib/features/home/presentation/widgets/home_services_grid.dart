@@ -1,4 +1,7 @@
 // lib/features/home/presentation/widgets/home_services_grid.dart
+//
+// Refactored: AppCard replaces raw Container+BoxDecoration on HomeServiceCard.
+//             AppTextStyles replaces inline text styles.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,6 +10,7 @@ import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../../../core/widgets/app_shimmer_box.dart';
 import '../../../../routes/routes_name.dart';
@@ -50,19 +54,19 @@ class HomeServicesGrid extends StatelessWidget {
         return prev.runtimeType != curr.runtimeType;
       },
       builder: (context, state) {
-        if (state is ServicesLoading) return _ShimmerGrid(isDark: isDark, gridDelegate: _gridDelegate);
-
+        if (state is ServicesLoading) {
+          return _ShimmerGrid(isDark: isDark, gridDelegate: _gridDelegate);
+        }
         if (state is ServicesLoaded) {
           final q = localQuery.toLowerCase().trim();
           final all = List.of(state.services)
             ..sort((a, b) => b.rating.compareTo(a.rating));
-
           final services = (q.isEmpty
-                  ? all
-                  : all.where((s) =>
-                      s.title.toLowerCase().contains(q) ||
-                      (s.description?.toLowerCase().contains(q) ?? false) ||
-                      s.tags.any((t) => t.toLowerCase().contains(q))))
+              ? all
+              : all.where((s) =>
+          s.title.toLowerCase().contains(q) ||
+              (s.description?.toLowerCase().contains(q) ?? false) ||
+              s.tags.any((t) => t.toLowerCase().contains(q))))
               .take(4)
               .toList();
 
@@ -70,10 +74,8 @@ class HomeServicesGrid extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Center(
-                child: Text(
-                  'No services found for "$localQuery"',
-                  style: AppTextStyles.caption(isDark),
-                ),
+                child: Text('No services found for "$localQuery"',
+                    style: AppTextStyles.caption(isDark)),
               ),
             );
           }
@@ -94,8 +96,8 @@ class HomeServicesGrid extends StatelessWidget {
                 imageUrl: s.imageUrl,
                 fallbackIcon: _fallbackIcons[i % _fallbackIcons.length],
                 isDark: isDark,
-                onTap: () =>
-                    context.push(RoutesName.placeOrdersNavigate, extra: s.id),
+                onTap: () => context.push(RoutesName.placeOrdersNavigate,
+                    extra: s.id),
               );
             },
           );
@@ -106,26 +108,27 @@ class HomeServicesGrid extends StatelessWidget {
   }
 }
 
-// ─── Shimmer placeholder grid ─────────────────────────────────────────────────
+// ─── Shimmer grid ─────────────────────────────────────────────────────────────
 
 class _ShimmerGrid extends StatelessWidget {
   final bool isDark;
   final SliverGridDelegate gridDelegate;
-
-  const _ShimmerGrid({required this.isDark, required this.gridDelegate});
+  const _ShimmerGrid(
+      {required this.isDark, required this.gridDelegate});
 
   @override
   Widget build(BuildContext context) => Shimmer.fromColors(
-        baseColor: AppShimmerColors.base(isDark),
-        highlightColor: AppShimmerColors.highlight(isDark),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: gridDelegate,
-          itemCount: 4,
-          itemBuilder: (_, __) => const AppShimmerBox(height: 160, radius: 20),
-        ),
-      );
+    baseColor: AppShimmerColors.base(isDark),
+    highlightColor: AppShimmerColors.highlight(isDark),
+    child: GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: gridDelegate,
+      itemCount: 4,
+      itemBuilder: (_, _) =>
+      const AppShimmerBox(height: 160, radius: 20),
+    ),
+  );
 }
 
 // ─── Service card ─────────────────────────────────────────────────────────────
@@ -169,24 +172,10 @@ class _HomeServiceCardState extends State<HomeServiceCard> {
       child: AnimatedScale(
         scale: _scale,
         duration: const Duration(milliseconds: 120),
-        child: Container(
+        child: AppCard(
+          isDark: widget.isDark,
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: widget.isDark ? AppColors.darkSurface : AppColors.lightSurface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: widget.isDark ? AppColors.darkBorder : AppColors.lightBorder,
-            ),
-            boxShadow: widget.isDark
-                ? []
-                : [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 15,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-          ),
+          borderRadius: 20,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -260,11 +249,8 @@ class _CardTitleRow extends StatelessWidget {
   final double rating;
   final bool isDark;
 
-  const _CardTitleRow({
-    required this.title,
-    required this.rating,
-    required this.isDark,
-  });
+  const _CardTitleRow(
+      {required this.title, required this.rating, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -272,17 +258,16 @@ class _CardTitleRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Flexible(
-          child: Text(
-            title,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.gridTitle(isDark),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: Text(title,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.gridTitle(isDark),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
         ),
         if (rating > 0) ...[
           const SizedBox(width: 4),
-          const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 14),
+          const Icon(Icons.star_rounded,
+              color: Color(0xFFFBBF24), size: 14),
           Text(rating.toStringAsFixed(1), style: AppTextStyles.rating),
         ],
       ],

@@ -9,7 +9,6 @@ import 'package:shimmer/shimmer.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
-import '../../../../core/widgets/app_shimmer_box.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../../routes/routes_name.dart';
 import '../../domain/entities/notification_entity.dart';
@@ -76,8 +75,8 @@ class _NotificationsShimmer extends StatelessWidget {
           Responsive.horizontalPadding(context), 30,
         ),
         itemCount: 6,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, __) =>
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (_, _) =>
         const AppShimmerBox(height: 90, radius: 18),
       ),
     );
@@ -184,7 +183,7 @@ class _NotificationsList extends StatelessWidget {
         Responsive.horizontalPadding(context), 30,
       ),
       itemCount: notifications.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final notif = notifications[i];
         return NotificationCard(

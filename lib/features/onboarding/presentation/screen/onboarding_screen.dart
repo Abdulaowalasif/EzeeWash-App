@@ -347,7 +347,7 @@ class _FloatingBubble extends StatelessWidget {
 
     return AnimatedBuilder(
       animation: controller,
-      builder: (_, __) {
+      builder: (_, _) {
         final t  = (controller.value + delay) % 1.0;
         final dy = math.sin(t * math.pi * 2) * 12;
         return Positioned(

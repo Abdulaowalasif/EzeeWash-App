@@ -39,8 +39,7 @@ class SettingsScreen extends StatelessWidget {
       body: BlocConsumer<ProfileBloc, ProfileState>(
         listener: (ctx, state) {
           if (state is ProfileError) {
-            AppSnackBar.show(ctx, state.message,
-                type: SnackBarType.error);
+            AppSnackBar.show(ctx, state.message, type: SnackBarType.error);
           }
         },
         builder: (ctx, state) {
@@ -49,7 +48,7 @@ class SettingsScreen extends StatelessWidget {
           }
           if (state is ProfileLoaded || state is ProfileUpdating) {
             final profile = state is ProfileLoaded
-                ? (state as ProfileLoaded).profile
+                ? (state).profile
                 : (state as ProfileUpdating).profile;
             return _SettingsBody(
               profile: profile,
@@ -58,9 +57,9 @@ class SettingsScreen extends StatelessWidget {
             );
           }
           if (state is ProfileError &&
-              (state as ProfileError).profile != null) {
+              (state).profile != null) {
             return _SettingsBody(
-              profile: (state as ProfileError).profile!,
+              profile: (state).profile!,
               isDark: isDark,
             );
           }
@@ -71,8 +70,8 @@ class SettingsScreen extends StatelessWidget {
                 child: AppEmptyState(
                   icon: Icons.error_outline,
                   message: 'Could not load settings',
-                  isDark: isDark,
                   subtitle: 'Tap retry to try again',
+                  isDark: isDark,
                 ),
               ),
             ],
@@ -97,16 +96,16 @@ class _SettingsShimmer extends StatelessWidget {
         child: Shimmer.fromColors(
           baseColor: AppShimmerColors.base(isDark),
           highlightColor: AppShimmerColors.highlight(isDark),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+          child: const SingleChildScrollView(
+            padding: EdgeInsets.all(20),
             child: Column(children: [
-              const AppShimmerBox(height: 110, radius: 24),
-              const SizedBox(height: 20),
-              const AppShimmerBox(height: 160, radius: 24),
-              const SizedBox(height: 20),
-              const AppShimmerBox(height: 220, radius: 24),
-              const SizedBox(height: 20),
-              const AppShimmerBox(height: 130, radius: 24),
+              AppShimmerBox(height: 110, radius: 24),
+              SizedBox(height: 20),
+              AppShimmerBox(height: 160, radius: 24),
+              SizedBox(height: 20),
+              AppShimmerBox(height: 220, radius: 24),
+              SizedBox(height: 20),
+              AppShimmerBox(height: 130, radius: 24),
             ]),
           ),
         ),
@@ -151,15 +150,9 @@ class _SettingsBodyState extends State<_SettingsBody> {
 
   void _save() {
     context.read<ProfileBloc>().add(ProfileUpdateRequested(
-      fullName: _nameCtrl.text.trim().isEmpty
-          ? null
-          : _nameCtrl.text.trim(),
-      phone: _phoneCtrl.text.trim().isEmpty
-          ? null
-          : _phoneCtrl.text.trim(),
-      address: _addrCtrl.text.trim().isEmpty
-          ? null
-          : _addrCtrl.text.trim(),
+      fullName: _nameCtrl.text.trim().isEmpty ? null : _nameCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+      address: _addrCtrl.text.trim().isEmpty ? null : _addrCtrl.text.trim(),
     ));
     setState(() => _editing = false);
     AppSnackBar.show(context, 'Profile updated!');
@@ -210,7 +203,6 @@ class _SettingsBodyState extends State<_SettingsBody> {
                     onCancel: () => setState(() => _editing = false),
                   ),
                 ],
-
                 const SizedBox(height: 24),
                 SettingsSectionLabel(label: 'Account', isDark: isDark),
                 const SizedBox(height: 10),
@@ -227,17 +219,15 @@ class _SettingsBodyState extends State<_SettingsBody> {
                     label: 'Dark Mode',
                     isDark: isDark,
                     value: isDark,
-                    onChanged: (v) => ThemePrefs.save(
-                        v ? ThemeMode.dark : ThemeMode.light),
+                    onChanged: (v) =>
+                        ThemePrefs.save(v ? ThemeMode.dark : ThemeMode.light),
                   ),
                 ]),
-
                 const SizedBox(height: 24),
                 SettingsSectionLabel(
                     label: 'Order Receipts', isDark: isDark),
                 const SizedBox(height: 10),
                 SettingsReceiptPicker(isDark: isDark),
-
                 const SizedBox(height: 24),
                 SettingsSectionLabel(label: 'Support', isDark: isDark),
                 const SizedBox(height: 10),
@@ -263,7 +253,6 @@ class _SettingsBodyState extends State<_SettingsBody> {
                     onTap: () {},
                   ),
                 ]),
-
                 const SizedBox(height: 32),
                 SettingsLogoutButton(isDark: isDark),
                 const SizedBox(height: 12),

@@ -78,12 +78,15 @@ class PasswordValidator {
   static String? validate(String? value, {bool isSignIn = false}) {
     if (value == null || value.isEmpty) return 'Password is required';
     if (isSignIn) return null;
-    if (!hasMinLength(value))
+    if (!hasMinLength(value)) {
       return 'Must be at least $minLength characters';
-    if (!hasUppercase(value))
+    }
+    if (!hasUppercase(value)) {
       return 'Add at least one uppercase letter (A–Z)';
-    if (!hasLowercase(value))
+    }
+    if (!hasLowercase(value)) {
       return 'Add at least one lowercase letter (a–z)';
+    }
     if (!hasDigit(value)) return 'Add at least one number (0–9)';
     return null;
   }
