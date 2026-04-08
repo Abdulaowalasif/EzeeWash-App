@@ -1,17 +1,3 @@
-// lib/features/auth/presentation/screens/login_screen.dart
-//
-// Refactored:
-//   • AppSnackBar replaces inline SnackBar construction
-//   • AppConfirmDialog replaces showDialog for email confirm
-//   • Duplicate _GradientButton → AuthGradientButton (from auth_panels.dart)
-//   • Duplicate _TabToggle → AuthTabToggle (from auth_panels.dart)
-//   • Duplicate _OrDivider → AuthOrDivider (from auth_panels.dart)
-//   • Duplicate _GoogleButton → AuthGoogleButton (from auth_panels.dart)
-//   • Duplicate _Field / panels → AuthField, AuthSignInPanel, AuthSignUpPanel,
-//     AuthForgotPanel (from auth_panels.dart)
-//   • PasswordValidator class removed — lives in auth_password_field.dart
-//   • _PasswordStrengthField removed — lives in auth_password_field.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -37,10 +23,12 @@ class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   _AuthView _view = _AuthView.signIn;
 
+  // Form Keys
   final _signInFormKey = GlobalKey<FormState>();
   final _signUpFormKey = GlobalKey<FormState>();
   final _forgotFormKey = GlobalKey<FormState>();
 
+  // Controllers
   final _nameCtrl = TextEditingController();
   final _signInEmailCtrl = TextEditingController();
   final _signInPassCtrl = TextEditingController();
@@ -49,6 +37,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _confirmCtrl = TextEditingController();
   final _forgotEmailCtrl = TextEditingController();
 
+  // Animations
   late final AnimationController _slideCtrl;
   late Animation<Offset> _slideIn;
   late Animation<Offset> _slideOut;
@@ -69,10 +58,8 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _buildAnimations({required bool fromRight}) {
-    final inBegin =
-    fromRight ? const Offset(1.0, 0) : const Offset(-1.0, 0);
-    final outEnd =
-    fromRight ? const Offset(-1.0, 0) : const Offset(1.0, 0);
+    final inBegin = fromRight ? const Offset(1.0, 0) : const Offset(-1.0, 0);
+    final outEnd = fromRight ? const Offset(-1.0, 0) : const Offset(1.0, 0);
 
     _slideIn = Tween(begin: inBegin, end: Offset.zero)
         .chain(CurveTween(curve: Curves.easeInOut))
@@ -95,8 +82,7 @@ class _LoginScreenState extends State<LoginScreen>
       _AuthView.signUp: 1,
       _AuthView.forgotPassword: 2
     };
-    final fromRight =
-        (order[next] ?? 0) > (order[_view] ?? 0);
+    final fromRight = (order[next] ?? 0) > (order[_view] ?? 0);
     _outgoingView = _view;
     _isAnimating = true;
     _buildAnimations(fromRight: fromRight);
@@ -123,6 +109,8 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
+  // ─── Logic Handlers ────────────────────────────────────────────────────────
+
   void _submitSignIn() {
     if (!_signInFormKey.currentState!.validate()) return;
     context.read<AuthBloc>().add(AuthSignInRequested(
@@ -143,8 +131,7 @@ class _LoginScreenState extends State<LoginScreen>
   void _submitForgotPassword() {
     if (!_forgotFormKey.currentState!.validate()) return;
     context.read<AuthBloc>().add(
-      AuthForgotPasswordRequested(
-          email: _forgotEmailCtrl.text.trim()),
+      AuthForgotPasswordRequested(email: _forgotEmailCtrl.text.trim()),
     );
   }
 
@@ -153,8 +140,7 @@ class _LoginScreenState extends State<LoginScreen>
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -236,6 +222,7 @@ class _LoginScreenState extends State<LoginScreen>
       },
       builder: (ctx, state) {
         final isLoading = state is AuthLoading;
+
         return Scaffold(
           backgroundColor:
           isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -251,86 +238,20 @@ class _LoginScreenState extends State<LoginScreen>
                   constraints: const BoxConstraints(maxWidth: 480),
                   child: Column(
                     children: [
-                      Image.asset('assets/logo/logo.png',
-                          height: 80, width: 80, fit: BoxFit.contain),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Ezze Wash',
-                        style: GoogleFonts.pacifico(
-                          fontSize: 34,
-                          color: isDark ? Colors.white : AppColors.primary,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: Text(
-                          key: ValueKey(_view),
-                          _view == _AuthView.signIn
-                              ? 'Welcome back! Sign in to continue.'
-                              : _view == _AuthView.signUp
-                              ? 'Create an account to get started.'
-                              : 'Enter your email to reset your password.',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.subtitle(isDark)
-                              .copyWith(fontSize: 13),
-                        ),
-                      ),
+                      _HeaderSection(isDark: isDark, view: _view),
                       const SizedBox(height: 32),
-                      // Auth card
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? AppColors.darkSurface
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(
-                            color: isDark
-                                ? AppColors.darkBorder
-                                : const Color(0xFFE8EAF0),
-                          ),
-                          boxShadow: isDark
-                              ? []
-                              : [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        clipBehavior: Clip.hardEdge,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AnimatedSize(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                              alignment: Alignment.topCenter,
-                              child: _view == _AuthView.forgotPassword
-                                  ? const SizedBox(
-                                  width: double.infinity, height: 0)
-                                  : Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  AuthTabToggle(
-                                    isDark: isDark,
-                                    isSignIn:
-                                    _view == _AuthView.signIn,
-                                    onSignIn: () =>
-                                        _switchTo(_AuthView.signIn),
-                                    onSignUp: () =>
-                                        _switchTo(_AuthView.signUp),
-                                  ),
-                                  const SizedBox(height: 24),
-                                ],
-                              ),
-                            ),
-                            _buildCardContent(isDark, isLoading),
-                          ],
-                        ),
+                      _AuthCard(
+                        isDark: isDark,
+                        view: _view,
+                        isLoading: isLoading,
+                        isAnimating: _isAnimating,
+                        outgoingView: _outgoingView,
+                        slideIn: _slideIn,
+                        slideOut: _slideOut,
+                        fadeIn: _fadeIn,
+                        fadeOut: _fadeOut,
+                        onSwitchTo: _switchTo,
+                        buildPanel: _buildPanel,
                       ),
                     ],
                   ),
@@ -341,30 +262,6 @@ class _LoginScreenState extends State<LoginScreen>
         );
       },
     );
-  }
-
-  Widget _buildCardContent(bool isDark, bool isLoading) {
-    if (_isAnimating && _outgoingView != null) {
-      return Stack(
-        children: [
-          SlideTransition(
-            position: _slideOut,
-            child: FadeTransition(
-              opacity: _fadeOut,
-              child: _buildPanel(_outgoingView!, isDark, isLoading),
-            ),
-          ),
-          SlideTransition(
-            position: _slideIn,
-            child: FadeTransition(
-              opacity: _fadeIn,
-              child: _buildPanel(_view, isDark, isLoading),
-            ),
-          ),
-        ],
-      );
-    }
-    return _buildPanel(_view, isDark, isLoading);
   }
 
   Widget _buildPanel(_AuthView view, bool isDark, bool isLoading) {
@@ -403,5 +300,148 @@ class _LoginScreenState extends State<LoginScreen>
           onBack: () => _switchTo(_AuthView.signIn),
         );
     }
+  }
+}
+
+// ─── Extracted Components ─────────────────────────────────────────────────────
+
+class _HeaderSection extends StatelessWidget {
+  final bool isDark;
+  final _AuthView view;
+
+  const _HeaderSection({required this.isDark, required this.view});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Image.asset('assets/logo/logo.png',
+            height: 80, width: 80, fit: BoxFit.contain),
+        const SizedBox(height: 20),
+        Text(
+          'Ezze Wash',
+          style: GoogleFonts.pacifico(
+            fontSize: 34,
+            color: isDark ? Colors.white : AppColors.primary,
+            letterSpacing: 1,
+          ),
+        ),
+        const SizedBox(height: 6),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: Text(
+            key: ValueKey(view),
+            view == _AuthView.signIn
+                ? 'Welcome back! Sign in to continue.'
+                : view == _AuthView.signUp
+                ? 'Create an account to get started.'
+                : 'Enter your email to reset your password.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.subtitle(isDark).copyWith(fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AuthCard extends StatelessWidget {
+  final bool isDark;
+  final _AuthView view;
+  final bool isLoading;
+  final bool isAnimating;
+  final _AuthView? outgoingView;
+  final Animation<Offset> slideIn;
+  final Animation<Offset> slideOut;
+  final Animation<double> fadeIn;
+  final Animation<double> fadeOut;
+  final Function(_AuthView) onSwitchTo;
+  final Widget Function(_AuthView, bool, bool) buildPanel;
+
+  const _AuthCard({
+    required this.isDark,
+    required this.view,
+    required this.isLoading,
+    required this.isAnimating,
+    required this.outgoingView,
+    required this.slideIn,
+    required this.slideOut,
+    required this.fadeIn,
+    required this.fadeOut,
+    required this.onSwitchTo,
+    required this.buildPanel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : const Color(0xFFE8EAF0),
+        ),
+        boxShadow: isDark
+            ? []
+            : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: view == _AuthView.forgotPassword
+                ? const SizedBox(width: double.infinity, height: 0)
+                : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AuthTabToggle(
+                  isDark: isDark,
+                  isSignIn: view == _AuthView.signIn,
+                  onSignIn: () => onSwitchTo(_AuthView.signIn),
+                  onSignUp: () => onSwitchTo(_AuthView.signUp),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+          _buildAnimatedContent(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnimatedContent() {
+    if (isAnimating && outgoingView != null) {
+      return Stack(
+        children: [
+          SlideTransition(
+            position: slideOut,
+            child: FadeTransition(
+              opacity: fadeOut,
+              child: buildPanel(outgoingView!, isDark, isLoading),
+            ),
+          ),
+          SlideTransition(
+            position: slideIn,
+            child: FadeTransition(
+              opacity: fadeIn,
+              child: buildPanel(view, isDark, isLoading),
+            ),
+          ),
+        ],
+      );
+    }
+    return buildPanel(view, isDark, isLoading);
   }
 }
