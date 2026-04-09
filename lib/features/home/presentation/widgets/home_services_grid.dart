@@ -1,18 +1,17 @@
 // lib/features/home/presentation/widgets/home_services_grid.dart
-//
-// Refactored: AppCard replaces raw Container+BoxDecoration on HomeServiceCard.
-//             AppTextStyles replaces inline text styles.
 
+import 'package:ezzewash/core/widgets/app_error_state.dart';
+import 'package:ezzewash/core/widgets/app_shimmer.dart';
+import 'package:ezzewash/core/widgets/common_widgets.dart';
+import 'package:ezzewash/features/services/presentation/bloc/service_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_network_image.dart';
-import '../../../../core/widgets/app_shimmer_box.dart';
 import '../../../../routes/routes_name.dart';
 import '../../../services/presentation/bloc/service_bloc.dart';
 import '../../../services/presentation/bloc/service_state.dart';
@@ -55,18 +54,26 @@ class HomeServicesGrid extends StatelessWidget {
       },
       builder: (context, state) {
         if (state is ServicesLoading) {
-          return _ShimmerGrid(isDark: isDark, gridDelegate: _gridDelegate);
+          return AppShimmer.serviceGrid(
+            isDark: isDark,
+            crossAxisCount: 2,
+            childAspectRatio: 0.78,
+          );
         }
         if (state is ServicesLoaded) {
           final q = localQuery.toLowerCase().trim();
           final all = List.of(state.services)
             ..sort((a, b) => b.rating.compareTo(a.rating));
-          final services = (q.isEmpty
+          final services =
+          (q.isEmpty
               ? all
-              : all.where((s) =>
-          s.title.toLowerCase().contains(q) ||
-              (s.description?.toLowerCase().contains(q) ?? false) ||
-              s.tags.any((t) => t.toLowerCase().contains(q))))
+              : all.where(
+                (s) =>
+            s.title.toLowerCase().contains(q) ||
+                (s.description?.toLowerCase().contains(q) ??
+                    false) ||
+                s.tags.any((t) => t.toLowerCase().contains(q)),
+          ))
               .take(4)
               .toList();
 
@@ -74,8 +81,10 @@ class HomeServicesGrid extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Center(
-                child: Text('No services found for "$localQuery"',
-                    style: AppTextStyles.caption(isDark)),
+                child: Text(
+                  'No services found for "$localQuery"',
+                  style: AppTextStyles.caption(isDark),
+                ),
               ),
             );
           }
@@ -96,39 +105,24 @@ class HomeServicesGrid extends StatelessWidget {
                 imageUrl: s.imageUrl,
                 fallbackIcon: _fallbackIcons[i % _fallbackIcons.length],
                 isDark: isDark,
-                onTap: () => context.push(RoutesName.placeOrdersNavigate,
-                    extra: s.id),
+                onTap: () =>
+                    context.push(RoutesName.placeOrdersNavigate, extra: s.id),
               );
             },
+          );
+        }
+        if (state is ServicesError) {
+          return AppErrorState(
+            message: "Could not load services",
+            isDark: isDark,
+            onRetry: () =>
+                context.read<ServicesBloc>().add(ServicesLoadRequested()),
           );
         }
         return const SizedBox.shrink();
       },
     );
   }
-}
-
-// ─── Shimmer grid ─────────────────────────────────────────────────────────────
-
-class _ShimmerGrid extends StatelessWidget {
-  final bool isDark;
-  final SliverGridDelegate gridDelegate;
-  const _ShimmerGrid(
-      {required this.isDark, required this.gridDelegate});
-
-  @override
-  Widget build(BuildContext context) => Shimmer.fromColors(
-    baseColor: AppShimmerColors.base(isDark),
-    highlightColor: AppShimmerColors.highlight(isDark),
-    child: GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: gridDelegate,
-      itemCount: 4,
-      itemBuilder: (_, _) =>
-      const AppShimmerBox(height: 160, radius: 20),
-    ),
-  );
 }
 
 // ─── Service card ─────────────────────────────────────────────────────────────
@@ -249,8 +243,11 @@ class _CardTitleRow extends StatelessWidget {
   final double rating;
   final bool isDark;
 
-  const _CardTitleRow(
-      {required this.title, required this.rating, required this.isDark});
+  const _CardTitleRow({
+    required this.title,
+    required this.rating,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -258,16 +255,17 @@ class _CardTitleRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Flexible(
-          child: Text(title,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.gridTitle(isDark),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.gridTitle(isDark),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         if (rating > 0) ...[
           const SizedBox(width: 4),
-          const Icon(Icons.star_rounded,
-              color: Color(0xFFFBBF24), size: 14),
+          const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 14),
           Text(rating.toStringAsFixed(1), style: AppTextStyles.rating),
         ],
       ],

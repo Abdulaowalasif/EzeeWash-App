@@ -364,7 +364,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
 
   void _onConfirm() {
     if (widget.reorderParams == null &&
-        (_serviceIdx == null || _storeIdx == null)) return;
+        (_serviceIdx == null || _storeIdx == null)) {
+      return;
+    }
     if (_paymentMethod == PaymentMethod.cashOnDelivery) {
       context.read<OrdersBloc>().add(
         OrderPlaceRequested(
@@ -440,9 +442,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         AppSnackBar.show(
           context, e.error.localizedMessage ?? 'Payment failed', isError: true,
         );
-        context.read<OrdersBloc>().add(
-          OrderPlaceRequested(_buildParams(method: PaymentMethod.stripe)),
-        );
       }
     } catch (e) {
       if (mounted) {
@@ -452,9 +451,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         });
         AppSnackBar.show(
           context, 'Payment setup failed. Please try again.', isError: true,
-        );
-        context.read<OrdersBloc>().add(
-          OrderPlaceRequested(_buildParams(method: PaymentMethod.stripe)),
         );
       }
     }
@@ -479,6 +475,12 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     return BlocListener<OrdersBloc, OrdersState>(
       listener: (context, state) {
         if (state is OrderPlaced) {
+          // 1. Reset the Bloc to its initial/loaded state so the "placed" status doesn't persist.
+          // This ensures that when the user returns to the 'Place Order' tab, it isn't stuck.
+          context.read<OrdersBloc>().add(const OrdersLoadRequested());
+
+          // 2. Navigate and clear the navigation history for the ordering screens.
+          // Using .go() replaces the current stack with the success screen path.
           context.go(
             '${RoutesName.orders}/${RoutesName.confirmedOrders}',
             extra: state.orderNumber,

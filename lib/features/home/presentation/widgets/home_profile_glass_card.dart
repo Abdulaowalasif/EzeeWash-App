@@ -4,11 +4,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_network_image.dart';
+import '../../../../core/widgets/app_shimmer.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
+import '../../../profile/presentation/bloc/profile_event.dart';
 import '../../../profile/presentation/bloc/profile_state.dart';
 
 class HomeProfileGlassCard extends StatelessWidget {
@@ -18,15 +19,21 @@ class HomeProfileGlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ProfileBloc, ProfileState>(
       buildWhen: (prev, curr) =>
-          curr is ProfileLoading ||
+      curr is ProfileLoading ||
           curr is ProfileInitial ||
           curr is ProfileLoaded,
       builder: (context, state) {
         if (state is ProfileInitial || state is ProfileLoading) {
-          return _GlassCardShimmer();
+          return const AppShimmer.profileGlassCard();
         }
         if (state is ProfileLoaded) {
           return _GlassCardContent(profile: state.profile);
+        }
+        if (state is ProfileError) {
+          Future.delayed(
+            const Duration(seconds: 2),
+                () => context.read<ProfileBloc>().add(const ProfileLoadRequested()),
+          );
         }
         return const SizedBox.shrink();
       },
@@ -34,33 +41,17 @@ class HomeProfileGlassCard extends StatelessWidget {
   }
 }
 
-// ─── Shimmer skeleton ─────────────────────────────────────────────────────────
-
-class _GlassCardShimmer extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Shimmer.fromColors(
-        baseColor: Colors.white24,
-        highlightColor: Colors.white60,
-        child: Container(
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(18),
-          ),
-        ),
-      );
-}
-
 // ─── Loaded content ───────────────────────────────────────────────────────────
 
 class _GlassCardContent extends StatelessWidget {
-  final dynamic profile; // ProfileEntity
+  final dynamic profile;
 
   const _GlassCardContent({required this.profile});
 
   String _buildLocation() {
     final parts = <String>[
-      if (profile.address != null && profile.address!.isNotEmpty) profile.address!,
+      if (profile.address != null && profile.address!.isNotEmpty)
+        profile.address!,
       if (profile.city != null && profile.city!.isNotEmpty) profile.city!,
     ];
     return parts.join(', ');
@@ -104,7 +95,6 @@ class _GlassCardContent extends StatelessWidget {
 
 class _Avatar extends StatelessWidget {
   final String? avatarUrl;
-
   const _Avatar({this.avatarUrl});
 
   @override
@@ -115,14 +105,14 @@ class _Avatar extends StatelessWidget {
       backgroundColor: Colors.white.withOpacity(0.2),
       child: hasUrl
           ? ClipOval(
-              child: AppNetworkImage(
-                url: avatarUrl,
-                width: 52,
-                height: 52,
-                radius: 26,
-                fallbackIcon: Iconsax.user,
-              ),
-            )
+        child: AppNetworkImage(
+          url: avatarUrl,
+          width: 52,
+          height: 52,
+          radius: 26,
+          fallbackIcon: Iconsax.user,
+        ),
+      )
           : const Icon(Iconsax.user, color: Colors.white),
     );
   }

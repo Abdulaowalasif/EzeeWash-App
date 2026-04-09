@@ -55,7 +55,7 @@ final class AuthForgotPasswordRequested extends AuthEvent {
   @override
   List<Object> get props => [email];
 }
-// ... existing events
+
 class AuthChangePasswordRequested extends AuthEvent {
   final String newPassword;
   const AuthChangePasswordRequested(this.newPassword);
@@ -63,8 +63,7 @@ class AuthChangePasswordRequested extends AuthEvent {
   @override
   List<Object> get props => [newPassword];
 }
-/// Internal — emitted by the Supabase auth stream subscription.
-/// Kept private (prefixed with `_`) so screens cannot dispatch it directly.
+
 final class AuthStreamChanged extends AuthEvent {
   final UserEntity? user;
   const AuthStreamChanged(this.user);

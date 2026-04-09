@@ -18,8 +18,15 @@ class AppConstants {
   // ── Google auth redirect uri ──────────────────────────────────────────────────────────────
   static final googleAuthRedirectUri = dotenv.env['GOOGLE_AUTH_REDIRECT'] ?? '';
 
+  // ── Firebase app id ──────────────────────────────────────────────────────────────
+  static final firebaseAndroidAppId=dotenv.env['FIREBASE_ANDROID_APP_ID'] ?? '';
+  static final firebaseAndroidApiKey=dotenv.env['FIREBASE_ANDROID_API_KEY'] ?? '';
+
+  static final firebaseIosAppId=dotenv.env['FIREBASE_IOS_APP_ID'] ?? '';
+  static final firebaseIosApiKey=dotenv.env['FIREBASE_IOS_API_KEY'] ?? '';
+
   // App
-  static const appName = 'EzeeWash';
+  static const appName = 'EzzeWash';
   static const appVersion = '1.0.0';
 
   // Colors

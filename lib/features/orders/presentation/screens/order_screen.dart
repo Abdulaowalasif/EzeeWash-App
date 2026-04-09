@@ -1,6 +1,8 @@
 // lib/features/orders/presentation/screens/order_screen.dart
 import 'dart:async';
 
+import 'package:ezzewash/core/widgets/app_error_state.dart';
+import 'package:ezzewash/core/widgets/app_shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -30,7 +32,9 @@ class _OrderScreenState extends State<OrderScreen> {
   OrderFilter _filter = const OrderFilter();
 
   Future<void> _showFilterSheet(
-      BuildContext ctx, List<OrderEntity> allOrders) async {
+    BuildContext ctx,
+    List<OrderEntity> allOrders,
+  ) async {
     final result = await showModalBottomSheet<OrderFilter>(
       context: ctx,
       isScrollControlled: true,
@@ -45,8 +49,9 @@ class _OrderScreenState extends State<OrderScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-      isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       appBar: GradientAppBar(
         title: 'My Orders',
         backEnabled: false,
@@ -63,7 +68,7 @@ class _OrderScreenState extends State<OrderScreen> {
       body: BlocConsumer<OrdersBloc, OrdersState>(
         listenWhen: (_, s) => s is OrderCancelled || s is OrdersError,
         buildWhen: (_, current) =>
-        current is OrdersInitial ||
+            current is OrdersInitial ||
             current is OrdersLoading ||
             current is OrdersLoaded ||
             current is OrdersError,
@@ -76,27 +81,14 @@ class _OrderScreenState extends State<OrderScreen> {
         },
         builder: (context, state) {
           if (state is OrdersInitial || state is OrdersLoading) {
-            return _OrdersShimmer(isDark: isDark);
+            return AppShimmer.orderList(isDark: isDark);
           }
           if (state is OrdersError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.error_outline, color: AppColors.error, size: 52),
-                  const SizedBox(height: 14),
-                  Text(
-                    state.message,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.caption(isDark).copyWith(fontSize: 14),
-                  ),
-                  const SizedBox(height: 20),
-                  AppGradientButton(
-                    label: 'Retry',
-                    onPressed: () => context.read<OrdersBloc>().add(const OrdersLoadRequested()),
-                  ),
-                ]),
-              ),
+            return AppErrorState(
+              message: "Couldn't load orders",
+              isDark: isDark,
+              onRetry: () =>
+                  context.read<OrdersBloc>().add(const OrdersLoadRequested()),
             );
           }
           if (state is OrdersLoaded) {
@@ -104,7 +96,8 @@ class _OrderScreenState extends State<OrderScreen> {
               state: state,
               isDark: isDark,
               filter: _filter,
-              onClearFilter: () => setState(() => _filter = const OrderFilter()),
+              onClearFilter: () =>
+                  setState(() => _filter = const OrderFilter()),
             );
           }
           return const SizedBox.shrink();
@@ -122,6 +115,7 @@ class _OrderScreenState extends State<OrderScreen> {
 
 class _FilterIconButton extends StatelessWidget {
   final int activeCount;
+
   const _FilterIconButton({required this.activeCount});
 
   @override
@@ -135,8 +129,11 @@ class _FilterIconButton extends StatelessWidget {
             color: Colors.white.withOpacity(0.2),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.filter_list_outlined,
-              color: Colors.white, size: 20),
+          child: const Icon(
+            Icons.filter_list_outlined,
+            color: Colors.white,
+            size: 20,
+          ),
         ),
         if (activeCount > 0)
           Positioned(
@@ -146,42 +143,22 @@ class _FilterIconButton extends StatelessWidget {
               width: 16,
               height: 16,
               decoration: const BoxDecoration(
-                  color: Colors.orangeAccent, shape: BoxShape.circle),
+                color: Colors.orangeAccent,
+                shape: BoxShape.circle,
+              ),
               child: Center(
-                child: Text('$activeCount',
-                    style: AppTextStyles.caption(true).copyWith(
-                        fontSize: 9,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold)),
+                child: Text(
+                  '$activeCount',
+                  style: AppTextStyles.caption(true).copyWith(
+                    fontSize: 9,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ),
       ],
-    );
-  }
-}
-
-// ─── Shimmer loading ──────────────────────────────────────────────────────────
-
-class _OrdersShimmer extends StatelessWidget {
-  final bool isDark;
-  const _OrdersShimmer({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-          Responsive.horizontalPadding(context),
-          16,
-          Responsive.horizontalPadding(context),
-          10),
-      child: Center(
-        child: ConstrainedBox(
-          constraints:
-          BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
-          child: AppShimmerList(isDark: isDark, itemHeight: 160, itemCount: 4),
-        ),
-      ),
     );
   }
 }
@@ -250,8 +227,8 @@ class _OrdersBodyState extends State<_OrdersBody> {
         subtitle: widget.filter.isActive
             ? 'Try adjusting or clearing your filters'
             : (isActiveTab
-            ? 'Tap + to book your first laundry service'
-            : 'Completed orders will appear here'),
+                  ? 'Tap + to book your first laundry service'
+                  : 'Completed orders will appear here'),
         isDark: widget.isDark,
       );
     }
@@ -278,76 +255,85 @@ class _OrdersBodyState extends State<_OrdersBody> {
   @override
   Widget build(BuildContext context) {
     final activeOrders = widget.state.orders.where((o) => o.isActive).toList();
-    final historyOrders =
-    widget.state.orders.where((o) => !o.isActive).toList();
+    final historyOrders = widget.state.orders
+        .where((o) => !o.isActive)
+        .toList();
     final activeDisplayed = widget.filter.apply(activeOrders);
     final historyDisplayed = widget.filter.apply(historyOrders);
     final currentDisplayed = _showActive ? activeDisplayed : historyDisplayed;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          Responsive.horizontalPadding(context),
-          16,
-          Responsive.horizontalPadding(context),
-          5),
+        Responsive.horizontalPadding(context),
+        16,
+        Responsive.horizontalPadding(context),
+        5,
+      ),
       child: Center(
         child: ConstrainedBox(
-          constraints:
-          BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
-          child: Column(children: [
-            OrdersToggle(
-              showActive: _showActive,
-              isDark: widget.isDark,
-              pageController: _pageController,
-              onChanged: (active) {
-                setState(() => _showActive = active);
-                _pageController.animateToPage(active ? 0 : 1,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut);
-                context.read<OrdersBloc>().add(OrdersFilterToggled(active));
-              },
-            ),
-            if (widget.filter.isActive) ...[
-              const SizedBox(height: 10),
-              OrderActiveFilterBar(
-                filter: widget.filter,
+          constraints: BoxConstraints(
+            maxWidth: Responsive.maxContentWidth(context),
+          ),
+          child: Column(
+            children: [
+              OrdersToggle(
+                showActive: _showActive,
                 isDark: widget.isDark,
-                onClear: widget.onClearFilter,
-                allOrders: widget.state.orders,
+                pageController: _pageController,
+                onChanged: (active) {
+                  setState(() => _showActive = active);
+                  _pageController.animateToPage(
+                    active ? 0 : 1,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  );
+                  context.read<OrdersBloc>().add(OrdersFilterToggled(active));
+                },
               ),
-            ],
-            const SizedBox(height: 12),
-            if (widget.filter.isActive)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '${currentDisplayed.length} result${currentDisplayed.length == 1 ? '' : 's'}',
-                  style: AppTextStyles.caption(widget.isDark).copyWith(fontSize: 12),
+              if (widget.filter.isActive) ...[
+                const SizedBox(height: 10),
+                OrderActiveFilterBar(
+                  filter: widget.filter,
+                  isDark: widget.isDark,
+                  onClear: widget.onClearFilter,
+                  allOrders: widget.state.orders,
+                ),
+              ],
+              const SizedBox(height: 12),
+              if (widget.filter.isActive)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${currentDisplayed.length} result${currentDisplayed.length == 1 ? '' : 's'}',
+                    style: AppTextStyles.caption(
+                      widget.isDark,
+                    ).copyWith(fontSize: 12),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const BouncingScrollPhysics(),
+                  onPageChanged: (idx) {
+                    final isActive = idx == 0;
+                    if (isActive != _showActive) {
+                      setState(() => _showActive = isActive);
+                    }
+                    if (isActive != widget.state.showActive) {
+                      context.read<OrdersBloc>().add(
+                        OrdersFilterToggled(isActive),
+                      );
+                    }
+                  },
+                  children: [
+                    _buildList(activeDisplayed, true),
+                    _buildList(historyDisplayed, false),
+                  ],
                 ),
               ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const BouncingScrollPhysics(),
-                onPageChanged: (idx) {
-                  final isActive = idx == 0;
-                  if (isActive != _showActive) {
-                    setState(() => _showActive = isActive);
-                  }
-                  if (isActive != widget.state.showActive) {
-                    context
-                        .read<OrdersBloc>()
-                        .add(OrdersFilterToggled(isActive));
-                  }
-                },
-                children: [
-                  _buildList(activeDisplayed, true),
-                  _buildList(historyDisplayed, false),
-                ],
-              ),
-            ),
-          ]),
+            ],
+          ),
         ),
       ),
     );

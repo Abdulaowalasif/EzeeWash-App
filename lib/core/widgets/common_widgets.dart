@@ -26,10 +26,6 @@ import '../theme/app_text_styles.dart';
 
 // ─── Section heading ───────────────────────────────────────────────────────────
 
-/// A bold section heading used throughout the app.
-///
-/// Pass [caps] to render in upper-case with letter-spacing (settings sections).
-/// Defaults to title-case with [AppTextStyles.sectionTitle].
 class AppSectionLabel extends StatelessWidget {
   final String text;
   final bool isDark;
@@ -312,18 +308,6 @@ class AppRatingStars extends StatelessWidget {
 
 // ─── Icon box ─────────────────────────────────────────────────────────────────
 
-/// Icon inside a tinted rounded-rectangle container.
-///
-/// Used in settings tiles, contact rows, hero cards, and any place
-/// where an icon needs a coloured background pill. Replaces the
-/// repeated `Container > BoxDecoration > Icon` pattern across the app.
-///
-/// Usage:
-/// ```dart
-/// AppIconBox(icon: Iconsax.lock, color: AppColors.primary)
-/// AppIconBox(icon: Icons.phone_iphone_rounded, color: AppColors.success, size: 20)
-/// AppIconBox(icon: Iconsax.message_question, padding: 14, shape: BoxShape.circle)
-/// ```
 class AppIconBox extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -360,7 +344,6 @@ class AppIconBox extends StatelessWidget {
 
 // ─── Brand footer ─────────────────────────────────────────────────────────────
 
-/// "Ezee Wash / Clean Clothes. Clear Mind." footer used in Help and Terms screens.
 class AppBrandFooter extends StatelessWidget {
   const AppBrandFooter({super.key});
 
@@ -369,7 +352,7 @@ class AppBrandFooter extends StatelessWidget {
     child: Column(
       children: [
         Text(
-          'Ezee Wash',
+          'Ezze Wash',
           style: GoogleFonts.pacifico(
               fontSize: 18, color: AppColors.primary),
         ),
@@ -389,19 +372,6 @@ class AppBrandFooter extends StatelessWidget {
 
 // ─── Contact row ──────────────────────────────────────────────────────────────
 
-/// An icon + label + value row used on the Help & Support screen and elsewhere.
-///
-/// Usage:
-/// ```dart
-/// AppContactRow(
-///   icon: Icons.alternate_email_rounded,
-///   color: AppColors.primary,
-///   label: 'Email',
-///   value: 'support@ezeewash.com',
-///   isDark: isDark,
-///   onTap: () => launchUrl(Uri.parse('mailto:...')),
-/// )
-/// ```
 class AppContactRow extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -442,16 +412,6 @@ class AppContactRow extends StatelessWidget {
 
 // ─── Expandable tile ──────────────────────────────────────────────────────────
 
-/// A themed [ExpansionTile] used for FAQ items, policy sections, etc.
-///
-/// Usage:
-/// ```dart
-/// AppExpandableTile(
-///   title: 'Can I track my order?',
-///   body: 'Yes! You can track from the Orders section.',
-///   isDark: isDark,
-/// )
-/// ```
 class AppExpandableTile extends StatelessWidget {
   final String title;
   final String body;
@@ -508,19 +468,6 @@ class AppExpandableTile extends StatelessWidget {
 
 // ─── Confirm dialog ───────────────────────────────────────────────────────────
 
-/// A reusable two-action confirm dialog.
-///
-/// Usage:
-/// ```dart
-/// AppConfirmDialog.show(
-///   context,
-///   title: 'Sign Out?',
-///   message: 'Are you sure you want to sign out?',
-///   confirmLabel: 'Sign Out',
-///   confirmColor: AppColors.error,
-///   onConfirm: () => context.read<AuthBloc>().add(AuthSignOutRequested()),
-/// );
-/// ```
 class AppConfirmDialog {
   AppConfirmDialog._();
 

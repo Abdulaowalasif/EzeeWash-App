@@ -16,7 +16,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/utils/theme_prefs.dart';
-import '../../../../core/widgets/app_shimmer_box.dart';
+import '../../../../core/widgets/app_shimmer.dart';
 import '../../../../core/widgets/app_snack_bar.dart';
 import '../../../../core/widgets/common_widgets.dart';
 import '../../../../routes/routes_name.dart';

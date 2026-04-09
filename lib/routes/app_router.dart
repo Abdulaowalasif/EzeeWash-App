@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import '../core/screens/error_screen.dart';
 import '../core/service/notification_service.dart';
 import '../core/utils/onboarding_prefs.dart';
-import '../features/address/presentation/screens/address_screen.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
@@ -143,10 +142,6 @@ GoRouter createRouter(AuthBloc authBloc) {
                     path: RoutesName.changePassword,
                     pageBuilder: (c, s) =>
                         _slide(const ChangePasswordScreen(), s),
-                  ),
-                  GoRoute(
-                    path: RoutesName.address,
-                    pageBuilder: (c, s) => _slide(const AddressScreen(), s),
                   ),
                   GoRoute(
                     path: RoutesName.helpSupport,

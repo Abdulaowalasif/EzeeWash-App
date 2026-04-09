@@ -12,7 +12,7 @@ import '../../../../../core/constants/order_status.dart';
 import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/utils/responsive.dart';
 import '../../../../../core/widgets/app_card.dart';
-import '../../../../../core/widgets/app_shimmer_box.dart';
+import '../../../../../core/widgets/app_shimmer.dart';
 import '../../../../../core/widgets/app_status_badge.dart';
 import '../../../../../core/widgets/common_widgets.dart';
 import '../../../../../routes/routes_name.dart';

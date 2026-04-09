@@ -22,20 +22,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignOutUseCase signOutUseCase;
   final GetCurrentUserUseCase getCurrentUserUseCase;
   final AuthRepository authRepository;
-  final ChangePasswordUseCase changePasswordUseCase; // Added
+  final ChangePasswordUseCase changePasswordUseCase;
 
   StreamSubscription<UserEntity?>? _authSub;
 
-  // Suppresses the authStateChanges stream during email/password flows where
-  // the bloc already emits AuthAuthenticated or AuthError directly. This
-  // prevents a duplicate AuthAuthenticated (or a race-condition AuthError)
-  // from being emitted by the stream at the same time.
-  //
-  // IMPORTANT: _suppressStream must remain FALSE for the Google OAuth flow.
-  // Google OAuth works entirely through the stream — the datasource just opens
-  // a browser and returns; it never hands us a UserEntity directly. If we
-  // suppressed the stream during Google sign-in, the AuthAuthenticated state
-  // would never arrive.
   bool _suppressStream = false;
 
   AuthBloc({
@@ -44,7 +34,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.signOutUseCase,
     required this.getCurrentUserUseCase,
     required this.authRepository,
-    required this.changePasswordUseCase, // Added
+    required this.changePasswordUseCase,
   }) : super(const AuthInitial()) {
     on<AuthCheckRequested>(_onCheck);
     on<AuthSignInRequested>(_onSignIn);
@@ -54,12 +44,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthStreamChanged>(_onStreamEvent);
     on<AuthForgotPasswordRequested>(_onForgotPassword);
 
-    // Subscribe to Supabase auth state changes.
-    // This handles:
-    //   • Google OAuth callback  → emits AuthAuthenticated
-    //   • Session restore on cold start
-    //   • Token refresh
-    //   • Remote/token-expiry logout
     _authSub = authRepository.authStateChanges.listen((user) {
       if (!_suppressStream) add(AuthStreamChanged(user));
     });
@@ -133,49 +117,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
   }
 
-  // FIX: Google OAuth handler.
-  //
-  // Previous bug: after calling signInWithGoogle() the bloc tried to use a
-  // UserEntity that didn't exist yet (the browser hadn't even opened), emitting
-  // AuthError("Google sign in failed") immediately.
-  //
-  // Correct flow:
-  //   1. Emit AuthLoading so the UI shows a spinner.
-  //   2. Call authRepository.signInWithGoogle() — this merely opens the system
-  //      browser. It returns Either<Failure, void>, NOT a UserEntity.
-  //   3. If the repository itself threw (e.g. the OAuth URL couldn't be built),
-  //      emit AuthError.
-  //   4. Otherwise stay in AuthLoading — do NOT emit AuthAuthenticated here.
-  //   5. When the user selects their Google account and is redirected back, the
-  //      Supabase SDK fires onAuthStateChange. The _authSub listener above
-  //      (which is NOT suppressed for Google) dispatches AuthStreamChanged,
-  //      which calls _onStreamEvent → emits AuthAuthenticated.
-  //   6. The GoRouter refreshListenable picks up AuthAuthenticated and
-  //      redirects to the home screen.
   Future<void> _onGoogle(
     AuthGoogleSignInRequested event,
     Emitter<AuthState> emit,
   ) async {
-    // ✅ Do NOT set _suppressStream = true here.
-    // The Google session arrives via the stream; suppressing it would mean
-    // AuthAuthenticated is never emitted and the user stays stuck on the
-    // login screen after a successful OAuth.
     emit(const AuthLoading());
 
     final res = await authRepository.signInWithGoogle();
 
-    res.fold(
-      (f) {
-        // Only reach here if signInWithOAuth itself threw (e.g. no internet,
-        // invalid OAuth config). Show the error to the user.
-        emit(AuthError(f.message));
-      },
-      (_) {
-        // ✅ Browser launched successfully. Stay in AuthLoading.
-        // _authSub (stream) is not suppressed, so it will emit
-        // AuthAuthenticated once the OAuth callback completes.
-      },
-    );
+    res.fold((f) {
+      emit(AuthError(f.message));
+    }, (_) {});
   }
 
   Future<void> _onForgotPassword(
@@ -204,8 +156,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (event.user != null) {
       emit(AuthAuthenticated(event.user!));
     } else if (state is AuthAuthenticated) {
-      // Only go to unauthenticated if we were previously authenticated
-      // (handles token expiry / remote logout), not on cold start.
       emit(const AuthUnauthenticated());
     }
   }

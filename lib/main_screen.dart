@@ -8,6 +8,7 @@ import 'core/constants/app_color.dart';
 import 'core/theme/app_text_styles.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/notifications/presentation/bloc/notifications_bloc.dart';
+import 'routes/routes_name.dart';
 
 class MainScreen extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -20,12 +21,21 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   void _onTap(int index) {
-    widget.navigationShell.goBranch(
-      index,
-      // UPDATED: Now resets only on double-tap (when index matches currentIndex)
-      // This allows state preservation when switching between different tabs.
-      initialLocation: index == widget.navigationShell.currentIndex,
-    );
+    final isSameBranch = index == widget.navigationShell.currentIndex;
+
+    // Check if the Orders branch is currently showing a sub-route
+    // (PlaceOrderScreen or BookingConfirmedScreen).
+    // When it is, always reset the Orders branch back to the base OrderScreen —
+    // whether the user taps Orders directly or switches to another tab first.
+    // All other tab switches preserve branch state normally.
+    final currentLocation = GoRouterState.of(context).matchedLocation;
+    final ordersIsInSubRoute =
+        currentLocation.startsWith(RoutesName.orders) &&
+            currentLocation.length > RoutesName.orders.length;
+
+    final shouldReset = isSameBranch || ordersIsInSubRoute;
+
+    widget.navigationShell.goBranch(index, initialLocation: shouldReset);
   }
 
   @override

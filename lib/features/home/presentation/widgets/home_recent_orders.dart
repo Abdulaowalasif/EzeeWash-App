@@ -1,24 +1,25 @@
 // lib/features/home/presentation/widgets/home_recent_orders.dart
-//
-// Refactored: AppCard replaces raw Container+BoxDecoration for order card.
 
+import 'package:ezzewash/core/widgets/app_error_state.dart';
+import 'package:ezzewash/core/widgets/app_shimmer.dart';
+import 'package:ezzewash/core/widgets/common_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../../../core/widgets/app_order_progress_bar.dart';
-import '../../../../core/widgets/app_shimmer_box.dart';
 import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../routes/routes_name.dart';
+import '../../../orders/presentation/bloc/order_event.dart';
 import '../../../orders/presentation/bloc/orders_bloc.dart';
 import '../../../orders/presentation/bloc/orders_state.dart';
 
 class HomeRecentOrders extends StatelessWidget {
   final bool isDark;
+
   const HomeRecentOrders({super.key, required this.isDark});
 
   @override
@@ -26,59 +27,49 @@ class HomeRecentOrders extends StatelessWidget {
     return BlocBuilder<OrdersBloc, OrdersState>(
       builder: (context, state) {
         if (state is OrdersInitial || state is OrdersLoading) {
-          return _RecentOrdersShimmer(isDark: isDark);
+          return AppShimmer.recentOrderList(isDark: isDark);
         }
         if (state is OrdersLoaded) {
           final recent = state.orders.take(2).toList();
           if (recent.isEmpty) {
             return Center(
-              child: Text('No orders yet. Book your first service!',
-                  style: AppTextStyles.caption(isDark)),
+              child: Text(
+                'No orders yet. Book your first service!',
+                style: AppTextStyles.caption(isDark),
+              ),
             );
           }
           return Column(
             children: recent
-                .map((order) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: RecentOrderCard(
-                orderId: order.id,
-                orderNumber: '#${order.orderNumber}',
-                serviceName: order.serviceName,
-                status: order.status,
-                progress: order.progress,
-                imageUrl: order.serviceImageUrl.toString(),
-                isDark: isDark,
+                .map(
+                  (order) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: RecentOrderCard(
+                  orderId: order.id,
+                  orderNumber: '#${order.orderNumber}',
+                  serviceName: order.serviceName,
+                  status: order.status,
+                  progress: order.progress,
+                  imageUrl: order.serviceImageUrl.toString(),
+                  isDark: isDark,
+                ),
               ),
-            ))
+            )
                 .toList(),
+          );
+        }
+        if (state is OrdersError) {
+          return AppErrorState(
+            message: "Could not load recent orders",
+            isDark: isDark,
+            onRetry: () =>
+                context.read<OrdersBloc>().add(OrdersLoadRequested()),
           );
         }
         return const SizedBox.shrink();
       },
     );
   }
-}
-
-// ─── Shimmer ──────────────────────────────────────────────────────────────────
-
-class _RecentOrdersShimmer extends StatelessWidget {
-  final bool isDark;
-  const _RecentOrdersShimmer({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) => Shimmer.fromColors(
-    baseColor: AppShimmerColors.base(isDark),
-    highlightColor: AppShimmerColors.highlight(isDark),
-    child: Column(
-      children: List.generate(
-        2,
-            (_) => const Padding(
-          padding: EdgeInsets.only(bottom: 12),
-          child: AppShimmerBox(height: 120, radius: 18),
-        ),
-      ),
-    ),
-  );
 }
 
 // ─── Order card ───────────────────────────────────────────────────────────────
@@ -106,8 +97,7 @@ class RecentOrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () =>
-          context.push(RoutesName.trackOrdersNavigate, extra: orderId),
+      onTap: () => context.push(RoutesName.trackOrdersNavigate, extra: orderId),
       child: AppCard(
         isDark: isDark,
         padding: const EdgeInsets.all(16),
