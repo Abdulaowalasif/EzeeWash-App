@@ -129,7 +129,7 @@ class OrderModel extends OrderEntity {
       riderLat: (activeRiderData?['current_lat'] as num?)?.toDouble(),
       riderLng: (activeRiderData?['current_lng'] as num?)?.toDouble(),
 
-      // ── Rider profile mapped to entity ────────────────────────────────────
+      // ── Rider profile mapped to entities ────────────────────────────────────
       riderId:           j['rider_id']              as String?,
       pickupRiderId:     j['pickup_rider_id']       as String?,
       deliveryRiderId:   j['delivery_rider_id']     as String?,

@@ -55,18 +55,21 @@ class _NotificationScreenState extends State<NotificationScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-      isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       body: Column(
         children: [
           const NotificationsAppBar(),
 
           // ─── THE TOGGLE ───
           Padding(
-            padding: EdgeInsetsGeometry.fromLTRB(  Responsive.horizontalPadding(context),
+            padding: EdgeInsetsGeometry.fromLTRB(
+              Responsive.horizontalPadding(context),
               16,
               Responsive.horizontalPadding(context),
-              5,),
+              5,
+            ),
             child: NotificationToggle(
               showActive: _showActive,
               isDark: isDark,
@@ -145,8 +148,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  Widget _buildListOrEmpty(BuildContext context,
-      List<NotificationEntity> items, bool isDark, String emptyMsg) {
+  Widget _buildListOrEmpty(
+    BuildContext context,
+    List<NotificationEntity> items,
+    bool isDark,
+    String emptyMsg,
+  ) {
     if (items.isEmpty) {
       return AppEmptyState(
         icon: Iconsax.notification_bing,
@@ -199,8 +206,8 @@ class _NotificationsList extends StatelessWidget {
           onMarkRead: notif.isRead
               ? null
               : () => context.read<NotificationsBloc>().add(
-            NotificationMarkReadRequested(notif.id),
-          ),
+                  NotificationMarkReadRequested(notif.id),
+                ),
         );
       },
     );
@@ -234,12 +241,12 @@ class NotificationToggle extends StatelessWidget {
         boxShadow: isDark
             ? []
             : [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: Stack(
         children: [
@@ -270,7 +277,7 @@ class NotificationToggle extends StatelessWidget {
                           color: AppColors.primary.withOpacity(0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -295,8 +302,8 @@ class NotificationToggle extends StatelessWidget {
                         color: showActive
                             ? Colors.white
                             : (isDark
-                            ? AppColors.darkSubtext
-                            : Colors.grey.shade600),
+                                  ? AppColors.darkSubtext
+                                  : Colors.grey.shade600),
                       ),
                       child: const Text('Order Updates'),
                     ),
@@ -316,8 +323,8 @@ class NotificationToggle extends StatelessWidget {
                         color: !showActive
                             ? Colors.white
                             : (isDark
-                            ? AppColors.darkSubtext
-                            : Colors.grey.shade600),
+                                  ? AppColors.darkSubtext
+                                  : Colors.grey.shade600),
                       ),
                       child: const Text('Promo'),
                     ),

@@ -1,3 +1,4 @@
+import 'package:ezzewash/features/promos/presentation/bloc/promo_bloc.dart';
 import 'package:ezzewash/routes/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -56,6 +57,7 @@ class _EzzeWashAppState extends State<EzzeWashApp> {
         BlocProvider(create: (_) => sl<OrdersBloc>()),
         BlocProvider(create: (_) => sl<NotificationsBloc>()),
         BlocProvider(create: (_) => sl<ProfileBloc>()),
+        BlocProvider(create: (_) => sl<PromoBloc>()),
       ],
       child: AuthReactiveLoader(
         onLogout: _recreateRouter,

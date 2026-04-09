@@ -1,4 +1,5 @@
 // lib/core/di/injection_container.dart
+import 'package:ezzewash/features/promos/domain/usecases/watch_promo_usecase.dart';
 import 'package:get_it/get_it.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
@@ -25,6 +26,10 @@ import '../../features/profile/data/repositories/profile_repository_impl.dart';
 import '../../features/profile/domain/repositories/profile_repository.dart';
 import '../../features/profile/domain/usecases/profile_usecase.dart';
 import '../../features/profile/presentation/bloc/profile_bloc.dart';
+import '../../features/promos/data/datasources/promo_remote_datasource.dart';
+import '../../features/promos/data/repositories/promo_repository_impl.dart';
+import '../../features/promos/domain/repositories/promo_repository.dart';
+import '../../features/promos/presentation/bloc/promo_bloc.dart';
 import '../../features/services/data/datasources/service_remote_datasource.dart';
 import '../../features/services/data/repositories/service_repository_impl.dart';
 import '../../features/services/domain/repositories/service_repository.dart';
@@ -44,7 +49,7 @@ Future<void> initDependencies() async {
 
   // ─── AUTH ──────────────────────────────────────────────────────────────────
   sl.registerFactory(
-        () => AuthBloc(
+    () => AuthBloc(
       signInUseCase: sl(),
       signUpUseCase: sl(),
       signOutUseCase: sl(),
@@ -66,22 +71,22 @@ Future<void> initDependencies() async {
 
   // Data sources
   sl.registerLazySingleton<AuthRemoteDataSource>(
-        () => AuthRemoteDataSourceImpl(sl()),
+    () => AuthRemoteDataSourceImpl(sl()),
   );
 
   // ─── SERVICES ─────────────────────────────────────────────────────────────
   sl.registerLazySingleton<ServicesRemoteDataSource>(
-        () => ServicesRemoteDataSourceImpl(sl()),
+    () => ServicesRemoteDataSourceImpl(sl()),
   );
   sl.registerLazySingleton<ServicesRepository>(
-        () => ServicesRepositoryImpl(sl()),
+    () => ServicesRepositoryImpl(sl()),
   );
   sl.registerLazySingleton(() => GetAllServicesUseCase(sl()));
   sl.registerLazySingleton(() => GetServicesByCategoryUseCase(sl()));
   sl.registerLazySingleton(() => GetServiceByIdUseCase(sl()));
 
   sl.registerLazySingleton(
-        () => ServicesBloc(
+    () => ServicesBloc(
       getAllServicesUseCase: sl(),
       getServicesByCategoryUseCase: sl(),
       getServiceByIdUseCase: sl(),
@@ -90,22 +95,22 @@ Future<void> initDependencies() async {
 
   // ─── STORES ───────────────────────────────────────────────────────────────
   sl.registerLazySingleton<StoresRemoteDataSource>(
-        () => StoresRemoteDataSourceImpl(sl()),
+    () => StoresRemoteDataSourceImpl(sl()),
   );
   sl.registerLazySingleton<StoresRepository>(() => StoresRepositoryImpl(sl()));
   sl.registerLazySingleton(() => GetAllStoresUseCase(sl()));
   sl.registerLazySingleton(() => GetStoreByIdUseCase(sl()));
 
   sl.registerLazySingleton(
-        () => StoresBloc(getAllStoresUseCase: sl(), getStoreByIdUseCase: sl()),
+    () => StoresBloc(getAllStoresUseCase: sl(), getStoreByIdUseCase: sl()),
   );
 
   // ─── ORDERS ───────────────────────────────────────────────────────────────
   sl.registerLazySingleton<OrdersRemoteDataSource>(
-        () => OrdersRemoteDataSourceImpl(sl()),
+    () => OrdersRemoteDataSourceImpl(sl()),
   );
   sl.registerLazySingleton<OrdersRepository>(
-        () => OrdersRepositoryImpl(remoteDataSource: sl(), client: sl()),
+    () => OrdersRepositoryImpl(remoteDataSource: sl(), client: sl()),
   );
   sl.registerLazySingleton(() => GetOrdersUseCase(sl()));
   sl.registerLazySingleton(() => GetOrderByIdUseCase(sl()));
@@ -113,7 +118,7 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => CancelOrderUseCase(sl())); // ← new
 
   sl.registerFactory(
-        () => OrdersBloc(
+    () => OrdersBloc(
       getOrdersUseCase: sl(),
       getOrderByIdUseCase: sl(),
       placeOrderUseCase: sl(),
@@ -125,17 +130,17 @@ Future<void> initDependencies() async {
 
   // ─── NOTIFICATIONS ────────────────────────────────────────────────────────
   sl.registerLazySingleton<NotificationsRemoteDataSource>(
-        () => NotificationsRemoteDataSourceImpl(sl()),
+    () => NotificationsRemoteDataSourceImpl(sl()),
   );
   sl.registerLazySingleton<NotificationsRepository>(
-        () => NotificationsRepositoryImpl(remoteDataSource: sl(), client: sl()),
+    () => NotificationsRepositoryImpl(remoteDataSource: sl(), client: sl()),
   );
   sl.registerLazySingleton(() => GetNotificationsUseCase(sl()));
   sl.registerLazySingleton(() => MarkNotificationReadUseCase(sl()));
   sl.registerLazySingleton(() => MarkAllNotificationsReadUseCase(sl()));
 
   sl.registerFactory(
-        () => NotificationsBloc(
+    () => NotificationsBloc(
       getNotificationsUseCase: sl(),
       markReadUseCase: sl(),
       markAllReadUseCase: sl(),
@@ -145,20 +150,36 @@ Future<void> initDependencies() async {
 
   // ─── PROFILE ──────────────────────────────────────────────────────────────
   sl.registerLazySingleton<ProfileRemoteDataSource>(
-        () => ProfileRemoteDataSourceImpl(sl()),
+    () => ProfileRemoteDataSourceImpl(sl()),
   );
   sl.registerLazySingleton<ProfileRepository>(
-        () => ProfileRepositoryImpl(remoteDataSource: sl(), client: sl()),
+    () => ProfileRepositoryImpl(remoteDataSource: sl(), client: sl()),
   );
   sl.registerLazySingleton(() => GetProfileUseCase(sl()));
   sl.registerLazySingleton(() => UpdateProfileUseCase(sl()));
   sl.registerLazySingleton(() => UpdateAvatarUseCase(sl()));
 
   sl.registerFactory(
-        () => ProfileBloc(
+    () => ProfileBloc(
       getProfileUseCase: sl(),
       updateProfileUseCase: sl(),
       updateAvatarUseCase: sl(),
     ),
   );
+
+  // ─── PROMOS ───────────────────────────────────────────────────────────────
+
+  // 1. Data Source
+  sl.registerLazySingleton<PromoRemoteDataSource>(
+    () => PromoRemoteDataSourceImpl(sl()),
+  );
+
+  // 2. Repository
+  sl.registerLazySingleton<PromoRepository>(() => PromoRepositoryImpl(sl()));
+
+  // 3. Use Cases
+  sl.registerLazySingleton(() => WatchPromosUseCase(sl()));
+
+  // 4. BLoC (Using registerFactory because UI should usually get a fresh BLoC instance)
+  sl.registerFactory(() => PromoBloc(watchPromosUseCase: sl()));
 }

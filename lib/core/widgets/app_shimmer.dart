@@ -1,56 +1,7 @@
 // lib/core/widgets/app_shimmer.dart
-//
-// ═══════════════════════════════════════════════════════════════════════════════
-// AppShimmer — Single source of truth for ALL shimmer loading states.
-//
-// PRIMITIVES (use inside AppShimmer.custom or your own Shimmer.fromColors):
-//   AppShimmerBox      — filled rounded rectangle
-//   AppShimmerCircle   — circle (avatar / icon)
-//   AppShimmerLine     — thin text-line placeholder
-//
-// SCREEN-SPECIFIC LAYOUTS (each wraps its own Shimmer.fromColors):
-//   AppShimmer.serviceGrid(...)      — Home & Services screen grid cards
-//   AppShimmer.recentOrderList(...)  — Home "Recent Orders" section
-//   AppShimmer.orderList(...)        — Orders screen (toggle + cards)
-//   AppShimmer.notificationList(...) — Notifications screen tiles
-//   AppShimmer.serviceList(...)      — Services screen full-width list
-//   AppShimmer.settingsPage(...)     — Settings / Profile page
-//   AppShimmer.profileGlassCard()   — Home sliver app-bar glass card
-//   AppShimmer.custom(...)           — Wrap your own skeleton child
-//
-// USAGE EXAMPLES:
-//   // Home services grid (replaces AppShimmerLayout.grid)
-//   AppShimmer.serviceGrid(isDark: isDark, crossAxisCount: 2)
-//
-//   // Home recent orders (replaces AppShimmerList)
-//   AppShimmer.recentOrderList(isDark: isDark)
-//
-//   // Orders screen (replaces _OrdersShimmer)
-//   AppShimmer.orderList(isDark: isDark)
-//
-//   // Notifications screen (replaces AppShimmerLayout.list)
-//   AppShimmer.notificationList(isDark: isDark)
-//
-//   // Services screen (replaces raw AppShimmerBox)
-//   AppShimmer.serviceList(isDark: isDark)
-//
-//   // Settings screen (replaces _SettingsShimmer body)
-//   AppShimmer.settingsPage(isDark: isDark)
-//
-//   // Home profile glass card (replaces _GlassCardShimmer)
-//   AppShimmer.profileGlassCard()
-//
-//   // Custom skeleton
-//   AppShimmer.custom(
-//     isDark: isDark,
-//     child: Row(children: [AppShimmerCircle(size: 48), ...]),
-//   )
-// ═══════════════════════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-
-import '../constants/app_color.dart';
 
 // ─── Palette (backwards-compatible) ───────────────────────────────────────────
 
@@ -94,6 +45,7 @@ class AppShimmerBox extends StatelessWidget {
 /// Circle placeholder — for avatars, icon boxes, status dots.
 class AppShimmerCircle extends StatelessWidget {
   final double size;
+
   const AppShimmerCircle({super.key, this.size = 48});
 
   @override
@@ -147,8 +99,8 @@ class AppShimmer extends StatelessWidget {
     this.childAspectRatio = 0.78,
     this.itemCount = 4,
     this.padding = EdgeInsets.zero,
-  })  : _kind = _ShimmerKind.serviceGrid,
-        child = null;
+  }) : _kind = _ShimmerKind.serviceGrid,
+       child = null;
 
   // ── recentOrderList ─────────────────────────────────────────────────────────
   // Matches RecentOrderCard (AppCard, padding:16, radius:18):
@@ -159,10 +111,10 @@ class AppShimmer extends StatelessWidget {
     required this.isDark,
     this.itemCount = 2,
     this.padding = EdgeInsets.zero,
-  })  : _kind = _ShimmerKind.recentOrderList,
-        crossAxisCount = 2,
-        childAspectRatio = 1,
-        child = null;
+  }) : _kind = _ShimmerKind.recentOrderList,
+       crossAxisCount = 2,
+       childAspectRatio = 1,
+       child = null;
 
   // ── orderList ───────────────────────────────────────────────────────────────
   // Matches OrderCard in the Orders screen (AppCard, padding:20, radius:20):
@@ -173,10 +125,10 @@ class AppShimmer extends StatelessWidget {
     required this.isDark,
     this.itemCount = 4,
     this.padding = EdgeInsets.zero,
-  })  : _kind = _ShimmerKind.orderList,
-        crossAxisCount = 2,
-        childAspectRatio = 1,
-        child = null;
+  }) : _kind = _ShimmerKind.orderList,
+       crossAxisCount = 2,
+       childAspectRatio = 1,
+       child = null;
 
   // ── notificationList ────────────────────────────────────────────────────────
   // Matches NotificationCard (padding:16, radius:18):
@@ -187,10 +139,10 @@ class AppShimmer extends StatelessWidget {
     required this.isDark,
     this.itemCount = 6,
     this.padding = EdgeInsets.zero,
-  })  : _kind = _ShimmerKind.notificationList,
-        crossAxisCount = 2,
-        childAspectRatio = 1,
-        child = null;
+  }) : _kind = _ShimmerKind.notificationList,
+       crossAxisCount = 2,
+       childAspectRatio = 1,
+       child = null;
 
   // ── serviceList ─────────────────────────────────────────────────────────────
   // Matches ServiceCard full-width list (AppCard, padding:zero):
@@ -201,36 +153,33 @@ class AppShimmer extends StatelessWidget {
     required this.isDark,
     this.itemCount = 3,
     this.padding = EdgeInsets.zero,
-  })  : _kind = _ShimmerKind.serviceList,
-        crossAxisCount = 2,
-        childAspectRatio = 1,
-        child = null;
+  }) : _kind = _ShimmerKind.serviceList,
+       crossAxisCount = 2,
+       childAspectRatio = 1,
+       child = null;
 
-  // ── settingsPage ────────────────────────────────────────────────────────────
-  // Matches _SettingsShimmer:
-  //   profile card(h110) + info card(h160) + menu card(5 rows) + actions(h130)
 
-  const AppShimmer.settingsPage({
+  const AppShimmer.promoBanner({
     super.key,
     required this.isDark,
-    this.padding = const EdgeInsets.all(20),
-  })  : _kind = _ShimmerKind.settingsPage,
-        crossAxisCount = 2,
-        childAspectRatio = 1,
+    this.padding = const EdgeInsets.symmetric(vertical: 8),
+  })  : _kind = _ShimmerKind.promoBanner,
         itemCount = 1,
+        crossAxisCount = 1,
+        childAspectRatio = 1,
         child = null;
 
   // ── profileGlassCard ────────────────────────────────────────────────────────
   // Matches _GlassCardShimmer — white-on-glass palette (no isDark needed)
 
   const AppShimmer.profileGlassCard({super.key})
-      : _kind = _ShimmerKind.profileGlassCard,
-        isDark = false,
-        crossAxisCount = 2,
-        childAspectRatio = 1,
-        itemCount = 1,
-        padding = EdgeInsets.zero,
-        child = null;
+    : _kind = _ShimmerKind.profileGlassCard,
+      isDark = false,
+      crossAxisCount = 2,
+      childAspectRatio = 1,
+      itemCount = 1,
+      padding = EdgeInsets.zero,
+      child = null;
 
   // ── custom ──────────────────────────────────────────────────────────────────
   // Wrap your own skeleton widgets in the shimmer animation
@@ -240,10 +189,10 @@ class AppShimmer extends StatelessWidget {
     required this.isDark,
     required Widget this.child,
     this.padding = EdgeInsets.zero,
-  })  : _kind = _ShimmerKind.custom,
-        crossAxisCount = 2,
-        childAspectRatio = 1,
-        itemCount = 1;
+  }) : _kind = _ShimmerKind.custom,
+       crossAxisCount = 2,
+       childAspectRatio = 1,
+       itemCount = 1;
 
   // ── build ───────────────────────────────────────────────────────────────────
 
@@ -267,10 +216,7 @@ class AppShimmer extends StatelessWidget {
     return Shimmer.fromColors(
       baseColor: AppShimmerColors.base(isDark),
       highlightColor: AppShimmerColors.highlight(isDark),
-      child: Padding(
-        padding: padding,
-        child: _buildBody(),
-      ),
+      child: Padding(padding: padding, child: _buildBody()),
     );
   }
 
@@ -290,13 +236,54 @@ class AppShimmer extends StatelessWidget {
         return _NotificationListBody(itemCount: itemCount);
       case _ShimmerKind.serviceList:
         return _ServiceListBody(itemCount: itemCount);
-      case _ShimmerKind.settingsPage:
-        return const _SettingsPageBody();
+      case _ShimmerKind.promoBanner:
+        return const _PromoBannerBody();
       case _ShimmerKind.custom:
         return child!;
       case _ShimmerKind.profileGlassCard:
         return const SizedBox.shrink(); // handled above
     }
+  }
+}
+
+// ─── Promo banner ─────────────────────────────────────────────────────────────
+
+class _PromoBannerBody extends StatelessWidget {
+  const _PromoBannerBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 160,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Headline (Discount/Code)
+                const AppShimmerLine(width: 180, height: 20),
+                const SizedBox(height: 12),
+                // Description line 1
+                const AppShimmerLine(height: 14),
+                const SizedBox(height: 6),
+                // Description line 2
+                AppShimmerLine(width: 120, height: 14),
+              ],
+            ),
+          ),
+          const SizedBox(width: 20),
+          // Icon placeholder
+          const AppShimmerBox(height: 50, width: 50, radius: 12),
+        ],
+      ),
+    );
   }
 }
 
@@ -357,6 +344,7 @@ class _ServiceGridBody extends StatelessWidget {
 
 class _RecentOrderListBody extends StatelessWidget {
   final int itemCount;
+
   const _RecentOrderListBody({required this.itemCount});
 
   @override
@@ -406,6 +394,7 @@ class _RecentOrderListBody extends StatelessWidget {
 
 class _OrderListBody extends StatelessWidget {
   final int itemCount;
+
   const _OrderListBody({required this.itemCount});
 
   @override
@@ -484,6 +473,7 @@ class _OrderListBody extends StatelessWidget {
 
 class _NotificationListBody extends StatelessWidget {
   final int itemCount;
+
   const _NotificationListBody({required this.itemCount});
 
   @override
@@ -545,6 +535,7 @@ class _NotificationListBody extends StatelessWidget {
 
 class _ServiceListBody extends StatelessWidget {
   final int itemCount;
+
   const _ServiceListBody({required this.itemCount});
 
   @override
@@ -665,7 +656,7 @@ class _SettingsPageBody extends StatelessWidget {
             child: Column(
               children: List.generate(
                 5,
-                    (i) => Padding(
+                (i) => Padding(
                   padding: EdgeInsets.only(bottom: i < 4 ? 18 : 0),
                   child: Row(
                     children: [
@@ -697,7 +688,7 @@ enum _ShimmerKind {
   orderList,
   notificationList,
   serviceList,
-  settingsPage,
   profileGlassCard,
   custom,
+  promoBanner,
 }

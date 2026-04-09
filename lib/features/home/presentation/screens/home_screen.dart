@@ -2,6 +2,7 @@
 //
 // Refactored: AppSnackBar replaces inline SnackBar construction.
 
+import 'package:ezzewash/features/promos/presentation/screen/promo_banner.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -9,9 +10,13 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_section_header.dart';
+import '../../../../core/widgets/app_shimmer.dart';
 import '../../../../core/widgets/app_snack_bar.dart';
 import '../../../../routes/routes_name.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../promos/presentation/bloc/promo_bloc.dart';
+import '../../../promos/presentation/bloc/promo_event.dart';
+import '../../../promos/presentation/bloc/promo_state.dart';
 import '../widgets/home_widgets.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -33,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    context.read<PromoBloc>().add(WatchPromosStarted());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authState = context.read<AuthBloc>().state;
       if (authState is AuthAuthenticated && authState.fromSignUp) {
@@ -46,8 +52,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-      isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
@@ -69,6 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      HomePromoSection(isDark: isDark),
+
+                      const SizedBox(height: 10),
+
                       AppSectionHeader(
                         title: 'Our Top Services',
                         onViewAll: () => context.go(RoutesName.services),
@@ -102,6 +113,32 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// lib/features/home/presentation/widgets/home_promo_section.dart
+
+class HomePromoSection extends StatelessWidget {
+  final bool isDark;
+
+  const HomePromoSection({super.key, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<PromoBloc, PromoState>(
+      builder: (context, state) {
+        if (state is PromoLoading) {
+          // Use the custom shimmer we created earlier
+          return AppShimmer.promoBanner(isDark: isDark);
+        } else if (state is PromoLoaded) {
+          final activePromos = state.promos.where((p) => p.isActive).toList();
+          if (activePromos.isEmpty) return const SizedBox.shrink();
+
+          return PromoBannerSlider(promos: activePromos, isDark: isDark);
+        }
+        return const SizedBox.shrink();
+      },
     );
   }
 }

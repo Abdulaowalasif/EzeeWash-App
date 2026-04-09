@@ -30,7 +30,7 @@ class NotificationCard extends StatelessWidget {
   IconData get _icon {
     switch (notification.type) {
       case 'order_update': return Iconsax.truck_fast;
-      case 'promo':        return Iconsax.discount_circle;
+      case 'promos':        return Iconsax.discount_circle;
       case 'welcome':      return Iconsax.star;
       default:             return Iconsax.notification;
     }
@@ -39,7 +39,7 @@ class NotificationCard extends StatelessWidget {
   Color get _iconColor {
     switch (notification.type) {
       case 'order_update': return AppColors.primary;
-      case 'promo':        return const Color(0xFF8B5CF6);
+      case 'promos':        return const Color(0xFF8B5CF6);
       case 'welcome':      return AppColors.success;
       default:             return AppColors.primary;
     }
