@@ -247,7 +247,6 @@ class _ReorderButton extends StatelessWidget {
 
 // ─── OrdersToggle ─────────────────────────────────────────────────────────────
 
-
 class OrdersToggle extends StatelessWidget {
   final bool showActive;
   final bool isDark;
@@ -366,39 +365,6 @@ class OrdersToggle extends StatelessWidget {
       ),
     );
   }
-}
-class _ToggleBtn extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _ToggleBtn({
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) => Expanded(
-    child: GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          gradient: active ? AppColors.gradient : null,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: Text(label,
-              style: AppTextStyles.body(false).copyWith(
-                color: active ? Colors.white : Colors.grey,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              )),
-        ),
-      ),
-    ),
-  );
 }
 
 // ─── OrderActiveFilterBar ─────────────────────────────────────────────────────

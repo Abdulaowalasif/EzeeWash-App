@@ -1,9 +1,10 @@
 // lib/features/notifications/domain/entities/notification_entity.dart
 import 'package:equatable/equatable.dart';
 
+// lib/features/notifications/domain/entities/notification_entity.dart
 class NotificationEntity extends Equatable {
   final String id;
-  final String userId;
+  final String? userId;
   final String title;
   final String body;
   final String type;
@@ -13,7 +14,7 @@ class NotificationEntity extends Equatable {
 
   const NotificationEntity({
     required this.id,
-    required this.userId,
+    this.userId,
     required this.title,
     required this.body,
     required this.type,
@@ -31,18 +32,19 @@ class NotificationEntity extends Equatable {
     String? orderId,
     bool? isRead,
     DateTime? createdAt,
-  }) =>
-      NotificationEntity(
-        id: id ?? this.id,
-        userId: userId ?? this.userId,
-        title: title ?? this.title,
-        body: body ?? this.body,
-        type: type ?? this.type,
-        orderId: orderId ?? this.orderId,
-        isRead: isRead ?? this.isRead,
-        createdAt: createdAt ?? this.createdAt,
-      );
+  }) {
+    return NotificationEntity(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      type: type ?? this.type,
+      orderId: orderId ?? this.orderId,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 
   @override
-  List<Object?> get props => [id, isRead];
+  List<Object?> get props => [id, userId, title, body, type, orderId, isRead, createdAt];
 }

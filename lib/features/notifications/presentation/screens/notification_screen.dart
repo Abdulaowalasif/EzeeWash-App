@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 
 import '../../../../core/constants/app_color.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/common_widgets.dart';
 import '../../../../core/widgets/widgets.dart';
@@ -16,8 +17,38 @@ import '../../domain/entities/notification_entity.dart';
 import '../bloc/notifications_bloc.dart';
 import '../widgets/notification_widgets.dart';
 
-class NotificationScreen extends StatelessWidget {
+class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
+
+  @override
+  State<NotificationScreen> createState() => _NotificationScreenState();
+}
+
+class _NotificationScreenState extends State<NotificationScreen> {
+  // ─── STATE MANAGEMENT ───
+  late final PageController _pageController;
+  bool _showActive = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onToggleChanged(bool val) {
+    setState(() => _showActive = val);
+    _pageController.animateToPage(
+      val ? 0 : 1,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +60,21 @@ class NotificationScreen extends StatelessWidget {
       body: Column(
         children: [
           const NotificationsAppBar(),
+
+          // ─── THE TOGGLE ───
+          Padding(
+            padding: EdgeInsetsGeometry.fromLTRB(  Responsive.horizontalPadding(context),
+              16,
+              Responsive.horizontalPadding(context),
+              5,),
+            child: NotificationToggle(
+              showActive: _showActive,
+              isDark: isDark,
+              onChanged: _onToggleChanged,
+              pageController: _pageController,
+            ),
+          ),
+
           Expanded(
             child: BlocBuilder<NotificationsBloc, NotificationsState>(
               builder: (context, state) {
@@ -60,18 +106,34 @@ class NotificationScreen extends StatelessWidget {
                 }
 
                 if (state is NotificationsLoaded) {
-                  if (state.notifications.isEmpty) {
-                    return AppEmptyState(
-                      icon: Iconsax.notification_bing,
-                      message: 'No notifications yet',
-                      subtitle: "You'll see order updates and promotions here.",
-                      isDark: isDark,
-                    );
-                  }
+                  // ─── FILTERING LOGIC ───
+                  final orderUpdates = state.notifications
+                      .where((n) => n.type != 'promo')
+                      .toList();
+                  final promos = state.notifications
+                      .where((n) => n.type == 'promo')
+                      .toList();
 
-                  return _NotificationsList(
-                    notifications: state.notifications,
-                    isDark: isDark,
+                  return PageView(
+                    controller: _pageController,
+                    onPageChanged: (index) =>
+                        setState(() => _showActive = index == 0),
+                    children: [
+                      // TAB 1: Order Updates
+                      _buildListOrEmpty(
+                        context,
+                        orderUpdates,
+                        isDark,
+                        'No order updates yet',
+                      ),
+                      // TAB 2: Promos
+                      _buildListOrEmpty(
+                        context,
+                        promos,
+                        isDark,
+                        'No promotions available',
+                      ),
+                    ],
                   );
                 }
                 return const SizedBox.shrink();
@@ -82,16 +144,28 @@ class NotificationScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildListOrEmpty(BuildContext context,
+      List<NotificationEntity> items, bool isDark, String emptyMsg) {
+    if (items.isEmpty) {
+      return AppEmptyState(
+        icon: Iconsax.notification_bing,
+        message: emptyMsg,
+        subtitle: "Check back later for more updates.",
+        isDark: isDark,
+      );
+    }
+    return _NotificationsList(notifications: items, isDark: isDark);
+  }
 }
 
-// ─── Loaded list ──────────────────────────────────────────────────────────────
+// ─── LOADED LIST VIEW ───
 
 class _NotificationsList extends StatelessWidget {
   final List<NotificationEntity> notifications;
   final bool isDark;
 
-  const _NotificationsList(
-      {required this.notifications, required this.isDark});
+  const _NotificationsList({required this.notifications, required this.isDark});
 
   void _handleTap(BuildContext context, NotificationEntity notif) {
     if (!notif.isRead) {
@@ -129,6 +203,131 @@ class _NotificationsList extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// ─── THE TOGGLE WIDGET ───
+
+class NotificationToggle extends StatelessWidget {
+  final bool showActive;
+  final bool isDark;
+  final ValueChanged<bool> onChanged;
+  final PageController pageController;
+
+  const NotificationToggle({
+    super.key,
+    required this.showActive,
+    required this.isDark,
+    required this.onChanged,
+    required this.pageController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 54,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: isDark
+            ? []
+            : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Stack(
+        children: [
+          // ─── Sliding Selection Background ───
+          AnimatedBuilder(
+            animation: pageController,
+            builder: (context, child) {
+              double page = showActive ? 0.0 : 1.0;
+
+              if (pageController.hasClients &&
+                  pageController.position.haveDimensions) {
+                page = pageController.page ?? page;
+              }
+
+              page = page.clamp(0.0, 1.0);
+              final alignmentX = (page * 2) - 1.0;
+
+              return Align(
+                alignment: Alignment(alignmentX, 0.0),
+                child: FractionallySizedBox(
+                  widthFactor: 0.5,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: AppColors.gradient,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // ─── Tab Labels ───
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(true),
+                  child: Center(
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 150),
+                      style: AppTextStyles.caption(true).copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: showActive
+                            ? Colors.white
+                            : (isDark
+                            ? AppColors.darkSubtext
+                            : Colors.grey.shade600),
+                      ),
+                      child: const Text('Order Updates'),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(false),
+                  child: Center(
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 150),
+                      style: AppTextStyles.caption(true).copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: !showActive
+                            ? Colors.white
+                            : (isDark
+                            ? AppColors.darkSubtext
+                            : Colors.grey.shade600),
+                      ),
+                      child: const Text('Promo'),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

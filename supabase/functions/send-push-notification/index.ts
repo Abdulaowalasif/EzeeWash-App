@@ -8,7 +8,7 @@ const ONESIGNAL_USER_API_URL = "https://api.onesignal.com/notifications";
 
 interface NotificationRow {
   id: string;
-  user_id: string;
+  user_id?: string | null; // Made optional so it accepts null for global blasts
   title: string;
   body: string;
   type: string;
@@ -48,22 +48,16 @@ serve(async (req: Request) => {
 
   const row = payload.record;
 
-  if (!row.user_id || !row.title || !row.body) {
+  // 🔴 CHANGED: We no longer block if user_id is missing! Only title & body are required.
+  if (!row.title || !row.body) {
     console.error("Row missing required fields:", row);
     return new Response("Missing fields", { status: 400 });
   }
 
-  // ─── Build OneSignal v5 payload ────────────────────────────────────────
-  const osPayload = {
+  // ─── Build OneSignal v5 Base Payload ───────────────────────────────────
+  // We use 'any' type here so we can dynamically add targeting fields below
+  const osPayload: any = {
     app_id: ONESIGNAL_USER_APP_ID,
-
-    // Target the exact user by their Supabase UUID.
-    target_channel: "push",
-    include_aliases: {
-      external_id: [row.user_id],
-    },
-    // FIX-1: belt-and-braces targeting fallback for v5 SDK
-    channel_for_external_user_ids: "push",
 
     headings: { en: row.title },
     contents: { en: row.body },
@@ -75,15 +69,26 @@ serve(async (req: Request) => {
       ...(row.order_id ? { orderId: row.order_id } : {}),
     },
 
-    // 🛑 REMOVED: android_channel_id so it defaults to the standard channel and stops the 400 errors!
-
     ios_badge_type: "Increase",
     ios_badge_count: 1,
   };
 
-  console.log(
-    `Sending push to user_id=${row.user_id}, notification_id=${row.id}`
-  );
+  // ─── The Magic: Dynamic Targeting ──────────────────────────────────────
+  if (row.user_id) {
+    // SCENARIO A: Target exactly one user by their Supabase UUID.
+    osPayload.target_channel = "push";
+    osPayload.include_aliases = {
+      external_id: [row.user_id],
+    };
+    osPayload.channel_for_external_user_ids = "push";
+    console.log(`Sending personal push to user_id=${row.user_id}, notification_id=${row.id}`);
+  } else {
+    // SCENARIO B: No user_id provided. Blast to everyone!
+    osPayload.included_segments = ["Total Subscriptions"];
+    console.log(`Sending GLOBAL push to all users, notification_id=${row.id}`);
+  }
+  // ───────────────────────────────────────────────────────────────────────
+
   console.log("OneSignal payload:", JSON.stringify(osPayload));
 
   // ─── Call OneSignal v5 API ─────────────────────────────────────────────
@@ -96,7 +101,26 @@ serve(async (req: Request) => {
     body: JSON.stringify(osPayload),
   });
 
-  const osResult = await osResponse.json();
+  // ─── SAFE PARSER: Prevents the "Unexpected token '<'" Crash ────────────
+  const responseText = await osResponse.text();
+  let osResult;
+
+  try {
+    osResult = JSON.parse(responseText);
+  } catch (err) {
+    console.error("❌ OneSignal returned HTML instead of JSON. Status Code:", osResponse.status);
+    console.error("❌ Raw HTML Response:", responseText);
+
+    return new Response(
+      JSON.stringify({
+        error: "OneSignal API returned an HTML page",
+        statusCode: osResponse.status,
+        rawHtmlExcerpt: responseText.substring(0, 200)
+      }),
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    );
+  }
+  // ───────────────────────────────────────────────────────────────────────
 
   console.log(
     `OneSignal responded ${osResponse.status} | recipients=${osResult.recipients ?? "unknown"}:`,
@@ -113,9 +137,9 @@ serve(async (req: Request) => {
 
   if ((osResult.recipients ?? 0) === 0) {
     console.warn(
-      `⚠️  Push accepted by OneSignal but recipients=0 for user_id=${row.user_id}. ` +
-        "The device's external_id may not be registered yet — " +
-        "check that the Flutter app awaits NotificationService.setUserId()."
+      `⚠️  Push accepted by OneSignal but recipients=0. ` +
+        "If personal, the device's external_id may not be registered yet. " +
+        "If global, you may have no subscribed users."
     );
   }
 

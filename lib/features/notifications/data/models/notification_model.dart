@@ -4,7 +4,7 @@ import '../../domain/entities/notification_entity.dart';
 class NotificationModel extends NotificationEntity {
   const NotificationModel({
     required super.id,
-    required super.userId,
+    super.userId,
     required super.title,
     required super.body,
     required super.type,
@@ -16,7 +16,7 @@ class NotificationModel extends NotificationEntity {
   factory NotificationModel.fromJson(Map<String, dynamic> j) =>
       NotificationModel(
         id: j['id'] as String,
-        userId: j['user_id'] as String,
+        userId: j['user_id'] as String?,
         title: j['title'] as String,
         body: j['body'] as String,
         type: j['type'] as String? ?? 'general',
@@ -37,4 +37,27 @@ class NotificationModel extends NotificationEntity {
     'is_read': isRead,
     'created_at': createdAt.toIso8601String(),
   };
+
+  @override
+  NotificationModel copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    String? body,
+    String? type,
+    String? orderId,
+    bool? isRead,
+    DateTime? createdAt,
+  }) {
+    return NotificationModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      type: type ?? this.type,
+      orderId: orderId ?? this.orderId,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }
