@@ -61,8 +61,13 @@ final class OrderPlaced extends OrdersState {
 }
 
 /// A cancel request is in progress — disable the cancel button.
+// Change this line
 final class OrderCancelling extends OrdersState {
-  const OrderCancelling();
+  final String orderId; // Add this
+  const OrderCancelling(this.orderId);
+
+  @override
+  List<Object?> get props => [orderId];
 }
 
 /// Order cancelled successfully.

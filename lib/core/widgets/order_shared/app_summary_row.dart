@@ -1,16 +1,4 @@
 // lib/core/widgets/order_shared/app_summary_row.dart
-//
-// A reusable icon + label + value row for order summary cards.
-// Used in delivered view, cancelled view, and booking confirmation.
-//
-// Usage:
-//   AppSummaryRow(
-//     icon: Iconsax.money,
-//     label: 'Total Paid',
-//     value: '৳120',
-//     isDark: isDark,
-//     highlight: true,
-//   )
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -22,6 +10,7 @@ class AppSummaryRow extends StatelessWidget {
   final String value;
   final bool isDark;
   final bool highlight;
+  final Color? valueColor; // ── NEW: Allows custom text colors ──
 
   const AppSummaryRow({
     super.key,
@@ -30,6 +19,7 @@ class AppSummaryRow extends StatelessWidget {
     required this.value,
     required this.isDark,
     this.highlight = false,
+    this.valueColor, // ── NEW ──
   });
 
   @override
@@ -66,9 +56,10 @@ class AppSummaryRow extends StatelessWidget {
         style: GoogleFonts.alexandria(
           fontSize: highlight ? 16 : 13,
           fontWeight: FontWeight.bold,
-          color: highlight
+          // ── Apply the custom color if provided ──
+          color: valueColor ?? (highlight
               ? AppColors.primary
-              : (isDark ? Colors.white : AppColors.lightText),
+              : (isDark ? Colors.white : AppColors.lightText)),
         ),
       ),
     ],

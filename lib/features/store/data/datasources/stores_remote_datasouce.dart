@@ -16,9 +16,10 @@ class StoresRemoteDataSourceImpl implements StoresRemoteDataSource {
   @override
   Future<List<StoreModel>> getAllStores() async {
     try {
+      // Added *, store_slot_bookings(*) to fetch the joined nested booking data
       final data = await _client
           .from(AppConstants.storesTable)
-          .select()
+          .select('*, store_slot_bookings(*)')
           .eq('is_active', true)
           .order('distance_km');
       return (data as List).map((e) => StoreModel.fromJson(e)).toList();
@@ -30,9 +31,10 @@ class StoresRemoteDataSourceImpl implements StoresRemoteDataSource {
   @override
   Future<StoreModel> getStoreById(String id) async {
     try {
+      // Added *, store_slot_bookings(*) to fetch the joined nested booking data
       final data = await _client
           .from(AppConstants.storesTable)
-          .select()
+          .select('*, store_slot_bookings(*)')
           .eq('id', id)
           .single();
       return StoreModel.fromJson(data);

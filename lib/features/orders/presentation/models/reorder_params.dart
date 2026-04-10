@@ -11,6 +11,7 @@ class ReorderParams {
   final String storeName;
   final int itemCount;
   final double totalPrice;
+  final double discountAmount; // ── NEW FIELD ──
   final String pickupAddress;
   final String? deliveryAddress;
   final String? specialInstructions;
@@ -27,6 +28,7 @@ class ReorderParams {
     required this.storeName,
     required this.itemCount,
     required this.totalPrice,
+    required this.discountAmount, // ── NEW FIELD ──
     required this.pickupAddress,
     this.deliveryAddress,
     this.specialInstructions,

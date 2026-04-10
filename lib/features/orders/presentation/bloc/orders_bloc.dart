@@ -35,61 +35,68 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
   Future<void> _onLoad(
-      OrdersLoadRequested event,
-      Emitter<OrdersState> emit,
-      ) async {
-    final prevShowActive =
-    state is OrdersLoaded ? (state as OrdersLoaded).showActive : true;
+    OrdersLoadRequested event,
+    Emitter<OrdersState> emit,
+  ) async {
+    final prevShowActive = state is OrdersLoaded
+        ? (state as OrdersLoaded).showActive
+        : true;
 
     emit(const OrdersLoading());
     final result = await getOrdersUseCase(const NoParams());
-    result.fold(
-          (failure) => emit(OrdersError(failure.message)),
-          (orders) {
-        emit(OrdersLoaded(orders: orders, showActive: prevShowActive));
+    result.fold((failure) => emit(OrdersError(failure.message)), (orders) {
+      emit(OrdersLoaded(orders: orders, showActive: prevShowActive));
 
-        // FIX: Always re-evaluate the realtime subscription on load.
-        // We track the actual user ID instead of a simple boolean flag.
-        // This ensures that if the session changes (logout -> login) or
-        // the subscription dies, it correctly recreates the stream.
-        final userId = client.auth.currentUser?.id;
-        if (userId != null) {
-          if (_currentUserId != userId || _realtimeSub == null) {
-            _currentUserId = userId;
-            _subscribeRealtime(userId);
-          }
+      // FIX: Always re-evaluate the realtime subscription on load.
+      // We track the actual user ID instead of a simple boolean flag.
+      // This ensures that if the session changes (logout -> login) or
+      // the subscription dies, it correctly recreates the stream.
+      final userId = client.auth.currentUser?.id;
+      if (userId != null) {
+        if (_currentUserId != userId || _realtimeSub == null) {
+          _currentUserId = userId;
+          _subscribeRealtime(userId);
         }
-      },
-    );
+      }
+    });
   }
 
   Future<void> _onPlace(
-      OrderPlaceRequested event,
-      Emitter<OrdersState> emit,
-      ) async {
+    OrderPlaceRequested event,
+    Emitter<OrdersState> emit,
+  ) async {
     emit(const OrderPlacing());
     final result = await placeOrderUseCase(event.params);
     result.fold(
-          (failure) {
+      (failure) {
         final msg = failure.message.toLowerCase();
         if (msg.contains('foreign key') ||
             msg.contains('violates') ||
             msg.contains('not present in table')) {
-          emit(const OrdersError(
-              'Service or store not found. Please restart the app.'));
+          emit(
+            const OrdersError(
+              'Service or store not found. Please restart the app.',
+            ),
+          );
         } else if (msg.contains('row-level security') ||
             msg.contains('policy') ||
             msg.contains('permission')) {
-          emit(const OrdersError(
-              'Permission denied. Please sign out and sign in again.'));
+          emit(
+            const OrdersError(
+              'Permission denied. Please sign out and sign in again.',
+            ),
+          );
         } else if (msg.contains('jwt') || msg.contains('not authenticated')) {
-          emit(const OrdersError(
-              'Session expired. Please sign out and sign in again.'));
+          emit(
+            const OrdersError(
+              'Session expired. Please sign out and sign in again.',
+            ),
+          );
         } else {
           emit(OrdersError(failure.message));
         }
       },
-          (order) {
+      (order) {
         emit(OrderPlaced(orderNumber: order.orderNumber));
         // After placing, reload orders so the new order appears on
         // the OrderScreen immediately. The 600 ms delay gives Supabase time
@@ -107,58 +114,65 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       OrderCancelRequested event,
       Emitter<OrdersState> emit,
       ) async {
-    final prevState = state;
-    final prevShowActive =
-    state is OrdersLoaded ? (state as OrdersLoaded).showActive : false;
+    final prevShowActive = state is OrdersLoaded ? (state as OrdersLoaded).showActive : true;
 
-    emit(const OrderCancelling());
+    // Use the ID-specific state we discussed to prevent global loading
+    emit(OrderCancelling(event.orderId));
 
     final result = await cancelOrderUseCase(CancelOrderParams(event.orderId));
 
-    result.fold(
-          (failure) {
-        if (prevState is OrdersLoaded) {
-          emit(prevState);
+    // Handle the result without nesting async closures inside fold if possible
+    await result.fold(
+          (failure) async {
+        if (!emit.isDone) {
+          emit(OrdersError(failure.message));
         }
-        emit(OrdersError(failure.message));
       },
           (_) async {
-        emit(const OrderCancelled());
+        if (!emit.isDone) {
+          emit(const OrderCancelled());
+        }
+
+        // Fetch fresh orders
         final reloadResult = await getOrdersUseCase(const NoParams());
+
         reloadResult.fold(
-              (_) {},
-              (orders) =>
-              emit(OrdersLoaded(orders: orders, showActive: prevShowActive)),
+              (failure) {
+            if (!emit.isDone) emit(OrdersError(failure.message));
+          },
+              (orders) {
+            if (!emit.isDone) {
+              emit(OrdersLoaded(orders: orders, showActive: prevShowActive));
+            }
+          },
         );
       },
     );
   }
 
-  void _onFilter(
-      OrdersFilterToggled event,
-      Emitter<OrdersState> emit,
-      ) {
+  void _onFilter(OrdersFilterToggled event, Emitter<OrdersState> emit) {
     if (state is! OrdersLoaded) return;
     emit((state as OrdersLoaded).copyWith(showActive: event.showActive));
   }
 
   Future<void> _onRealtimeTick(
-      OrdersRealtimeTick event,
-      Emitter<OrdersState> emit,
-      ) async {
+    OrdersRealtimeTick event,
+    Emitter<OrdersState> emit,
+  ) async {
     if (state is OrderPlacing ||
         state is OrderPlaced ||
         state is OrderCancelling) {
       return;
     }
 
-    final prevShowActive =
-    state is OrdersLoaded ? (state as OrdersLoaded).showActive : true;
+    final prevShowActive = state is OrdersLoaded
+        ? (state as OrdersLoaded).showActive
+        : true;
 
     final result = await getOrdersUseCase(const NoParams());
     result.fold(
-          (_) {},
-          (orders) =>
+      (_) {},
+      (orders) =>
           emit(OrdersLoaded(orders: orders, showActive: prevShowActive)),
     );
   }
@@ -175,23 +189,23 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         .eq('user_id', userId)
         .listen(
           (_) {
-        // Skip the initial snapshot that Supabase sends immediately on
-        // subscription — we already have fresh data from the load above.
-        if (firstEvent) {
-          firstEvent = false;
-          return;
-        }
-        if (!isClosed) add(const OrdersRealtimeTick());
-      },
-      onError: (error) {
-        // FIX: Automatically attempt to reconnect if the stream silently dies
-        Future.delayed(const Duration(seconds: 5), () {
-          if (!isClosed && _currentUserId != null) {
-            _subscribeRealtime(_currentUserId!);
-          }
-        });
-      },
-    );
+            // Skip the initial snapshot that Supabase sends immediately on
+            // subscription — we already have fresh data from the load above.
+            if (firstEvent) {
+              firstEvent = false;
+              return;
+            }
+            if (!isClosed) add(const OrdersRealtimeTick());
+          },
+          onError: (error) {
+            // FIX: Automatically attempt to reconnect if the stream silently dies
+            Future.delayed(const Duration(seconds: 5), () {
+              if (!isClosed && _currentUserId != null) {
+                _subscribeRealtime(_currentUserId!);
+              }
+            });
+          },
+        );
   }
 
   // ─── Reset realtime subscription ───────────────────────────────────────────

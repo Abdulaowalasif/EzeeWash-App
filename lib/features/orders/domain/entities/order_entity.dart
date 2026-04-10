@@ -47,7 +47,11 @@ class OrderEntity extends Equatable {
   final String paymentStatus;   // 'pending' | 'paid' | 'failed' | 'refunded'
   final String? stripePaymentIntentId;
 
-  // ─── NEW: Rider Initial Coordinates ───
+  // ─── NEW: Coupon fields ───
+  final String? couponCode;
+  final double discountAmount;
+
+  // ─── Rider Initial Coordinates ───
   final double? riderLat;
   final double? riderLng;
 
@@ -89,6 +93,8 @@ class OrderEntity extends Equatable {
     this.paymentMethod = 'cash_on_delivery',
     this.paymentStatus = 'pending',
     this.stripePaymentIntentId,
+    this.couponCode,
+    this.discountAmount = 0.0,
     this.riderLat,
     this.riderLng,
     this.riderId,
@@ -114,6 +120,8 @@ class OrderEntity extends Equatable {
     status,
     progress,
     paymentStatus,
+    couponCode,
+    discountAmount,
     riderLat,
     riderLng,
     riderId,

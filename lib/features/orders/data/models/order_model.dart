@@ -56,6 +56,8 @@ class OrderModel extends OrderEntity {
     super.paymentMethod,
     super.paymentStatus,
     super.stripePaymentIntentId,
+    super.couponCode,
+    super.discountAmount,
     super.riderLat,
     super.riderLng,
     super.riderId,
@@ -80,7 +82,6 @@ class OrderModel extends OrderEntity {
     final status = j['status'] as String? ?? 'pending';
 
     // ── FIX: Determine the active rider data based on status phase ──────────
-    // This perfectly matches the UI logic so the map receives the correct profile immediately.
     Map<String, dynamic>? activeRiderData;
 
     if (status == 'confirmed' || status == 'pending') {
@@ -92,7 +93,6 @@ class OrderModel extends OrderEntity {
           j['delivery_rider'] as Map<String, dynamic>? ??
           j['riders'] as Map<String, dynamic>?;
     }
-
 
     return OrderModel(
       id: j['id'] as String,
@@ -126,6 +126,10 @@ class OrderModel extends OrderEntity {
       paymentStatus: j['payment_status'] as String? ?? 'pending',
       stripePaymentIntentId: j['stripe_payment_intent_id'] as String?,
 
+      // ─── NEW: Parse Coupon Fields ───
+      couponCode: j['coupon_code'] as String?,
+      discountAmount: (j['discount_amount'] as num?)?.toDouble() ?? 0.0,
+
       riderLat: (activeRiderData?['current_lat'] as num?)?.toDouble(),
       riderLng: (activeRiderData?['current_lng'] as num?)?.toDouble(),
 
@@ -133,8 +137,6 @@ class OrderModel extends OrderEntity {
       riderId:           j['rider_id']              as String?,
       pickupRiderId:     j['pickup_rider_id']       as String?,
       deliveryRiderId:   j['delivery_rider_id']     as String?,
-
-      // Use the dynamically resolved activeRiderData
       riderName:         activeRiderData?['full_name']     as String?,
       riderPhone:        activeRiderData?['phone']         as String?,
       riderAvatarUrl:    activeRiderData?['avatar_url']    as String?,
@@ -168,6 +170,8 @@ class OrderModel extends OrderEntity {
     'progress': progress,
     'payment_method': paymentMethod,
     'payment_status': paymentStatus,
+    'coupon_code': couponCode,
+    'discount_amount': discountAmount,
     'rider_latitude': riderLat,
     'rider_longitude': riderLng,
   };

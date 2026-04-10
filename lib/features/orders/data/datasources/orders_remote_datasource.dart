@@ -88,6 +88,10 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         'progress': 0.0,
         'payment_method': params.paymentMethod.value,
         'payment_status': params.paymentMethod == PaymentMethod.stripe ? 'paid' : 'pending',
+
+        // ─── NEW: Coupon insertion ───
+        'coupon_code': params.couponCode,
+        'discount_amount': params.discountAmount,
       })
           .select(_selectNoTimeline)
           .single();

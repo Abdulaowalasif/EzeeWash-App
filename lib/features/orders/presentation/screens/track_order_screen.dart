@@ -1,7 +1,4 @@
 // lib/features/orders/presentation/screens/track_order_screen.dart
-//
-// Refactored TrackOrderScreen. Business logic (real-time subscription,
-// rating queue) lives here; all UI is delegated to focused widget files.
 
 import 'dart:async';
 
@@ -29,8 +26,6 @@ import '../widgets/track order/track_order_hero_card.dart';
 import '../widgets/track order/track_order_info_panel.dart';
 import '../widgets/track order/track_order_map_view.dart';
 import '../widgets/track order/track_order_rating_sheet.dart';
-
-// ─── Phase enum (exported for child widgets) ──────────────────────────────────
 
 enum OrderPhase {
   waiting,
@@ -117,22 +112,22 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
         .stream(primaryKey: ['id'])
         .eq('id', orderId)
         .listen((data) {
-          if (data.isNotEmpty && mounted) {
-            setState(() {
-              _liveStatus = data.first['status'];
-              _liveProgress = (data.first['progress'] as num?)?.toDouble();
-              _livePickupRiderId = data.first['pickup_rider_id'];
-              _liveDeliveryRiderId = data.first['delivery_rider_id'];
-            });
-          }
+      if (data.isNotEmpty && mounted) {
+        setState(() {
+          _liveStatus = data.first['status'];
+          _liveProgress = (data.first['progress'] as num?)?.toDouble();
+          _livePickupRiderId = data.first['pickup_rider_id'];
+          _liveDeliveryRiderId = data.first['delivery_rider_id'];
         });
+      }
+    });
   }
 
   Future<void> _checkRating(
-    BuildContext ctx,
-    OrderEntity order,
-    bool isDark,
-  ) async {
+      BuildContext ctx,
+      OrderEntity order,
+      bool isDark,
+      ) async {
     if (_isSheetVisible ||
         (_ratingMem.shownForPickup && _ratingMem.shownForDelivery)) {
       return;
@@ -145,7 +140,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     final pickupId = _livePickupRiderId ?? order.pickupRiderId ?? order.riderId;
     final isPickupDone =
         phase.index >= OrderPhase.riderHeadingToStore.index &&
-        phase != OrderPhase.cancelled;
+            phase != OrderPhase.cancelled;
 
     if (isPickupDone && !_ratingMem.shownForPickup && pickupId != null) {
       final handled = prefs.getBool('rated_pickup_${order.id}') ?? false;
@@ -183,11 +178,11 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   }
 
   Future<void> _showRatingSheet(
-    BuildContext ctx,
-    OrderEntity order,
-    bool isDark,
-    RatingEvent evt,
-  ) async {
+      BuildContext ctx,
+      OrderEntity order,
+      bool isDark,
+      RatingEvent evt,
+      ) async {
     if (!ctx.mounted) return;
 
     await showModalBottomSheet(
@@ -312,7 +307,7 @@ class _TrackContent extends StatelessWidget {
           color: AppColors.primary,
           title: 'Awaiting Rider',
           subtitle:
-              'Your order is confirmed. A rider will be assigned shortly.',
+          'Your order is confirmed. A rider will be assigned shortly.',
           order: order,
           isDark: isDark,
           phase: _phase,
@@ -325,7 +320,7 @@ class _TrackContent extends StatelessWidget {
           color: AppColors.warning,
           title: 'Heading to Store',
           subtitle:
-              'The rider has picked up your items and is taking them to the laundry facility.',
+          'The rider has picked up your items and is taking them to the laundry facility.',
           order: order,
           isDark: isDark,
           phase: _phase,
@@ -539,6 +534,17 @@ class _DeliveredView extends StatelessWidget {
         value: order.storeName,
         isDark: isDark,
       ),
+
+      // ── NEW: Injects the Discount Row cleanly into the Delivered receipt ──
+      if (order.discountAmount > 0)
+        AppSummaryRow(
+          icon: Iconsax.ticket_discount,
+          label: 'Discount Applied',
+          value: '- ৳${order.discountAmount.toStringAsFixed(0)}',
+          isDark: isDark,
+          valueColor: const Color(0xFF2ECC71), // Vibrant Green Text
+        ),
+
       AppSummaryRow(
         icon: Iconsax.money,
         label: 'Total Paid',
@@ -571,7 +577,7 @@ class _CancelledView extends StatelessWidget {
     glowColor: AppColors.error,
     title: 'Order Cancelled',
     subtitle:
-        'This order has been cancelled and no charges were applied.\nWe hope to serve you again soon.',
+    'This order has been cancelled and no charges were applied.\nWe hope to serve you again soon.',
     borderColor: AppColors.error,
     summaryRows: [
       AppSummaryRow(

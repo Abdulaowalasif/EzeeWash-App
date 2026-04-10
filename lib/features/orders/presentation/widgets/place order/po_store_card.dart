@@ -7,10 +7,19 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../../../../core/constants/app_color.dart';
 import '../../../../../core/widgets/form/app_selectable_card.dart';
+import '../../../../store/domain/entities/store_entity.dart';
 
 class PoStoreItem {
   final String id, name, address, distance;
   final String? logoUrl;
+
+  // ── Dynamic booking fields (EC-26: per-store hours) ──
+  final int openHour;
+  final int closeHour;
+  final int slotIntervalHours;
+  final int pickupBufferHours;
+  final int advanceBookingDays;
+  final int slotCapacity;
 
   const PoStoreItem({
     required this.id,
@@ -18,15 +27,44 @@ class PoStoreItem {
     required this.address,
     required this.distance,
     this.logoUrl,
+    this.openHour = 8,
+    this.closeHour = 20,
+    this.slotIntervalHours = 2,
+    this.pickupBufferHours = 2,
+    this.advanceBookingDays = 7,
+    this.slotCapacity = 100,
   });
 
   factory PoStoreItem.fromJson(Map<String, dynamic> j) => PoStoreItem(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        address: j['address'] as String,
-        distance: '${j['distance_km'] ?? '?'} km',
-        logoUrl: j['logo_url'] as String?,
-      );
+    id: j['id'] as String,
+    name: j['name'] as String,
+    address: j['address'] as String,
+    distance: '${j['distance_km'] ?? '?'} km',
+    logoUrl: j['logo_url'] as String?,
+    openHour: j['open_hour'] as int? ?? 8,
+    closeHour: j['close_hour'] as int? ?? 20,
+    slotIntervalHours: j['slot_interval_hours'] as int? ?? 2,
+    pickupBufferHours: j['pickup_buffer_hours'] as int? ?? 2,
+    advanceBookingDays: j['advance_booking_days'] as int? ?? 7,
+    slotCapacity: j['slot_capacity'] as int? ?? 100,
+  );
+
+  /// Converts this store's booking fields into a [StoreEntity]
+  /// suitable for passing to all [BusinessLogicUtils] scheduling methods.
+  StoreEntity toStoreEntity() => StoreEntity(
+    id: id,
+    name: name,
+    address: address,
+    distanceKm: double.tryParse(distance.replaceAll(' km', '')) ?? 0.0,
+    isActive: true,
+    logoUrl: logoUrl,
+    openHour: openHour,
+    closeHour: closeHour,
+    slotCapacity: slotCapacity,
+    slotIntervalHours: slotIntervalHours,
+    pickupBufferHours: pickupBufferHours,
+    advanceBookingDays: advanceBookingDays,
+  );
 }
 
 class PoStoreCard extends StatelessWidget {

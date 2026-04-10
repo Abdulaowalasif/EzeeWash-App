@@ -72,18 +72,32 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   bool _stripeLoading = false;
   String? _stripeError;
 
+  // ─── Coupon tracking ──────────────────────────────────────────────────────────
+  String? _appliedCoupon;
+  double _discountAmount = 0.0;
+  String? _appliedDiscountType;
+  double? _appliedDiscountValue;
+  double? _appliedMaxDiscount;
+  double? _appliedMinOrderAmount; // Track min requirement for re-validation
+
   late final PageController _pageController;
 
   // ─── Computed ────────────────────────────────────────────────────────────────
 
   double get _perPcsPrice {
     final rp = widget.reorderParams;
-    if (rp != null) return (rp.totalPrice - _kServiceCharge) / rp.itemCount;
+    if (rp != null) {
+      // ── FIXED: Adding the discount amount back to find the TRUE base price ──
+      return (rp.totalPrice - _kServiceCharge + rp.discountAmount) / rp.itemCount;
+    }
     return _serviceIdx != null ? _services[_serviceIdx!].price : 0.0;
   }
 
   double get _subtotal => _perPcsPrice * _quantity;
-  double get _totalPrice => _subtotal + _kServiceCharge;
+
+  double get _totalPrice =>
+      (_subtotal + _kServiceCharge - _discountAmount).clamp(0.0, double.infinity);
+
   bool get _cardAvailable => _totalPrice >= _kStripeMinAmount;
 
   bool get _isExpress =>
@@ -210,6 +224,119 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         });
       }
     }
+  }
+
+  // ─── Coupon Logic ─────────────────────────────────────────────────────────────
+
+  double _computeDiscount(String type, double value, double? maxDiscount) {
+    final orderBeforeDiscount = _subtotal + _kServiceCharge;
+    double discount;
+    if (type == 'percentage') {
+      discount = orderBeforeDiscount * value / 100.0;
+      if (maxDiscount != null && discount > maxDiscount) {
+        discount = maxDiscount;
+      }
+    } else {
+      discount = value;
+    }
+    return discount.clamp(0.0, orderBeforeDiscount);
+  }
+
+  Future<String?> _validateAndApplyCoupon(String code) async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return 'Please log in to use coupons.';
+
+      final rows = await Supabase.instance.client
+          .from('promos')
+          .select()
+          .ilike('code', code)
+          .eq('is_active', true)
+          .limit(1);
+
+      if (rows == null || (rows as List).isEmpty) {
+        return 'Invalid coupon code.';
+      }
+
+      final promo = rows.first as Map<String, dynamic>;
+
+      final previousOrdersWithCoupon = await Supabase.instance.client
+          .from(AppConstants.ordersTable)
+          .select('id')
+          .eq('user_id', userId)
+          .ilike('coupon_code', code);
+
+      if (previousOrdersWithCoupon.isNotEmpty) {
+        return 'You have already used this coupon.';
+      }
+
+      final validFrom = DateTime.parse(promo['valid_from'] as String);
+      final validUntil = promo['valid_until'] != null
+          ? DateTime.parse(promo['valid_until'] as String)
+          : null;
+      final nowDt = DateTime.now().toUtc();
+
+      if (nowDt.isBefore(validFrom)) return 'This coupon is not active yet.';
+      if (validUntil != null && nowDt.isAfter(validUntil)) {
+        return 'This coupon has expired.';
+      }
+
+      final usageLimit = promo['usage_limit'] as int?;
+      final timesUsed = promo['times_used'] as int? ?? 0;
+      if (usageLimit != null && timesUsed >= usageLimit) {
+        return 'This coupon has reached its usage limit.';
+      }
+
+      final targetUserId = promo['target_user_id'] as String?;
+      if (targetUserId != null && targetUserId != userId) {
+        return 'This coupon is not valid for your account.';
+      }
+
+      final targetServiceId = promo['target_service_id'] as String?;
+      if (targetServiceId != null) {
+        final currentServiceId = widget.reorderParams?.serviceId ??
+            (_serviceIdx != null ? _services[_serviceIdx!].id : null);
+        if (currentServiceId != targetServiceId) {
+          return 'This coupon does not apply to the selected service.';
+        }
+      }
+
+      final minOrder = (promo['min_order_amount'] as num?)?.toDouble();
+      final orderBeforeDiscount = _subtotal + _kServiceCharge;
+      if (minOrder != null && orderBeforeDiscount < minOrder) {
+        return 'Minimum order of ৳${minOrder.toStringAsFixed(0)} required.';
+      }
+
+      final discountType = promo['discount_type'] as String;
+      final discountValue = (promo['discount_value'] as num).toDouble();
+      final maxDiscount = (promo['max_discount_amount'] as num?)?.toDouble();
+
+      setState(() {
+        _appliedCoupon = (promo['code'] as String).toUpperCase();
+        _appliedMinOrderAmount = minOrder;
+        _appliedDiscountType = discountType;
+        _appliedDiscountValue = discountValue;
+        _appliedMaxDiscount = maxDiscount;
+        _discountAmount = _computeDiscount(discountType, discountValue, maxDiscount);
+
+        if (!_cardAvailable) _paymentMethod = PaymentMethod.cashOnDelivery;
+      });
+
+      return null;
+    } catch (e) {
+      return 'Could not validate coupon. Please try again.';
+    }
+  }
+
+  void _removeCoupon() {
+    setState(() {
+      _appliedCoupon = null;
+      _discountAmount = 0.0;
+      _appliedDiscountType = null;
+      _appliedDiscountValue = null;
+      _appliedMaxDiscount = null;
+      _appliedMinOrderAmount = null;
+    });
   }
 
   // ─── Schedule helpers ─────────────────────────────────────────────────────────
@@ -349,8 +476,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     return available;
   }
 
-  // ─── Navigation ──────────────────────────────────────────────────────────────
-
   void _moveToStep(int targetStep) {
     setState(() => _step = targetStep);
     _pageController.animateToPage(
@@ -359,8 +484,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       curve: Curves.easeInOutCubic,
     );
   }
-
-  // ─── Order submission ─────────────────────────────────────────────────────────
 
   void _onConfirm() {
     if (widget.reorderParams == null &&
@@ -393,6 +516,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       specialInstructions:
       _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
       paymentMethod: method,
+      couponCode: _appliedCoupon,
+      discountAmount: _discountAmount,
     );
   }
 
@@ -405,8 +530,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     try {
       final svcTitle = widget.reorderParams?.serviceName ??
           (_serviceIdx != null ? _services[_serviceIdx!].title : '');
-      final response =
-      await Supabase.instance.client.functions.invoke(
+      final response = await Supabase.instance.client.functions.invoke(
         'create-payment-intent',
         body: {
           'amount': _totalPrice,
@@ -456,8 +580,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     }
   }
 
-  // ─── Build ───────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -475,12 +597,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     return BlocListener<OrdersBloc, OrdersState>(
       listener: (context, state) {
         if (state is OrderPlaced) {
-          // 1. Reset the Bloc to its initial/loaded state so the "placed" status doesn't persist.
-          // This ensures that when the user returns to the 'Place Order' tab, it isn't stuck.
           context.read<OrdersBloc>().add(const OrdersLoadRequested());
-
-          // 2. Navigate and clear the navigation history for the ordering screens.
-          // Using .go() replaces the current stack with the success screen path.
           context.go(
             '${RoutesName.orders}/${RoutesName.confirmedOrders}',
             extra: state.orderNumber,
@@ -646,9 +763,11 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           subtotal: _subtotal,
           serviceCharge: _kServiceCharge,
           totalPrice: _totalPrice,
+          discountAmount: _discountAmount,
           cardAvailable: _cardAvailable,
           isDark: isDark,
           stripeError: _stripeError,
+          appliedCoupon: _appliedCoupon,
           serviceName: rp?.serviceName ??
               (_serviceIdx != null ? _services[_serviceIdx!].title : ''),
           storeName: rp?.storeName ??
@@ -660,8 +779,29 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           onMethodChanged: (m) => setState(() => _paymentMethod = m),
           onQuantityChanged: (q) => setState(() {
             _quantity = q;
+
+            if (_appliedCoupon != null && _appliedMinOrderAmount != null) {
+              if ((_subtotal + _kServiceCharge) < _appliedMinOrderAmount!) {
+                _removeCoupon();
+                AppSnackBar.show(
+                  context,
+                  'Coupon removed: Minimum order of ৳${_appliedMinOrderAmount!.toStringAsFixed(0)} required.',
+                  isError: true,
+                );
+              }
+            }
+
+            if (_appliedDiscountType != null && _appliedDiscountValue != null) {
+              _discountAmount = _computeDiscount(
+                _appliedDiscountType!,
+                _appliedDiscountValue!,
+                _appliedMaxDiscount,
+              );
+            }
             if (!_cardAvailable) _paymentMethod = PaymentMethod.cashOnDelivery;
           }),
+          onApplyCoupon: _validateAndApplyCoupon,
+          onRemoveCoupon: _removeCoupon,
         );
     }
   }

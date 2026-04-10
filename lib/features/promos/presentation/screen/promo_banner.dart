@@ -106,12 +106,12 @@ class _PromoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
+            color: Colors.black.withOpacity(isDark ? 0.4 : 0.15),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -121,19 +121,17 @@ class _PromoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         child: Stack(
           children: [
-            // ─── BACKGROUND IMAGE ──────────────────────────────────────────
+            // 1. Background Image
             Positioned.fill(
               child: promo.bannerUrl != null && promo.bannerUrl!.isNotEmpty
                   ? AppNetworkImage(
-                      url: promo.bannerUrl!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: 200,
-                    )
-                  : Container(color: AppColors.primary.withOpacity(0.1)),
+                url: promo.bannerUrl!,
+                fit: BoxFit.cover, width: double.infinity, height:200,
+              )
+                  : Container(color: AppColors.primary.withOpacity(0.2)),
             ),
 
-            // ─── DARK OVERLAY (Ensures text readability) ──────────────────
+            // 2. Gradient Overlay
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
@@ -141,99 +139,91 @@ class _PromoCard extends StatelessWidget {
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     colors: [
-                      Colors.black.withOpacity(0.85),
-                      // Darker on the left for text
-                      Colors.black.withOpacity(0.2),
-                      // Lighter on the right to see image
+                      Colors.black.withOpacity(0.9),
+                      Colors.black.withOpacity(0.4),
+                      Colors.transparent,
                     ],
                   ),
                 ),
               ),
             ),
 
-            // ─── CONTENT ───────────────────────────────────────────────────
+            // 3. Content
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
                   Expanded(
-                    flex: 3,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            "EXCLUSIVE",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.5,
-                            ),
+                        // --- SERVICE NAME ---
+                        // Showing "General Service" if the data is null/empty
+                        Text(
+                          (promo.targetServiceName != null && promo.targetServiceName!.isNotEmpty)
+                              ? promo.targetServiceName!.toUpperCase()
+                              : "GENERAL SERVICE",
+                          style: TextStyle(
+                            color: AppColors.primary, // Using primary color for name
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.5,
                           ),
                         ),
-                        const SizedBox(height: 12),
+
+                        const SizedBox(height: 4),
+
+                        // --- DISCOUNT AMOUNT ---
                         Text(
                           promo.discountType == 'percentage'
                               ? '${promo.discountValue.toInt()}% OFF'
                               : '\$${promo.discountValue.toInt()} OFF',
                           style: const TextStyle(
-                            fontSize: 26,
+                            fontSize: 32, // Increased size
                             fontWeight: FontWeight.w900,
                             color: Colors.white,
-                            letterSpacing: -0.5,
+                            height: 1.1,
                           ),
                         ),
+
+                        const SizedBox(height: 6),
+
+                        // --- DESCRIPTION ---
                         Text(
-                          promo.description ?? "Special laundry offer",
+                          promo.description ?? "Limited time offer",
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white.withOpacity(0.85),
-                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withOpacity(0.8),
+                            fontWeight: FontWeight.w400,
                           ),
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
 
-                  // Promo Code Tag
+                  // --- PROMO CODE BOX ---
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white30),
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white24),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Text(
                           "CODE",
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: TextStyle(color: Colors.white60, fontSize: 10),
                         ),
                         Text(
                           promo.code,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
                         ),

@@ -1,9 +1,4 @@
 // lib/features/orders/presentation/screens/booking_confirmed_screen.dart
-//
-// Refactored: AppCard replaces raw Container+BoxDecoration
-//             AppIconBox replaces _InfoRow icon container
-//             AppGradientButton replaces inline gradient button
-//             AppTextStyles replaces GoogleFonts inline calls
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -43,7 +38,7 @@ class BookingConfirmedScreen extends StatelessWidget {
                   OrderSuccessAnimation(
                     title: 'Order Confirmed!',
                     subtitle:
-                    'Your laundry request has been received.\nWe are assigning a rider now.',
+                    'Your laundry request has been successfully received.\nWe are processing your details now.',
                     isDark: isDark,
                   ),
                   const SizedBox(height: 20),
@@ -51,7 +46,7 @@ class BookingConfirmedScreen extends StatelessWidget {
                   // ── Order badge ─────────────────────────────────────
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 9),
+                        horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(30),
@@ -60,68 +55,77 @@ class BookingConfirmedScreen extends StatelessWidget {
                     ),
                     child: Text('Order #$orderNumber',
                         style: AppTextStyles.buttonOutline
-                            .copyWith(fontSize: 13)),
+                            .copyWith(fontSize: 14, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(height: 32),
 
-                  // ── Summary card ────────────────────────────────────
+                  // ── NEW: "What Happens Next" Card (Replaces Hardcoded Fake Data) ──
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8, bottom: 12),
+                      child: Text(
+                        'What happens next?',
+                        style: AppTextStyles.heading(isDark).copyWith(fontSize: 16),
+                      ),
+                    ),
+                  ),
                   AppCard(
                     isDark: isDark,
                     borderRadius: 22,
                     child: Column(
                       children: [
-                        _InfoRow(
-                          icon: Icons.local_laundry_service_rounded,
+                        _NextStepRow(
+                          icon: Icons.person_search_rounded,
                           color: AppColors.primary,
-                          label: 'Service',
-                          value: 'Wash & Fold',
+                          title: '1. Rider Assignment',
+                          subtitle: 'A rider will be assigned to pick up your order.',
                           isDark: isDark,
                         ),
-                        const SizedBox(height: 14),
-                        _InfoRow(
-                          icon: Icons.storefront_rounded,
-                          color: const Color(0xFF8B5CF6),
-                          label: 'Store',
-                          value: 'Downtown Store',
-                          isDark: isDark,
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Divider(height: 1, color: Colors.black12),
                         ),
-                        const SizedBox(height: 14),
-                        _InfoRow(
-                          icon: Icons.calendar_today_rounded,
-                          color: AppColors.success,
-                          label: 'Est. Pickup',
-                          value: 'Tomorrow, 10:00 AM',
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 14),
-                        _InfoRow(
-                          icon: Icons.notifications_active_rounded,
+                        _NextStepRow(
+                          icon: Icons.local_shipping_rounded,
                           color: AppColors.warning,
-                          label: 'Updates',
-                          value: 'Via push notifications',
+                          title: '2. Safe Transit',
+                          subtitle: 'Your items are safely transported to our facility.',
+                          isDark: isDark,
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Divider(height: 1, color: Colors.black12),
+                        ),
+                        _NextStepRow(
+                          icon: Icons.check_circle_outline_rounded,
+                          color: AppColors.success,
+                          title: '3. Track Live',
+                          subtitle: 'You can track the entire cleaning process live.',
                           isDark: isDark,
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 32),
 
+                  // ── Buttons ─────────────────────────────────────────
                   AppGradientButton(
-                    label: 'Back to Home',
-                    icon: Icons.home_rounded,
-                    onPressed: () => context.go(RoutesName.home),
+                    label: 'Track My Order',
+                    icon: Icons.my_location_rounded,
+                    onPressed: () => context.go(RoutesName.orders), // Goes to orders screen
                     verticalPadding: 16,
                     borderRadius: 16,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
 
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => context.go(RoutesName.orders),
-                      icon: const Icon(Icons.receipt_long_rounded,
+                      onPressed: () => context.go(RoutesName.home),
+                      icon: const Icon(Icons.home_rounded,
                           color: AppColors.primary, size: 20),
-                      label: Text('View My Orders',
+                      label: Text('Back to Home',
                           style: AppTextStyles.buttonOutline),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(
@@ -143,19 +147,19 @@ class BookingConfirmedScreen extends StatelessWidget {
   }
 }
 
-// ─── Info row ─────────────────────────────────────────────────────────────────
+// ─── Next Step Row ────────────────────────────────────────────────────────────
 
-class _InfoRow extends StatelessWidget {
+class _NextStepRow extends StatelessWidget {
   final IconData icon;
   final Color color;
-  final String label, value;
+  final String title, subtitle;
   final bool isDark;
 
-  const _InfoRow({
+  const _NextStepRow({
     required this.icon,
     required this.color,
-    required this.label,
-    required this.value,
+    required this.title,
+    required this.subtitle,
     required this.isDark,
   });
 
@@ -163,16 +167,24 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        AppIconBox(icon: icon, color: color, borderRadius: 12),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: AppTextStyles.caption(isDark)),
-              Text(value,
-                  style: AppTextStyles.rowTitle(isDark)
-                      .copyWith(fontSize: 14)),
+              Text(title,
+                  style: AppTextStyles.rowTitle(isDark).copyWith(fontSize: 14)),
+              const SizedBox(height: 2),
+              Text(subtitle,
+                  style: AppTextStyles.caption(isDark).copyWith(height: 1.3)),
             ],
           ),
         ),

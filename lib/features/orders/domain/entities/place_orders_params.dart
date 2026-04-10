@@ -24,6 +24,8 @@ class PlaceOrderParams extends Equatable {
   final String? deliveryTime;
   final String? specialInstructions;
   final PaymentMethod paymentMethod;
+  final String? couponCode;
+  final double discountAmount;
 
   const PlaceOrderParams({
     required this.serviceId,
@@ -38,6 +40,8 @@ class PlaceOrderParams extends Equatable {
     this.deliveryTime,
     this.specialInstructions,
     this.paymentMethod = PaymentMethod.cashOnDelivery,
+    this.couponCode,
+    this.discountAmount = 0.0,
   });
 
   @override
@@ -50,5 +54,7 @@ class PlaceOrderParams extends Equatable {
     pickupDate,
     deliveryDate,
     paymentMethod,
+    couponCode,
+    discountAmount,
   ];
 }

@@ -57,6 +57,7 @@ class AppConstants {
   static const notificationsTable = 'notifications';
   static const reviewsTable = 'reviews';
   static const addressesTable = 'user_addresses';
+  static const storeSlotBookingsTable = 'store_slot_bookings';
 
   //darkmap style
 

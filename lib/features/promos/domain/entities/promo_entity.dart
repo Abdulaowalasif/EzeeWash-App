@@ -1,4 +1,3 @@
-
 import 'package:equatable/equatable.dart';
 
 class PromoEntity extends Equatable {
@@ -17,6 +16,7 @@ class PromoEntity extends Equatable {
   final bool isActive;
   final DateTime? createdAt;
   final String? targetServiceId;
+  final String? targetServiceName; // NEW
   final String? bannerUrl;
 
   const PromoEntity({
@@ -35,26 +35,15 @@ class PromoEntity extends Equatable {
     required this.isActive,
     this.createdAt,
     this.targetServiceId,
+    this.targetServiceName, // NEW
     this.bannerUrl,
   });
 
   @override
   List<Object?> get props => [
-    id,
-    code,
-    description,
-    discountType,
-    discountValue,
-    maxDiscountAmount,
-    minOrderAmount,
-    targetUserId,
-    usageLimit,
-    timesUsed,
-    validFrom,
-    validUntil,
-    isActive,
-    createdAt,
-    targetServiceId,
-    bannerUrl,
+    id, code, description, discountType, discountValue,
+    maxDiscountAmount, minOrderAmount, targetUserId, usageLimit,
+    timesUsed, validFrom, validUntil, isActive, createdAt,
+    targetServiceId, targetServiceName, bannerUrl,
   ];
 }

@@ -78,6 +78,7 @@ class _OrderCardState extends State<OrderCard> {
           OrderReorderSheet(order: widget.order, isDark: widget.isDark),
     );
     if (result == null || !context.mounted) return;
+
     context.push(
       RoutesName.placeOrdersNavigate,
       extra: ReorderParams(
@@ -87,6 +88,7 @@ class _OrderCardState extends State<OrderCard> {
         storeName: widget.order.storeName,
         itemCount: widget.order.itemCount,
         totalPrice: widget.order.totalPrice,
+        discountAmount: widget.order.discountAmount, // ── FIXED: PASS DISCOUNT ──
         pickupAddress: widget.order.pickupAddress,
         deliveryAddress: widget.order.deliveryAddress,
         specialInstructions: widget.order.specialInstructions,
@@ -172,6 +174,7 @@ class _OrderCardState extends State<OrderCard> {
               isHistory: widget.isHistory,
               canCancel: canCancel,
               isDark: widget.isDark,
+              orderId: widget.order.id,
               onReorder: () => _handleReorder(context),
               onCancel: _confirmCancel,
             )),
@@ -299,6 +302,7 @@ class _PrimaryButton extends StatelessWidget {
   final bool isHistory;
   final bool canCancel;
   final bool isDark;
+  final String orderId;
   final VoidCallback onReorder;
   final void Function(BuildContext) onCancel;
 
@@ -306,6 +310,7 @@ class _PrimaryButton extends StatelessWidget {
     required this.isHistory,
     required this.canCancel,
     required this.isDark,
+    required this.orderId,
     required this.onReorder,
     required this.onCancel,
   });
@@ -342,7 +347,8 @@ class _PrimaryButton extends StatelessWidget {
 
     return BlocBuilder<OrdersBloc, OrdersState>(
       builder: (ctx, bState) {
-        final cancelling = bState is OrderCancelling;
+        final cancelling =
+            bState is OrderCancelling && bState.orderId == orderId;
         final disabled = cancelling || !canCancel;
         final bgColor = disabled
             ? (isDark ? Colors.grey.shade800 : Colors.grey.shade200)
