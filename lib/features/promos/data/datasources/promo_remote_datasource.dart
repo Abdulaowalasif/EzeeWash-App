@@ -19,10 +19,14 @@ class PromoRemoteDataSourceImpl implements PromoRemoteDataSource {
 
     Future<void> fetch() async {
       try {
+        // Since the app requires login, currentUser is guaranteed to be non-null here
+        final userId = supabaseClient.auth.currentUser!.id;
+
         final data = await supabaseClient
             .from('promos')
             .select('*, services(title)') // JOIN to get service name
             .eq('is_active', true)
+            .or('target_user_id.is.null,target_user_id.eq.$userId')
             .order('created_at');
 
         final promos = (data as List)

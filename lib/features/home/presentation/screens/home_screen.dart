@@ -76,9 +76,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Promo Section now manages its own bottom spacing
                       HomePromoSection(isDark: isDark),
-
-                      const SizedBox(height: 10),
 
                       AppSectionHeader(
                         title: 'Our Top Services',
@@ -129,13 +128,25 @@ class HomePromoSection extends StatelessWidget {
     return BlocBuilder<PromoBloc, PromoState>(
       builder: (context, state) {
         if (state is PromoLoading) {
-          // Use the custom shimmer we created earlier
-          return AppShimmer.promoBanner(isDark: isDark);
+          // Use the custom shimmer we created earlier, and add the spacing here
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: AppShimmer.promoBanner(isDark: isDark),
+          );
         } else if (state is PromoLoaded) {
-          final activePromos = state.promos.where((p) => p.isActive).toList();
-          if (activePromos.isEmpty) return const SizedBox.shrink();
+          final now = DateTime.now();
+          final validPromos = state.promos.where((p) {
+            if (!p.isActive) return false;
+            if (p.validUntil != null && p.validUntil!.isBefore(now)) return false;
+            return true;
+          }).toList();
 
-          return PromoBannerSlider(promos: activePromos, isDark: isDark);
+          if (validPromos.isEmpty) return const SizedBox.shrink();
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: PromoBannerSlider(promos: validPromos, isDark: isDark),
+          );
         }
         return const SizedBox.shrink();
       },
