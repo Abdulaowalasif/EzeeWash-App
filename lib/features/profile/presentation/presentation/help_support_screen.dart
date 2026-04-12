@@ -6,6 +6,7 @@
 //             hero icon → AppIconBox (gradient variant)
 //             GoogleFonts inline → AppTextStyles
 
+import 'package:ezzewash/core/utils/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -131,7 +132,7 @@ class HelpSupportScreen extends StatelessWidget {
                         value: 'support@ezeewash.com',
                         isDark: isDark,
                         onTap: () =>
-                            _launchUrl('mailto:support@ezeewash.com'),
+                            UrlLauncherHelper.launch('mailto:support@ezeewash.com'),
                       ),
                       const SizedBox(height: 16),
                       AppContactRow(
@@ -140,7 +141,7 @@ class HelpSupportScreen extends StatelessWidget {
                         label: 'Phone',
                         value: '+880-1516-503532',
                         isDark: isDark,
-                        onTap: () => _launchUrl('tel:+8801516503532'),
+                        onTap: () => UrlLauncherHelper.launch('tel:+8801516503532'),
                       ),
                       const SizedBox(height: 16),
                       AppContactRow(

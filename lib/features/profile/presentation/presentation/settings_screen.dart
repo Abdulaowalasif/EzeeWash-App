@@ -5,6 +5,7 @@
 // Snack bars use AppSnackBar — no inline SnackBar construction.
 
 import 'dart:io';
+import 'package:ezzewash/core/utils/url_launcher.dart';
 import 'package:ezzewash/core/widgets/gradient_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -34,8 +35,9 @@ class SettingsScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-      isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       body: BlocConsumer<ProfileBloc, ProfileState>(
         listener: (ctx, state) {
           if (state is ProfileError) {
@@ -56,12 +58,8 @@ class SettingsScreen extends StatelessWidget {
               isUpdating: state is ProfileUpdating,
             );
           }
-          if (state is ProfileError &&
-              (state).profile != null) {
-            return _SettingsBody(
-              profile: (state).profile!,
-              isDark: isDark,
-            );
+          if (state is ProfileError && (state).profile != null) {
+            return _SettingsBody(profile: (state).profile!, isDark: isDark);
           }
           return Column(
             children: [
@@ -86,6 +84,7 @@ class SettingsScreen extends StatelessWidget {
 
 class _SettingsShimmer extends StatelessWidget {
   final bool isDark;
+
   const _SettingsShimmer({required this.isDark});
 
   @override
@@ -98,15 +97,17 @@ class _SettingsShimmer extends StatelessWidget {
           highlightColor: AppShimmerColors.highlight(isDark),
           child: const SingleChildScrollView(
             padding: EdgeInsets.all(20),
-            child: Column(children: [
-              AppShimmerBox(height: 110, radius: 24),
-              SizedBox(height: 20),
-              AppShimmerBox(height: 160, radius: 24),
-              SizedBox(height: 20),
-              AppShimmerBox(height: 220, radius: 24),
-              SizedBox(height: 20),
-              AppShimmerBox(height: 130, radius: 24),
-            ]),
+            child: Column(
+              children: [
+                AppShimmerBox(height: 110, radius: 24),
+                SizedBox(height: 20),
+                AppShimmerBox(height: 160, radius: 24),
+                SizedBox(height: 20),
+                AppShimmerBox(height: 220, radius: 24),
+                SizedBox(height: 20),
+                AppShimmerBox(height: 130, radius: 24),
+              ],
+            ),
           ),
         ),
       ),
@@ -133,12 +134,15 @@ class _SettingsBody extends StatefulWidget {
 
 class _SettingsBodyState extends State<_SettingsBody> {
   bool _editing = false;
-  late final _nameCtrl =
-  TextEditingController(text: widget.profile.fullName ?? '');
-  late final _phoneCtrl =
-  TextEditingController(text: widget.profile.phone ?? '');
-  late final _addrCtrl =
-  TextEditingController(text: widget.profile.address ?? '');
+  late final _nameCtrl = TextEditingController(
+    text: widget.profile.fullName ?? '',
+  );
+  late final _phoneCtrl = TextEditingController(
+    text: widget.profile.phone ?? '',
+  );
+  late final _addrCtrl = TextEditingController(
+    text: widget.profile.address ?? '',
+  );
 
   @override
   void dispose() {
@@ -149,22 +153,26 @@ class _SettingsBodyState extends State<_SettingsBody> {
   }
 
   void _save() {
-    context.read<ProfileBloc>().add(ProfileUpdateRequested(
-      fullName: _nameCtrl.text.trim().isEmpty ? null : _nameCtrl.text.trim(),
-      phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
-      address: _addrCtrl.text.trim().isEmpty ? null : _addrCtrl.text.trim(),
-    ));
+    context.read<ProfileBloc>().add(
+      ProfileUpdateRequested(
+        fullName: _nameCtrl.text.trim().isEmpty ? null : _nameCtrl.text.trim(),
+        phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        address: _addrCtrl.text.trim().isEmpty ? null : _addrCtrl.text.trim(),
+      ),
+    );
     setState(() => _editing = false);
     AppSnackBar.show(context, 'Profile updated!');
   }
 
   Future<void> _pickAvatar() async {
-    final picked = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
     if (picked == null || !mounted) return;
-    context
-        .read<ProfileBloc>()
-        .add(ProfileAvatarUpdateRequested(File(picked.path)));
+    context.read<ProfileBloc>().add(
+      ProfileAvatarUpdateRequested(File(picked.path)),
+    );
   }
 
   @override
@@ -177,8 +185,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.fromLTRB(
-              Responsive.horizontalPadding(context), 20,
-              Responsive.horizontalPadding(context), 30,
+              Responsive.horizontalPadding(context),
+              20,
+              Responsive.horizontalPadding(context),
+              30,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,8 +198,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
                   isDark: isDark,
                   isUpdating: widget.isUpdating,
                   isEditing: _editing,
-                  onEditToggle: () =>
-                      setState(() => _editing = !_editing),
+                  onEditToggle: () => setState(() => _editing = !_editing),
                   onPickAvatar: _pickAvatar,
                 ),
                 if (_editing) ...[
@@ -206,53 +215,60 @@ class _SettingsBodyState extends State<_SettingsBody> {
                 const SizedBox(height: 24),
                 SettingsSectionLabel(label: 'Account', isDark: isDark),
                 const SizedBox(height: 10),
-                SettingsMenuCard(isDark: isDark, items: [
-                  SettingsMenuTile(
-                    icon: Iconsax.lock,
-                    label: 'Change Password',
-                    isDark: isDark,
-                    onTap: () =>
-                        context.push(RoutesName.changePasswordNavigate),
-                  ),
-                  SettingsSwitchTile(
-                    icon: Iconsax.moon,
-                    label: 'Dark Mode',
-                    isDark: isDark,
-                    value: isDark,
-                    onChanged: (v) =>
-                        ThemePrefs.save(v ? ThemeMode.dark : ThemeMode.light),
-                  ),
-                ]),
+                SettingsMenuCard(
+                  isDark: isDark,
+                  items: [
+                    SettingsMenuTile(
+                      icon: Iconsax.lock,
+                      label: 'Change Password',
+                      isDark: isDark,
+                      onTap: () =>
+                          context.push(RoutesName.changePasswordNavigate),
+                    ),
+                    SettingsSwitchTile(
+                      icon: Iconsax.moon,
+                      label: 'Dark Mode',
+                      isDark: isDark,
+                      value: isDark,
+                      onChanged: (v) =>
+                          ThemePrefs.save(v ? ThemeMode.dark : ThemeMode.light),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 24),
-                SettingsSectionLabel(
-                    label: 'Order Receipts', isDark: isDark),
+                SettingsSectionLabel(label: 'Order Receipts', isDark: isDark),
                 const SizedBox(height: 10),
                 SettingsReceiptPicker(isDark: isDark),
                 const SizedBox(height: 24),
                 SettingsSectionLabel(label: 'Support', isDark: isDark),
                 const SizedBox(height: 10),
-                SettingsMenuCard(isDark: isDark, items: [
-                  SettingsMenuTile(
-                    icon: Iconsax.message_question,
-                    label: 'Help & Support',
-                    isDark: isDark,
-                    onTap: () =>
-                        context.push(RoutesName.helpSupportNavigate),
-                  ),
-                  SettingsMenuTile(
-                    icon: Iconsax.document_text_1,
-                    label: 'Terms & Policy',
-                    isDark: isDark,
-                    onTap: () =>
-                        context.push(RoutesName.termsPolicyNavigate),
-                  ),
-                  SettingsMenuTile(
-                    icon: Iconsax.global,
-                    label: 'Visit Website',
-                    isDark: isDark,
-                    onTap: () {},
-                  ),
-                ]),
+                SettingsMenuCard(
+                  isDark: isDark,
+                  items: [
+                    SettingsMenuTile(
+                      icon: Iconsax.message_question,
+                      label: 'Help & Support',
+                      isDark: isDark,
+                      onTap: () => context.push(RoutesName.helpSupportNavigate),
+                    ),
+                    SettingsMenuTile(
+                      icon: Iconsax.document_text_1,
+                      label: 'Terms & Policy',
+                      isDark: isDark,
+                      onTap: () => context.push(RoutesName.termsPolicyNavigate),
+                    ),
+                    SettingsMenuTile(
+                      icon: Iconsax.global,
+                      label: 'Visit Website',
+                      isDark: isDark,
+                      onTap: () {
+                        UrlLauncherHelper.launch(
+                          "https://ezzewash.vercel.app/",
+                        );
+                      },
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 32),
                 SettingsLogoutButton(isDark: isDark),
                 const SizedBox(height: 12),

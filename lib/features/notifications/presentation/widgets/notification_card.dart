@@ -5,6 +5,7 @@
 //             AppTextStyles replaces all inline text style construction.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
@@ -102,6 +103,12 @@ class _CardBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String formatToMarkdown(String text) {
+      return text.replaceAllMapped(
+        RegExp(r'\*(.*?)\*'),
+            (match) => '**${match.group(1)}**',
+      );
+    }
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -150,9 +157,29 @@ class _CardBody extends StatelessWidget {
                     isUnread: isUnread,
                   ),
                   const SizedBox(height: 4),
-                  Text(notification.body,
-                      style: AppTextStyles.subtitle(isDark)
-                          .copyWith(height: 1.4)),
+                  MarkdownBody(
+                    data: formatToMarkdown(notification.body),
+                    selectable: false,
+                    styleSheet: MarkdownStyleSheet(
+                      p: AppTextStyles.subtitle(isDark).copyWith(height: 1.4),
+
+                      // ✅ BOLD COLOR CONTROL
+                      strong: AppTextStyles.subtitle(isDark).copyWith(
+                        height: 1.4,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black,
+                      ),
+
+                      em: AppTextStyles.subtitle(isDark).copyWith(
+                        height: 1.4,
+                        fontStyle: FontStyle.italic,
+                      ),
+
+                      del: AppTextStyles.subtitle(isDark).copyWith(
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   _MetaRow(
                     notification: notification,

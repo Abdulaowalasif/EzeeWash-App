@@ -219,7 +219,7 @@ class _PromoCardState extends State<_PromoCard>
 
     final discountLabel = promo.discountType == 'percentage'
         ? '${promo.discountValue.toInt()}%'
-        : '\$${promo.discountValue.toInt()}';
+        : '৳${promo.discountValue.toInt()}';
 
     final serviceName = (promo.targetServiceName?.isNotEmpty ?? false)
         ? promo.targetServiceName!.toUpperCase()
@@ -232,7 +232,7 @@ class _PromoCardState extends State<_PromoCard>
       child: SlideTransition(
         position: _slideAnim,
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          margin: EdgeInsets.symmetric(horizontal: 5),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
@@ -265,7 +265,7 @@ class _PromoCardState extends State<_PromoCard>
                 Align(
                   alignment: Alignment.center,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 16, 18, 16),
+                    padding: const EdgeInsets.all(15),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
