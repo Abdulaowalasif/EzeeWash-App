@@ -1,6 +1,7 @@
 // supabase/functions/bubble-bot/index.ts
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 Deno.serve(async (req) => {
   try {
@@ -12,56 +13,146 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const message = body?.message || "Please analyze this image.";
     const imageBase64 = body?.image;
+    const userId: string | null = body?.user_id ?? null;
 
     if (!message && !imageBase64) {
       return new Response(
-        JSON.stringify({ reply: "No message or image received", action: "none" }),
+        JSON.stringify({ reply: "No message or image received", action: "none", service_id: null }),
         { headers: { "Content-Type": "application/json" } }
       );
     }
 
     // ─────────────────────────────
-    // 2. API KEY
+    // 2. Environment Variables
     // ─────────────────────────────
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
     if (!GEMINI_API_KEY) {
       return new Response(
-        JSON.stringify({ reply: "Missing GEMINI_API_KEY in Supabase secrets", action: "none" }),
+        JSON.stringify({ reply: "Missing GEMINI_API_KEY in Supabase secrets", action: "none", service_id: null }),
         { headers: { "Content-Type": "application/json" } }
       );
     }
 
     // ─────────────────────────────
-    // 3. System prompt
+    // 3. Fetch Data from Supabase DB
+    // ─────────────────────────────
+    let dbContext = "No database records available at the moment.";
+    let servicesData: any[] = [];
+
+    if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      // Fetch all active services
+      const servicesResult = await supabase
+        .from('services')
+        .select('id, title, description, price, category, tags')
+        .eq('is_active', true);
+
+      servicesData = servicesResult.data || [];
+
+      // ─── USER-SPECIFIC PROMOS ───
+      // Priority: promos targeted to this specific user first,
+      // then fall back to global promos (target_user_id IS NULL).
+      let promosData: any[] = [];
+
+      const now = new Date().toISOString();
+
+      if (userId) {
+        // 1. Try user-specific promos
+        const userPromosResult = await supabase
+          .from('promos')
+          .select('code, title, description, discount_type, discount_value, target_service_id')
+          .eq('is_active', true)
+          .eq('target_user_id', userId)
+          .or(`valid_until.gte.${now},valid_until.is.null`);
+
+        promosData = userPromosResult.data || [];
+      }
+
+      // 2. Always include global promos (target_user_id IS NULL)
+      const globalPromosResult = await supabase
+        .from('promos')
+        .select('code, title, description, discount_type, discount_value, target_service_id')
+        .eq('is_active', true)
+        .is('target_user_id', null)
+        .or(`valid_until.gte.${now},valid_until.is.null`);
+
+      const globalPromos = globalPromosResult.data || [];
+
+      // Merge: user-specific first, then global (deduplicate by code)
+      const existingCodes = new Set(promosData.map((p: any) => p.code));
+      for (const gp of globalPromos) {
+        if (!existingCodes.has(gp.code)) {
+          promosData.push(gp);
+        }
+      }
+
+      // Build DB context string for Gemini
+      // Include service IDs so the model can return the correct one
+      const servicesContext = servicesData.length > 0
+        ? servicesData.map((s: any) =>
+            `- [ID: ${s.id}] ${s.title} (${s.category}) — Price: ${s.price} | ${s.description}${s.tags?.length ? ' | Tags: ' + s.tags.join(', ') : ''}`
+          ).join('\n')
+        : "No services currently listed.";
+
+      const promosContext = promosData.length > 0
+        ? promosData.map((p: any) =>
+            `- Code: ${p.code} | ${p.title ?? p.description} | ${p.discount_type === 'percentage' ? p.discount_value + '% off' : p.discount_value + ' taka off'}${p.target_service_id ? ' (applies to service ID: ' + p.target_service_id + ')' : ' (applies to all)'}`
+          ).join('\n')
+        : "No active promos for this user.";
+
+      dbContext = `
+[AVAILABLE SERVICES & PRICING]
+${servicesContext}
+
+[ACTIVE PROMOS FOR THIS USER]
+${promosContext}
+      `;
+    }
+
+    // ─────────────────────────────
+    // 4. System prompt
     // ─────────────────────────────
     const prompt = `
 You are "Bubble Bot", the official AI assistant for the EzzeWash laundry service app.
 
+DATABASE KNOWLEDGE (CRITICAL):
+You MUST ONLY use the following data when answering questions about services, prices, or promos.
+Do NOT make up, guess, or hallucinate any prices, services, or promo codes not in this list:
+${dbContext}
+
+RESPONSE FORMAT (MANDATORY):
+You MUST respond ONLY with a valid raw JSON object with exactly three keys:
+1. "reply" — Your helpful message to the user (string). Use *asterisks* around key terms for bold.
+2. "action" — Navigation action code (string).
+3. "service_id" — The UUID of the single most-relevant service from the database (string), or null if no specific service applies.
+
 RULES:
-1. NEVER introduce yourself (do not say "Hi, I'm Bubble Bot"). Just dive straight into the answer.
-2. If an image is provided, analyze it to identify the fabric type or garment. Recommend the best EzzeWash service for it (e.g., Dry Cleaning for suits/silk, Wash & Fold for daily wear, Ironing, or Shoe Cleaning).
-3. Answer questions related to laundry services, pickup, delivery, pricing, and orders.
-4. Assist users with app functionalities (e.g., tracking orders, profile section).
-5. You MUST respond ONLY with a valid, raw JSON object containing exactly two keys: "reply" (your message) and "action" (a command code). Do not include markdown formatting.
+1. NEVER introduce yourself. Dive straight into the answer.
+2. SHOW PRICING: Always list matching services with their exact prices from the database.
+3. RECOMMEND SERVICE: If an image is provided, analyze the fabric/garment and pick the SINGLE best matching service. Set "service_id" to its ID.
+4. SHOW PROMOS: Only mention promos from [ACTIVE PROMOS FOR THIS USER]. Match the promo to the recommended service if target_service_id applies. Show at most 1–2 relevant promos, not all of them.
+5. Do not include markdown code fences in your response.
 
 Available action codes:
-- "none" : Use if no specific navigation is needed.
-- "nav_track_order" : Use if the user wants to track their laundry.
-- "nav_pricing" : Use if the user asks about prices or you are recommending a specific paid service.
-- "nav_profile" : Use if the user asks about their account.
+- "none" : No navigation needed.
+- "nav_track_order" : User wants to track laundry.
+- "nav_pricing" : User asks about prices or a paid service is recommended.
+- "nav_profile" : User asks about their account.
 
 User message: ${message}
 `;
 
     // ─────────────────────────────
-    // 4. Construct Payload Parts
+    // 5. Construct Payload Parts
     // ─────────────────────────────
     const parts: any[] = [{ text: prompt }];
 
     if (imageBase64) {
       const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-
       parts.push({
         inlineData: {
           mimeType: "image/jpeg",
@@ -71,49 +162,42 @@ User message: ${message}
     }
 
     // ─────────────────────────────
-    // 5. Gemini API call
+    // 6. Gemini API call
     // ─────────────────────────────
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: parts,
-            },
-          ],
-          // REMOVED responseMimeType to fix the API crash
+          contents: [{ parts }],
           generationConfig: {
-            maxOutputTokens: 1024,
-            temperature: 0.7,
+            maxOutputTokens: 4096,
+            temperature: 0.2,
           },
         }),
       }
     );
 
     const data = await response.json();
-
     console.log("GEMINI RAW RESPONSE:", JSON.stringify(data, null, 2));
 
     // ─────────────────────────────
-    // 6. Handle API errors
+    // 7. Handle API errors
     // ─────────────────────────────
     if (!response.ok || data?.error) {
       return new Response(
         JSON.stringify({
           reply: data?.error?.message || "Gemini API error",
-          action: "none"
+          action: "none",
+          service_id: null,
         }),
         { headers: { "Content-Type": "application/json" } }
       );
     }
 
     // ─────────────────────────────
-    // 7. Extract & Clean reply safely
+    // 8. Extract & Clean reply safely
     // ─────────────────────────────
     let replyString = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
@@ -121,32 +205,48 @@ User message: ${message}
       return new Response(
         JSON.stringify({
           reply: "Sorry, I couldn't generate a response.",
-          action: "none"
+          action: "none",
+          service_id: null,
         }),
         { headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Clean up Markdown formatting (```json ... ```) just in case Gemini adds it
+    // Strip markdown code fences if Gemini wraps the JSON
     replyString = replyString.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
-    // ─────────────────────────────
-    // 8. Success response
-    // ─────────────────────────────
-    return new Response(
-      replyString,
-      {
-        headers: { "Content-Type": "application/json" },
+    // Validate it is parseable JSON before returning
+    let parsed: any;
+    try {
+      parsed = JSON.parse(replyString);
+    } catch (_) {
+      // If Gemini returned plain text instead of JSON, wrap it safely
+      parsed = { reply: replyString, action: "none", service_id: null };
+    }
+
+    // Ensure service_id is a valid UUID from our services list, otherwise null
+    if (parsed.service_id) {
+      const validIds = servicesData.map((s: any) => s.id);
+      if (!validIds.includes(parsed.service_id)) {
+        parsed.service_id = null;
       }
-    );
+    }
+
+    // ─────────────────────────────
+    // 9. Success response
+    // ─────────────────────────────
+    return new Response(JSON.stringify(parsed), {
+      headers: { "Content-Type": "application/json" },
+    });
 
   } catch (err) {
     console.error("EDGE FUNCTION ERROR:", err);
 
     return new Response(
       JSON.stringify({
-        reply: "Server error: " + err.message,
-        action: "none"
+        reply: "Server error: " + (err as Error).message,
+        action: "none",
+        service_id: null,
       }),
       {
         status: 500,

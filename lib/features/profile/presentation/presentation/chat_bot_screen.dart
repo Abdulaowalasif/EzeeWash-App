@@ -23,21 +23,26 @@ class _Message {
   final String text;
   final _Sender sender;
   final DateTime time;
-  final File? imageFile; // Added to support image rendering in bubbles
+  final File? imageFile;
+  final String? serviceId; // Non-null when bot recommends a specific service
+  final String? botAction; // Navigation action
 
   const _Message({
     required this.text,
     required this.sender,
     required this.time,
     this.imageFile,
+    this.serviceId,
+    this.botAction,
   });
 }
 
 class BotResponse {
   final String reply;
   final String action;
+  final String? serviceId;
 
-  BotResponse({required this.reply, required this.action});
+  BotResponse({required this.reply, required this.action, this.serviceId});
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -58,7 +63,8 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
   final List<_Message> _messages = [
     _Message(
-      text: "I can help you with orders, laundry tips, and more. What do you need?",
+      text:
+          "I can help you with orders, laundry tips, and more. What do you need?",
       sender: _Sender.bot,
       time: DateTime.now(),
     ),
@@ -109,9 +115,14 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
     try {
       // If user only sends an image, provide a default prompt for Gemini
-      final promptText = (t.isEmpty && image != null) ? "Please analyze this fabric/item." : t;
+      final promptText = (t.isEmpty && image != null)
+          ? "Please analyze this fabric/item."
+          : t;
 
-      final BotResponse botData = await ChatApi.sendMessage(promptText, imageFile: image);
+      final BotResponse botData = await ChatApi.sendMessage(
+        promptText,
+        imageFile: image,
+      );
 
       if (!mounted) return;
 
@@ -122,32 +133,13 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
             text: botData.reply,
             sender: _Sender.bot,
             time: DateTime.now(),
+            serviceId: botData.serviceId,
+            botAction: botData.action != 'none' ? botData.action : null,
           ),
         );
       });
 
       _jump();
-
-      // Handle Automation Actions Returned by Gemini
-      if (botData.action != 'none') {
-        Future.delayed(const Duration(milliseconds: 2000), () {
-          if (!mounted) return;
-
-          switch (botData.action) {
-            case 'nav_track_order':
-            // Example router push - update path based on your routes_name.dart
-              context.push('/track-order');
-              break;
-            case 'nav_pricing':
-            // context.push('/services');
-              break;
-            case 'nav_profile':
-              context.pop(); // Go back
-              break;
-          }
-        });
-      }
-
     } catch (e) {
       debugPrint("CHAT ERROR: $e");
 
@@ -195,7 +187,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     return Scaffold(
       backgroundColor: bg,
       appBar: const GradientAppBar(
-        backEnabled:false,
+        backEnabled: false,
         title: 'Bubble Bot',
         trailing: _OnlinePill(),
       ),
@@ -218,7 +210,31 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
                 final msg = _messages[i];
 
-                return _Bubble(msg: msg, isDark: isDark);
+                return _Bubble(
+                  msg: msg,
+                  isDark: isDark,
+                  onBookNow: msg.serviceId != null
+                      ? () => context.go(
+                          '/orders/place-orders',
+                          extra: msg.serviceId,
+                        )
+                      : null,
+                  onBotAction: msg.botAction != null
+                      ? () {
+                          switch (msg.botAction) {
+                            case 'nav_track_order':
+                              context.go('/orders/track-orders');
+                              break;
+                            case 'nav_pricing':
+                              context.go('/services');
+                              break;
+                            case 'nav_profile':
+                              context.pop();
+                              break;
+                          }
+                        }
+                      : null,
+                );
               },
             ),
           ),
@@ -250,8 +266,15 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 class _Bubble extends StatelessWidget {
   final _Message msg;
   final bool isDark;
+  final VoidCallback? onBookNow;
+  final VoidCallback? onBotAction;
 
-  const _Bubble({required this.msg, required this.isDark});
+  const _Bubble({
+    required this.msg,
+    required this.isDark,
+    this.onBookNow,
+    this.onBotAction,
+  });
 
   List<TextSpan> _spans(bool isUser) {
     final base = AppTextStyles.body(isDark).copyWith(
@@ -284,54 +307,54 @@ class _Bubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
-        mainAxisAlignment:
-        isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser) ...[const _Avatar(size: 34), const SizedBox(width: 10)],
           Flexible(
             child: Column(
-              crossAxisAlignment:
-              isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isUser
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                    horizontal: 18,
+                    vertical: 14,
                   ),
                   constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.75,
+                    maxWidth: MediaQuery.of(context).size.width * 0.78,
                   ),
                   decoration: BoxDecoration(
                     gradient: isUser ? AppColors.gradient : null,
                     color: isUser
                         ? null
-                        : (isDark
-                        ? AppColors.darkSurface
-                        : AppColors.lightSurface),
+                        : (isDark ? AppColors.darkSurface : Colors.white),
                     borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(24),
-                      topRight: const Radius.circular(24),
-                      bottomLeft: Radius.circular(isUser ? 24 : 6),
-                      bottomRight: Radius.circular(isUser ? 6 : 24),
+                      topLeft: const Radius.circular(22),
+                      topRight: const Radius.circular(22),
+                      bottomLeft: Radius.circular(isUser ? 22 : 4),
+                      bottomRight: Radius.circular(isUser ? 4 : 22),
                     ),
                     boxShadow: [
                       BoxShadow(
                         color: isUser
-                            ? AppColors.primary.withOpacity(0.25)
-                            : Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
+                            ? AppColors.primary.withOpacity(0.2)
+                            : Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                     border: isUser
                         ? null
                         : Border.all(
-                      color: isDark
-                          ? AppColors.darkBorder
-                          : AppColors.lightBorder.withOpacity(0.6),
-                      width: 1.2,
-                    ),
+                            color: isDark
+                                ? AppColors.darkBorder
+                                : Colors.grey.withOpacity(0.15),
+                            width: 1,
+                          ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -354,6 +377,104 @@ class _Bubble extends StatelessWidget {
                       // TEXT LOGIC
                       if (msg.text.trim().isNotEmpty)
                         RichText(text: TextSpan(children: _spans(isUser))),
+
+                      // BOOK NOW BUTTON — only for bot messages with a service
+                      if (!isUser &&
+                          msg.serviceId != null &&
+                          onBookNow != null) ...[
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: onBookNow,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              gradient: AppColors.gradient,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withOpacity(0.25),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(
+                                  Icons.local_laundry_service_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Book This Service',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // ACTION BUTTON — for suggested navigation actions
+                      if (!isUser &&
+                          msg.botAction != null &&
+                          onBotAction != null) ...[
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: onBotAction,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.darkBackground
+                                  : AppColors.lightBackground,
+                              border: Border.all(
+                                color: AppColors.primary.withOpacity(0.3),
+                                width: 1,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  msg.botAction == 'nav_track_order'
+                                      ? Iconsax.box
+                                      : msg.botAction == 'nav_pricing'
+                                      ? Iconsax.money_3
+                                      : Iconsax.user,
+                                  color: AppColors.primary,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  msg.botAction == 'nav_track_order'
+                                      ? 'Track My Order'
+                                      : msg.botAction == 'nav_pricing'
+                                      ? 'View All Pricing'
+                                      : 'Go to Profile',
+                                  style: TextStyle(color: AppColors.primary),
+                                ),
+                                Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: AppColors.primary,
+                                  size: 10,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -364,7 +485,9 @@ class _Bubble extends StatelessWidget {
                     DateFormat('h:mm a').format(msg.time),
                     style: AppTextStyles.tiny(isDark).copyWith(
                       fontSize: 10.5,
-                      color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                      color: isDark
+                          ? AppColors.darkSubtext
+                          : AppColors.lightSubtext,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -413,7 +536,9 @@ class _TypingRow extends StatelessWidget {
                 ),
               ],
               border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.lightBorder.withOpacity(0.6),
+                color: isDark
+                    ? AppColors.darkBorder
+                    : AppColors.lightBorder.withOpacity(0.6),
                 width: 1.2,
               ),
             ),
@@ -509,29 +634,44 @@ class _ChipRow extends StatelessWidget {
           onTap: () => onTap(chips[i]),
           child: Container(
             alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 18),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-              borderRadius: BorderRadius.circular(24),
+              color: isDark
+                  ? AppColors.darkSurface.withOpacity(0.5)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppColors.primary.withOpacity(0.3),
-                width: 1.2,
+                color: isDark
+                    ? AppColors.darkBorder
+                    : AppColors.primary.withOpacity(0.15),
+                width: 1,
               ),
               boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(isDark ? 0.1 : 0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
+                if (!isDark)
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.04),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
               ],
             ),
-            child: Text(
-              chips[i],
-              style: AppTextStyles.captionMedium(isDark).copyWith(
-                color: AppColors.primary,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  chips[i].substring(0, 2), // The emoji
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  chips[i].substring(2).trim(), // The text
+                  style: AppTextStyles.captionMedium(isDark).copyWith(
+                    color: isDark ? AppColors.darkText : AppColors.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -568,17 +708,17 @@ class _Bar extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(34),
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder.withOpacity(0.8),
-          width: 1.2,
+          color: isDark ? AppColors.darkBorder : Colors.grey.withOpacity(0.1),
+          width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -589,70 +729,74 @@ class _Bar extends StatelessWidget {
           GestureDetector(
             onTap: onPickImage,
             child: Container(
-              padding: const EdgeInsets.only(bottom: 12, right: 8, left: 14),
-              child: Icon(
-                Iconsax.gallery_add,
-                color: AppColors.primary.withOpacity(0.8),
-                size: 24,
+              margin: const EdgeInsets.only(bottom: 4, left: 6),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.darkBackground
+                    : AppColors.lightBackground,
+                shape: BoxShape.circle,
               ),
+              child: Icon(Iconsax.camera, color: AppColors.primary, size: 20),
             ),
           ),
 
           Expanded(
             child: TextField(
               controller: ctrl,
-              style: AppTextStyles.body(isDark).copyWith(fontSize: 14.5),
+              style: AppTextStyles.body(isDark).copyWith(fontSize: 15),
               maxLines: 4,
               minLines: 1,
               textInputAction: TextInputAction.send,
               onSubmitted: onSend,
               decoration: InputDecoration(
                 hintText: 'Ask me anything...',
-                hintStyle: AppTextStyles.hint(isDark),
+                hintStyle: AppTextStyles.hint(isDark).copyWith(fontSize: 14),
                 filled: true,
                 fillColor: Colors.transparent,
                 contentPadding: const EdgeInsets.only(
-                  left: 8,
-                  right: 18,
+                  left: 12,
+                  right: 12,
                   top: 14,
                   bottom: 14,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(34),
+                  borderRadius: BorderRadius.circular(28),
                   borderSide: BorderSide.none,
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(34),
+                  borderRadius: BorderRadius.circular(28),
                   borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(34),
+                  borderRadius: BorderRadius.circular(28),
                   borderSide: BorderSide.none,
                 ),
               ),
             ),
           ),
+
           // Send Button
           GestureDetector(
             onTap: () => onSend(ctrl.text),
             child: Container(
-              width: 48,
-              height: 48,
+              margin: const EdgeInsets.only(bottom: 2, right: 2),
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 gradient: AppColors.gradient,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.35),
-                    blurRadius: 10,
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
                 ],
               ),
-              child: const Icon(Iconsax.send_1, color: Colors.white, size: 20),
+              child: const Icon(Iconsax.send_1, color: Colors.white, size: 18),
             ),
           ),
-          const SizedBox(width: 4),
         ],
       ),
     );
@@ -675,14 +819,18 @@ class _Avatar extends StatelessWidget {
       shape: BoxShape.circle,
       boxShadow: [
         BoxShadow(
-          color: AppColors.primary.withOpacity(0.3),
-          blurRadius: 10,
-          offset: const Offset(0, 3),
+          color: AppColors.primary.withOpacity(0.25),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
         ),
       ],
-      border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+      border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
     ),
-    child: Icon(Icons.smart_toy_rounded, color: Colors.white, size: size * 0.55),
+    child: Icon(
+      Icons.smart_toy_rounded,
+      color: Colors.white,
+      size: size * 0.58,
+    ),
   );
 }
 
@@ -713,9 +861,7 @@ class _OnlinePill extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           'Online',
-          style: AppTextStyles.captionMedium(
-            false,
-          ).copyWith(
+          style: AppTextStyles.captionMedium(false).copyWith(
             color: AppColors.success,
             fontSize: 10.5,
             fontWeight: FontWeight.w700,
@@ -731,7 +877,10 @@ class _OnlinePill extends StatelessWidget {
 class ChatApi {
   static final SupabaseClient _supabase = Supabase.instance.client;
 
-  static Future<BotResponse> sendMessage(String message, {File? imageFile}) async {
+  static Future<BotResponse> sendMessage(
+    String message, {
+    File? imageFile,
+  }) async {
     String? base64Image;
 
     if (imageFile != null) {
@@ -739,31 +888,44 @@ class ChatApi {
       base64Image = base64Encode(bytes);
     }
 
-    final res = await _supabase.functions.invoke(
-      'bubble-bot',
-      body: {
-        'message': message,
-        if (base64Image != null) 'image': base64Image,
-      },
-    );
+    // Get the current logged-in user ID to enable user-specific promos
+    final userId = _supabase.auth.currentUser?.id;
 
-    final data = res.data;
-    if (data == null) return BotResponse(reply: "Error processing request", action: "none");
-
-    print(data);
     try {
-      // Because we used responseMimeType: application/json in Edge Function,
-      // the reply text itself is a JSON string generated by Gemini.
-      final String rawText = data['reply'];
-      final Map<String, dynamic> parsed = jsonDecode(rawText);
-
-      return BotResponse(
-        reply: parsed['reply'] ?? "Sorry, I didn't understand.",
-        action: parsed['action'] ?? "none",
+      final res = await _supabase.functions.invoke(
+        'bubble-bot',
+        body: {
+          'message': message,
+          if (base64Image != null) 'image': base64Image,
+          if (userId != null) 'user_id': userId,
+        },
       );
+
+      final data = res.data;
+      if (data == null) {
+        return BotResponse(reply: "Error processing request", action: "none");
+      }
+
+      debugPrint("EDGE FUNCTION RESPONSE: $data");
+
+      if (data is Map) {
+        return BotResponse(
+          reply: data['reply']?.toString() ?? "Sorry, I didn't understand.",
+          action: data['action']?.toString() ?? "none",
+          serviceId: data['service_id']?.toString(),
+        );
+      } else {
+        return BotResponse(
+          reply: "Unexpected response format.",
+          action: "none",
+        );
+      }
     } catch (e) {
-      // Fallback if parsing fails or structure isn't perfect
-      return BotResponse(reply: data['reply'].toString(), action: "none");
+      debugPrint("API CALL ERROR: $e");
+      return BotResponse(
+        reply: "Connection error. Please try again.",
+        action: "none",
+      );
     }
   }
 }

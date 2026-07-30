@@ -1,5 +1,9 @@
 // lib/features/auth/data/datasources/auth_remote_datasource.dart
+import 'dart:io';
+
+import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../models/user_model.dart';
@@ -108,16 +112,62 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> signInWithGoogle() async {
     try {
-      await _client.auth.signInWithOAuth(
-        supa.OAuthProvider.google,
-        redirectTo: AppConstants.googleAuthRedirectUri,
+      final webClientId = AppConstants.googleWebClientId;
+      final iosClientId = AppConstants.googleIosClientId;
+
+      if (webClientId.isEmpty ||
+          webClientId == 'YOUR_WEB_CLIENT_ID_HERE') {
+        throw AuthException(
+          'Google Web Client ID is missing. Please update your .env file with a valid Client ID.',
+        );
+      }
+
+      final googleSignIn = GoogleSignIn.instance;
+
+      // Initialize Google Sign-In
+      await googleSignIn.initialize(
+        serverClientId: webClientId,
+        clientId: Platform.isIOS &&
+            iosClientId.isNotEmpty &&
+            iosClientId != 'YOUR_IOS_CLIENT_ID_HERE'
+            ? iosClientId
+            : null,
       );
-      // ✅ Do NOT read currentUser here. The browser hasn't even shown yet.
-      // The authStateChanges stream will emit the authenticated user once
-      // the OAuth redirect completes and Supabase restores the session.
+
+      // Authenticate the user
+      final GoogleSignInAccount googleUser =
+      await googleSignIn.authenticate();
+
+      final GoogleSignInAuthentication googleAuth =
+          googleUser.authentication;
+
+      final idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw AuthException('No ID Token returned from Google Sign-In.');
+      }
+
+      await _client.auth.signInWithIdToken(
+        provider: supa.OAuthProvider.google,
+        idToken: idToken,
+      );
+
+      // Do NOT read currentUser here.
+      // Listen to _client.auth.onAuthStateChange instead.
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        // User cancelled sign-in.
+        return;
+      }
+
+      throw AuthException(
+        e.description ?? 'Google Sign-In failed.',
+      );
     } on supa.AuthApiException catch (e) {
       throw AuthException(_friendly(e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('Google Sign-In Error: $e');
+      debugPrintStack(stackTrace: stackTrace);
       throw AuthException(e.toString());
     }
   }

@@ -17,6 +17,10 @@ class AppConstants {
 
   // ── Google auth redirect uri ──────────────────────────────────────────────────────────────
   static final googleAuthRedirectUri = dotenv.env['GOOGLE_AUTH_REDIRECT'] ?? '';
+  
+  // ── Google Native Auth Client IDs ──────────────────────────────────────────────────────────
+  static final googleWebClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? '';
+  static final googleIosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID'] ?? '';
 
   // ── Firebase app id ──────────────────────────────────────────────────────────────
   static final firebaseAndroidAppId=dotenv.env['FIREBASE_ANDROID_APP_ID'] ?? '';
