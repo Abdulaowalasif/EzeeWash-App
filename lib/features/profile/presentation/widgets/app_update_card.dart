@@ -38,52 +38,90 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
     _checkForUpdates();
   }
 
+  /// Compares two version strings like "1.0.3" vs "1.0.2"
+  /// Returns true if [latest] is strictly newer than [current].
+  bool _isNewer(String latest, String current) {
+    try {
+      final l = latest.split('.').map(int.parse).toList();
+      final c = current.split('.').map(int.parse).toList();
+      for (int i = 0; i < 3; i++) {
+        final lv = i < l.length ? l[i] : 0;
+        final cv = i < c.length ? c[i] : 0;
+        if (lv > cv) return true;
+        if (lv < cv) return false;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _checkForUpdates() async {
+    if (!mounted) return;
     setState(() => _isChecking = true);
-    
+
+    // Read current version first and update UI immediately
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      _currentVersion = packageInfo.version;
+      if (mounted) setState(() => _currentVersion = packageInfo.version);
+    } catch (e) {
+      if (mounted) setState(() => _currentVersion = 'Unknown');
+    }
 
+    // Fetch latest release from GitHub
+    try {
       final response = await Dio().get(
         'https://api.github.com/repos/$_repoOwner/$_repoName/releases/latest',
         options: Options(
-          headers: {'Accept': 'application/vnd.github.v3+json'},
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            // GitHub API requires a User-Agent or requests are rejected
+            'User-Agent': 'EzeeWash-App',
+          },
+          receiveTimeout: const Duration(seconds: 10),
+          sendTimeout: const Duration(seconds: 10),
         ),
       );
 
       if (response.statusCode == 200) {
-        final data = response.data;
-        String tagName = data['tag_name'] ?? '';
-        _latestVersion = tagName.replaceAll('v', '');
+        final data = response.data as Map<String, dynamic>;
+        final tagName = (data['tag_name'] as String? ?? '').replaceAll('v', '');
+        final assets = (data['assets'] as List?) ?? [];
 
-        // Check if an apk asset exists
-        final assets = data['assets'] as List;
-        for (var asset in assets) {
-          if (asset['name'].toString().endsWith('.apk')) {
-            _apkDownloadUrl = asset['browser_download_url'];
+        String? apkUrl;
+        for (final asset in assets) {
+          if ((asset['name'] as String).endsWith('.apk')) {
+            apkUrl = asset['browser_download_url'] as String;
             break;
           }
         }
 
-        // Compare versions (simple logic, assuming x.y.z format)
-        if (_latestVersion.compareTo(_currentVersion) > 0 && _apkDownloadUrl != null) {
-          _updateAvailable = true;
-        } else {
-          _updateAvailable = false;
+        if (mounted) {
+          setState(() {
+            _latestVersion = tagName.isEmpty ? 'No release yet' : tagName;
+            _apkDownloadUrl = apkUrl;
+            _updateAvailable = tagName.isNotEmpty &&
+                apkUrl != null &&
+                _isNewer(tagName, _currentVersion);
+          });
         }
       } else {
-        _latestVersion = 'Unknown';
+        debugPrint('GitHub API error: ${response.statusCode} ${response.data}');
+        if (mounted) setState(() => _latestVersion = 'Error ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      debugPrint('GitHub fetch failed: ${e.type} — ${e.message}');
+      if (mounted) {
+        setState(() => _latestVersion = 'Network error');
       }
     } catch (e) {
-      debugPrint('Update check failed: $e');
-      _latestVersion = 'Failed to fetch';
+      debugPrint('Unexpected error: $e');
+      if (mounted) setState(() => _latestVersion = 'Failed to fetch');
     }
 
-    if (mounted) {
-      setState(() => _isChecking = false);
-    }
+    if (mounted) setState(() => _isChecking = false);
   }
+
 
   Future<void> _downloadAndInstall() async {
     if (_apkDownloadUrl == null) return;
