@@ -1,6 +1,7 @@
 // lib/main_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 
@@ -44,14 +45,51 @@ class _MainScreenState extends State<MainScreen> {
       buildWhen: (prev, curr) =>
       (prev is AuthAuthenticated) != (curr is AuthAuthenticated),
       builder: (context, authState) {
-        return Scaffold(
-          body: widget.navigationShell,
-          bottomNavigationBar: authState is AuthAuthenticated
-              ? _BottomNav(
-            currentIndex: widget.navigationShell.currentIndex,
-            onTap: _onTap,
-          )
-              : null,
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) return;
+
+            final shouldPop = await showDialog<bool>(
+              context: context,
+              builder: (context) {
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                return AlertDialog(
+                  backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                  title: Text('Exit App', style: AppTextStyles.h4(isDark)),
+                  content: Text('Are you sure you want to exit EzeeWash?', style: AppTextStyles.body(isDark)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: Text('Cancel', style: AppTextStyles.buttonOutline),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Exit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                );
+              },
+            ) ?? false;
+
+            if (shouldPop) {
+              SystemNavigator.pop();
+            }
+          },
+          child: Scaffold(
+            body: widget.navigationShell,
+            bottomNavigationBar: authState is AuthAuthenticated
+                ? _BottomNav(
+              currentIndex: widget.navigationShell.currentIndex,
+              onTap: _onTap,
+            )
+                : null,
+          ),
         );
       },
     );
