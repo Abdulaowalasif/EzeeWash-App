@@ -94,14 +94,14 @@ Deno.serve(async (req) => {
       // Include service IDs so the model can return the correct one
       const servicesContext = servicesData.length > 0
         ? servicesData.map((s: any) =>
-            `- [ID: ${s.id}] ${s.title} (${s.category}) — Price: ${s.price} | ${s.description}${s.tags?.length ? ' | Tags: ' + s.tags.join(', ') : ''}`
-          ).join('\n')
+          `- [ID: ${s.id}] ${s.title} (${s.category}) — Price: ${s.price} | ${s.description}${s.tags?.length ? ' | Tags: ' + s.tags.join(', ') : ''}`
+        ).join('\n')
         : "No services currently listed.";
 
       const promosContext = promosData.length > 0
         ? promosData.map((p: any) =>
-            `- Code: ${p.code} | ${p.title ?? p.description} | ${p.discount_type === 'percentage' ? p.discount_value + '% off' : p.discount_value + ' taka off'}${p.target_service_id ? ' (applies to service ID: ' + p.target_service_id + ')' : ' (applies to all)'}`
-          ).join('\n')
+          `- Code: ${p.code} | ${p.title ?? p.description} | ${p.discount_type === 'percentage' ? p.discount_value + '% off' : p.discount_value + ' taka off'}${p.target_service_id ? ' (applies to service ID: ' + p.target_service_id + ')' : ' (applies to all)'}`
+        ).join('\n')
         : "No active promos for this user.";
 
       dbContext = `
@@ -180,7 +180,12 @@ User message: ${message}
     );
 
     const data = await response.json();
-    console.log("GEMINI RAW RESPONSE:", JSON.stringify(data, null, 2));
+
+    if (data?.usageMetadata) {
+      console.log(`[USAGE TRACKING] User: ${userId || 'anonymous'} | Total Tokens: ${data.usageMetadata.totalTokenCount} | Prompt: ${data.usageMetadata.promptTokenCount} | Response: ${data.usageMetadata.candidatesTokenCount}`);
+    } else {
+      console.log("GEMINI RAW RESPONSE:", JSON.stringify(data, null, 2));
+    }
 
     // ─────────────────────────────
     // 7. Handle API errors

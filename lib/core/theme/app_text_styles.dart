@@ -46,6 +46,13 @@ abstract class AppTextStyles {
     color: _text(isDark),
   );
 
+  /// H4 heading — 16 sp w600.
+  static TextStyle h4(bool isDark) => GoogleFonts.alexandria(
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    color: _text(isDark),
+  );
+
   /// Section heading — 18 sp w700 (home sections, card titles).
   static TextStyle sectionTitle(bool isDark) => GoogleFonts.alexandria(
     fontSize: 18,
@@ -79,6 +86,13 @@ abstract class AppTextStyles {
   /// Standard body copy — 14 sp regular.
   static TextStyle body(bool isDark) =>
       GoogleFonts.alexandria(fontSize: 14, color: _text(isDark));
+
+  /// Body medium weight — 14 sp w500.
+  static TextStyle bodyMedium(bool isDark) => GoogleFonts.alexandria(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    color: _text(isDark),
+  );
 
   /// Body with explicit line-height for multi-line paragraphs.
   static TextStyle bodyLong(bool isDark) => GoogleFonts.alexandria(

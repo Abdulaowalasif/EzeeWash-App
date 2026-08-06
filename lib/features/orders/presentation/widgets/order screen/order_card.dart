@@ -322,13 +322,7 @@ class _PrimaryButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: AppColors.gradient,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          
         ),
         child: ElevatedButton.icon(
           icon: const Icon(Icons.replay_outlined, color: Colors.white, size: 16),

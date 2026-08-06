@@ -26,6 +26,7 @@ import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
 import '../bloc/profile_state.dart';
 import '../widgets/settings_widgets.dart';
+import '../widgets/app_update_card.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -212,6 +213,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
                     onCancel: () => setState(() => _editing = false),
                   ),
                 ],
+                const SizedBox(height: 24),
+                SettingsSectionLabel(label: 'App Update', isDark: isDark),
+                const SizedBox(height: 10),
+                SettingsAppUpdateCard(isDark: isDark),
                 const SizedBox(height: 24),
                 SettingsSectionLabel(label: 'Account', isDark: isDark),
                 const SizedBox(height: 10),

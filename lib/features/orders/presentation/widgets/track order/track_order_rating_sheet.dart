@@ -325,13 +325,7 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: AppColors.gradient,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
+                  
                 ),
                 child: const Icon(Icons.check_rounded,
                     color: Colors.white, size: 40),

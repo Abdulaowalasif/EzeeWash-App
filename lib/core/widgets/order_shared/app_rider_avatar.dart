@@ -57,13 +57,7 @@ class AppRiderAvatar extends StatelessWidget {
               color: AppColors.primary.withOpacity(0.3),
               width: 3,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withOpacity(0.18),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
+            
           ),
           child: ClipOval(
             child: photoUrl != null

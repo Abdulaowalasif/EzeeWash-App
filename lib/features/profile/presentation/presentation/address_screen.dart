@@ -212,7 +212,7 @@ class _AddressViewState extends State<_AddressView> {
                       const SizedBox(width: 12),
                     ],
                     Expanded(child: Container(
-                      decoration: BoxDecoration(gradient: AppColors.gradient, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]),
+                      decoration: BoxDecoration(gradient: AppColors.gradient, borderRadius: BorderRadius.circular(12), ),
                       child: ElevatedButton.icon(
                         onPressed: _save,
                         icon: Icon(_editing != null ? Icons.update_rounded : Icons.add_rounded, color: Colors.white, size: 18),
@@ -266,7 +266,7 @@ class _GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
         decoration: BoxDecoration(
           gradient: AppColors.gradient,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 5))],
+          
         ),
         child: Row(children: [
           GestureDetector(onTap: () => context.pop(), child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22)),

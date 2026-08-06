@@ -76,14 +76,7 @@ class _NoInternetScreenState extends State<NoInternetScreen>
                               ? AppColors.darkBorder
                               : AppColors.lightBorder,
                           width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary
-                              .withOpacity(isDark ? 0.2 : 0.1),
-                          blurRadius: 30,
-                          spreadRadius: 8,
-                        ),
-                      ],
+                      
                     ),
                     child: const Icon(Icons.wifi_off_rounded,
                         size: 48, color: AppColors.primary),

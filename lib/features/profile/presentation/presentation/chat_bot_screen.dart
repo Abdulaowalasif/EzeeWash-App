@@ -338,15 +338,7 @@ class _Bubble extends StatelessWidget {
                       bottomLeft: Radius.circular(isUser ? 22 : 4),
                       bottomRight: Radius.circular(isUser ? 4 : 22),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isUser
-                            ? AppColors.primary.withOpacity(0.2)
-                            : Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    
                     border: isUser
                         ? null
                         : Border.all(
@@ -392,13 +384,6 @@ class _Bubble extends StatelessWidget {
                             decoration: BoxDecoration(
                               gradient: AppColors.gradient,
                               borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withOpacity(0.25),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -646,14 +631,7 @@ class _ChipRow extends StatelessWidget {
                     : AppColors.primary.withOpacity(0.15),
                 width: 1,
               ),
-              boxShadow: [
-                if (!isDark)
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.04),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-              ],
+              
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -786,13 +764,6 @@ class _Bar extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: AppColors.gradient,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
               ),
               child: const Icon(Iconsax.send_1, color: Colors.white, size: 18),
             ),
@@ -817,13 +788,7 @@ class _Avatar extends StatelessWidget {
     decoration: BoxDecoration(
       gradient: AppColors.gradient,
       shape: BoxShape.circle,
-      boxShadow: [
-        BoxShadow(
-          color: AppColors.primary.withOpacity(0.25),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
-        ),
-      ],
+      
       border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
     ),
     child: Icon(

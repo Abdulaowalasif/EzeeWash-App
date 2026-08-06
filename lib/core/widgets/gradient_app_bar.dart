@@ -45,13 +45,6 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
       decoration: BoxDecoration(
         gradient: AppColors.gradient,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
       ),
       child: SafeArea(
         child: Row(

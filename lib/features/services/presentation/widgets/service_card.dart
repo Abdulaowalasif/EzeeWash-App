@@ -240,13 +240,7 @@ class _ServiceActions extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: AppColors.gradient,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.25),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              
             ),
             child: ElevatedButton.icon(
               icon: const Icon(Iconsax.calendar_tick,

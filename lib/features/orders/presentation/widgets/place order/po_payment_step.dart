@@ -110,13 +110,7 @@ class _PoPaymentStepState extends State<PoPaymentStep> {
           decoration: BoxDecoration(
             gradient: AppColors.gradient,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
+            
           ),
           child: Column(
             children: [

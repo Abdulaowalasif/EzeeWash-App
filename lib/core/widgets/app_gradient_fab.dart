@@ -36,13 +36,7 @@ class AppGradientFab extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: AppColors.gradient,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          
         ),
         child: Center(
           child: Icon(icon, color: Colors.white, size: size),

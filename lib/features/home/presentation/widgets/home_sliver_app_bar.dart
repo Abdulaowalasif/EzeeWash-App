@@ -53,13 +53,7 @@ class HomeSliverAppBar extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 bottom: Radius.circular(24),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              
             ),
             child: Stack(
               children: [

@@ -29,13 +29,7 @@ class OrderServiceImage extends StatelessWidget {
             ? (isDark ? AppColors.darkSurface : Colors.grey.shade100)
             : null,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),

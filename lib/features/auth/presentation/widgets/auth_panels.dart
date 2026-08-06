@@ -179,13 +179,7 @@ class AuthGradientButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: AppColors.gradient,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.35),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          
         ),
         child: Material(
           color: Colors.transparent,
@@ -335,12 +329,7 @@ class AuthTabToggle extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: AppColors.gradient,
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4))
-                  ],
+                  
                 ),
               ),
             ),
@@ -630,13 +619,7 @@ class AuthForgotPanel extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: AppColors.gradient,
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.25),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+                  
                 ),
                 child: const Icon(Icons.lock_reset_rounded,
                     color: Colors.white, size: 32),

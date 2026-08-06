@@ -150,13 +150,7 @@ class _LoginScreenState extends State<LoginScreen>
               decoration: BoxDecoration(
                 gradient: AppColors.gradient,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+                
               ),
               child: const Icon(Icons.mark_email_read_rounded,
                   color: Colors.white, size: 36),

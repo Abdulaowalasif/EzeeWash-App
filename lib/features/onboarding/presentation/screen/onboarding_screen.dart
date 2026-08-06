@@ -601,14 +601,7 @@ class _IllustrationCard extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(isDark ? 0.45 : 0.28),
-            blurRadius: 48,
-            offset: const Offset(0, 20),
-            spreadRadius: -8,
-          ),
-        ],
+        
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(32),

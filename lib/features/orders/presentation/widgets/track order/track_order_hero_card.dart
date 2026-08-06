@@ -29,13 +29,7 @@ class TrackOrderHeroCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: AppColors.gradient,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        
       ),
       child: Column(
         children: [

@@ -248,13 +248,7 @@ class _OrderSuccessAnimationState extends State<OrderSuccessAnimation>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: AppColors.gradient,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.4),
-                    blurRadius: 28,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
+                
               ),
               child: const Icon(Icons.check_rounded,
                   color: Colors.white, size: 60),
