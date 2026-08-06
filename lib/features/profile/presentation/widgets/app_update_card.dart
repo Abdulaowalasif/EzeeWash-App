@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:iconsax/iconsax.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -68,33 +70,33 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
       if (mounted) setState(() => _currentVersion = 'Unknown');
     }
 
-    // Fetch latest release from GitHub
+    // Fetch latest release from GitHub using http (more reliable on Android)
     try {
-      final response = await Dio().get(
+      final uri = Uri.parse(
         'https://api.github.com/repos/$_repoOwner/$_repoName/releases/latest',
-        options: Options(
-          headers: {
-            'Accept': 'application/vnd.github.v3+json',
-            // GitHub API requires a User-Agent or requests are rejected
-            'User-Agent': 'EzeeWash-App',
-          },
-          receiveTimeout: const Duration(seconds: 10),
-          sendTimeout: const Duration(seconds: 10),
-        ),
       );
+      final response = await http.get(uri, headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'EzeeWash-App',
+      }).timeout(const Duration(seconds: 15));
+
+      debugPrint('GitHub API status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
-        final data = response.data as Map<String, dynamic>;
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
         final tagName = (data['tag_name'] as String? ?? '').replaceAll('v', '');
         final assets = (data['assets'] as List?) ?? [];
 
         String? apkUrl;
         for (final asset in assets) {
-          if ((asset['name'] as String).endsWith('.apk')) {
-            apkUrl = asset['browser_download_url'] as String;
+          final name = asset['name'] as String? ?? '';
+          if (name.endsWith('.apk')) {
+            apkUrl = asset['browser_download_url'] as String?;
             break;
           }
         }
+
+        debugPrint('Latest tag: $tagName | APK URL: $apkUrl');
 
         if (mounted) {
           setState(() {
@@ -105,18 +107,16 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
                 _isNewer(tagName, _currentVersion);
           });
         }
+      } else if (response.statusCode == 404) {
+        debugPrint('GitHub: No releases found (404)');
+        if (mounted) setState(() => _latestVersion = 'No releases yet');
       } else {
-        debugPrint('GitHub API error: ${response.statusCode} ${response.data}');
+        debugPrint('GitHub API error: ${response.statusCode} — ${response.body}');
         if (mounted) setState(() => _latestVersion = 'Error ${response.statusCode}');
       }
-    } on DioException catch (e) {
-      debugPrint('GitHub fetch failed: ${e.type} — ${e.message}');
-      if (mounted) {
-        setState(() => _latestVersion = 'Network error');
-      }
     } catch (e) {
-      debugPrint('Unexpected error: $e');
-      if (mounted) setState(() => _latestVersion = 'Failed to fetch');
+      debugPrint('GitHub fetch exception: $e');
+      if (mounted) setState(() => _latestVersion = 'Check failed');
     }
 
     if (mounted) setState(() => _isChecking = false);
