@@ -3,9 +3,8 @@ name: Build and Release APK
 on:
   push:
     tags:
-      - 'v*' # Trigger on version tags, e.g., v1.0.1
+      - "v*"
 
-# Grant write access so the action can create GitHub Releases
 permissions:
   contents: write
 
@@ -15,32 +14,62 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout source code
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # Setup Java
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
-          cache: 'gradle' # Caches downloaded Android SDKs and Gradle dependencies
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
 
+      # Setup Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
-          cache: true # Caches the Flutter SDK itself
+          channel: stable
+          cache: true
 
+      # Create .env from GitHub Secret
+      - name: Create .env
+        shell: bash
+        run: |
+          cat > .env <<EOF
+          ${{ secrets.ENV_FILE }}
+          EOF
+
+      # Verify .env exists
+      - name: Verify .env
+        run: |
+          if [ -f ".env" ]; then
+            echo "✅ .env created successfully"
+            echo "Lines in .env:"
+            wc -l .env
+          else
+            echo "❌ .env not found!"
+            exit 1
+          fi
+
+      # Install Flutter packages
       - name: Get Dependencies
         run: flutter pub get
 
+      # Build Release APK
       - name: Build APK
         run: flutter build apk --release
 
+      # Verify APK exists
+      - name: Verify APK
+        run: |
+          find build -name "*.apk"
+
+      # Upload APK to GitHub Release
       - name: Upload APK to GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk
           name: EzeeWash ${{ github.ref_name }}
           generate_release_notes: true
-          fail_on_unmatched_files: true
+          files: build/app/outputs/flutter-apk/app-release.apk
