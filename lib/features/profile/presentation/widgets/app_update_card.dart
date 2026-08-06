@@ -120,10 +120,18 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
 
       setState(() => _isDownloading = false);
 
-      // Trigger installation
-      final result = await OpenFilex.open(savePath);
+      // Trigger Android package installer with explicit APK MIME type
+      final result = await OpenFilex.open(
+        savePath,
+        type: 'application/vnd.android.package-archive',
+      );
+
       if (result.type != ResultType.done && mounted) {
-        AppSnackBar.show(context, 'Failed to open installer: ${result.message}', type: SnackBarType.error);
+        AppSnackBar.show(
+          context,
+          'Could not open installer: ${result.message}',
+          type: SnackBarType.error,
+        );
       }
     } catch (e) {
       debugPrint('Download failed: $e');
