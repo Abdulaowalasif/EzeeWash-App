@@ -35,7 +35,7 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
   bool _hasError = false;
 
   final String _repoOwner = 'Abdulaowalasif';
-  final String _repoName = 'EzeeWash-App';
+  final String _repoName = 'ezze-wash-apk-release';
 
   @override
   void initState() {
