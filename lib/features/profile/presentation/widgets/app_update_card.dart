@@ -11,6 +11,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_snack_bar.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class SettingsAppUpdateCard extends StatefulWidget {
   final bool isDark;
@@ -79,9 +80,12 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
       final uri = Uri.parse(
         'https://api.github.com/repos/$_repoOwner/$_repoName/releases/latest',
       );
+      final githubToken = dotenv.env['GITHUB_PAT'] ?? '';
+
       final response = await http.get(uri, headers: {
         'Accept': 'application/vnd.github.v3+json',
         'User-Agent': 'EzeeWash-App',
+        if (githubToken.isNotEmpty) 'Authorization': 'Bearer $githubToken',
       }).timeout(const Duration(seconds: 15));
 
       debugPrint('GitHub API status: ${response.statusCode}');
@@ -95,7 +99,7 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
         for (final asset in assets) {
           final name = asset['name'] as String? ?? '';
           if (name.endsWith('.apk')) {
-            apkUrl = asset['browser_download_url'] as String?;
+            apkUrl = asset['url'] as String?;
             break;
           }
         }
@@ -158,9 +162,17 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
       final tempDir = await getTemporaryDirectory();
       final savePath = '${tempDir.path}/update.apk';
 
+      final githubToken = dotenv.env['GITHUB_PAT'] ?? '';
+
       await Dio().download(
         _apkDownloadUrl!,
         savePath,
+        options: Options(
+          headers: {
+            if (githubToken.isNotEmpty) 'Authorization': 'Bearer $githubToken',
+            'Accept': 'application/octet-stream',
+          },
+        ),
         onReceiveProgress: (received, total) {
           if (total != -1 && mounted) {
             setState(() {
