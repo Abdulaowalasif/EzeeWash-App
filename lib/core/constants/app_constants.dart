@@ -31,7 +31,7 @@ class AppConstants {
 
   // App
   static const appName = 'EzzeWash';
-  static const appVersion = '1.0.0';
+  static const appVersion = '1.0.11';
 
   // Colors
   static const primaryColorHex = 0xFF1D4BC7;

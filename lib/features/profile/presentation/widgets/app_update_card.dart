@@ -23,6 +23,7 @@ class SettingsAppUpdateCard extends StatefulWidget {
 }
 
 class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
+  String _previousVersion = '—';
   String _currentVersion = 'Loading...';
   String _latestVersion = 'Loading...';
   String? _apkDownloadUrl;
@@ -75,10 +76,10 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
       if (mounted) setState(() => _currentVersion = 'Unknown');
     }
 
-    // Fetch latest release from GitHub using http (more reliable on Android)
+    // Fetch releases from GitHub (get latest 2 to determine previous version)
     try {
       final uri = Uri.parse(
-        'https://api.github.com/repos/$_repoOwner/$_repoName/releases/latest',
+        'https://api.github.com/repos/$_repoOwner/$_repoName/releases?per_page=2&page=1',
       );
       final githubToken = dotenv.env['GITHUB_PAT'] ?? '';
 
@@ -91,29 +92,50 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
       debugPrint('GitHub API status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final tagName = (data['tag_name'] as String? ?? '').replaceAll('v', '');
-        final assets = (data['assets'] as List?) ?? [];
+        final releases = jsonDecode(response.body) as List<dynamic>;
 
-        String? apkUrl;
-        for (final asset in assets) {
-          final name = asset['name'] as String? ?? '';
-          if (name.endsWith('.apk')) {
-            apkUrl = asset['url'] as String?;
-            break;
+        if (releases.isNotEmpty) {
+          // Latest release
+          final latest = releases[0] as Map<String, dynamic>;
+          final tagName = (latest['tag_name'] as String? ?? '').replaceAll('v', '');
+          final assets = (latest['assets'] as List?) ?? [];
+
+          String? apkUrl;
+          for (final asset in assets) {
+            final name = asset['name'] as String? ?? '';
+            if (name.endsWith('.apk')) {
+              apkUrl = asset['url'] as String?;
+              break;
+            }
           }
-        }
 
-        debugPrint('Latest tag: $tagName | APK URL: $apkUrl');
+          // Previous release (second in the list)
+          String prevTag = '—';
+          if (releases.length > 1) {
+            final previous = releases[1] as Map<String, dynamic>;
+            prevTag = (previous['tag_name'] as String? ?? '').replaceAll('v', '');
+            if (prevTag.isEmpty) prevTag = '—';
+          }
 
-        if (mounted) {
-          setState(() {
-            _latestVersion = tagName.isEmpty ? 'No release yet' : tagName;
-            _apkDownloadUrl = apkUrl;
-            _updateAvailable = tagName.isNotEmpty &&
-                apkUrl != null &&
-                _isNewer(tagName, _currentVersion);
-          });
+          debugPrint('Latest tag: $tagName | Previous tag: $prevTag | APK URL: $apkUrl');
+
+          if (mounted) {
+            setState(() {
+              _latestVersion = tagName.isEmpty ? 'No release yet' : tagName;
+              _previousVersion = prevTag;
+              _apkDownloadUrl = apkUrl;
+              _updateAvailable = tagName.isNotEmpty &&
+                  apkUrl != null &&
+                  _isNewer(tagName, _currentVersion);
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _latestVersion = 'No releases yet';
+              _previousVersion = '—';
+            });
+          }
         }
       } else if (response.statusCode == 404) {
         debugPrint('GitHub: No releases found (404)');
@@ -235,6 +257,8 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
             ],
           ),
           const SizedBox(height: 16),
+          _buildRow('Previous Version', _isChecking ? '...' : _previousVersion, widget.isDark),
+          const SizedBox(height: 8),
           _buildRow('Current Version', _currentVersion, widget.isDark),
           const SizedBox(height: 8),
           _buildRow('Latest Version', _isChecking ? 'Checking...' : _latestVersion, widget.isDark),
