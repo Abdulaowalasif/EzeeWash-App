@@ -30,6 +30,7 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
   bool _updateAvailable = false;
+  bool _hasError = false;
 
   final String _repoOwner = 'Abdulaowalasif';
   final String _repoName = 'EzeeWash-App';
@@ -60,7 +61,10 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
 
   Future<void> _checkForUpdates() async {
     if (!mounted) return;
-    setState(() => _isChecking = true);
+    setState(() {
+      _isChecking = true;
+      _hasError = false;
+    });
 
     // Read current version first and update UI immediately
     try {
@@ -112,11 +116,21 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
         if (mounted) setState(() => _latestVersion = 'No releases yet');
       } else {
         debugPrint('GitHub API error: ${response.statusCode} — ${response.body}');
-        if (mounted) setState(() => _latestVersion = 'Error ${response.statusCode}');
+        if (mounted) {
+          setState(() {
+            _latestVersion = 'Error ${response.statusCode}';
+            _hasError = true;
+          });
+        }
       }
     } catch (e) {
       debugPrint('GitHub fetch exception: $e');
-      if (mounted) setState(() => _latestVersion = 'Check failed');
+      if (mounted) {
+        setState(() {
+          _latestVersion = 'Check failed';
+          _hasError = true;
+        });
+      }
     }
 
     if (mounted) setState(() => _isChecking = false);
@@ -227,6 +241,20 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
             ),
           ] else if (_isChecking) ...[
              const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+          ] else if (_hasError) ...[
+             SizedBox(
+               width: double.infinity,
+               child: ElevatedButton.icon(
+                 onPressed: _checkForUpdates,
+                 icon: const Icon(Iconsax.refresh, color: Colors.white, size: 20),
+                 label: const Text('Retry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                 style: ElevatedButton.styleFrom(
+                   backgroundColor: AppColors.error,
+                   padding: const EdgeInsets.symmetric(vertical: 12),
+                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                 ),
+               ),
+             ),
           ] else if (_updateAvailable) ...[
              SizedBox(
                width: double.infinity,
