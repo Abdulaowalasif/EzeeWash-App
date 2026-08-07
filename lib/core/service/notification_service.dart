@@ -55,7 +55,15 @@ class NotificationService {
         android: androidSettings,
         iOS: iosSettings,
       ),
-      onDidReceiveNotificationResponse: (res) => _onTap(),
+      onDidReceiveNotificationResponse: (res) {
+        Map<String, dynamic>? data;
+        if (res.payload != null) {
+          try {
+            data = jsonDecode(res.payload!);
+          } catch (_) {}
+        }
+        _onTap(data);
+      },
     );
 
     await _local
@@ -81,7 +89,8 @@ class NotificationService {
     // Tap handling
     OneSignal.Notifications.addClickListener((event) {
       debugPrint('[NS] notification tapped');
-      _onTap();
+      final additionalData = event.notification.additionalData;
+      _onTap(additionalData);
     });
   }
 
@@ -126,10 +135,12 @@ class NotificationService {
     String? orderId,
   }) async {
     final (title, body) = _orderLabels(orderNumber, status);
+    final payload = jsonEncode({'type': 'order_update', 'orderId': orderId});
     await _showStyledNotification(
       id: orderNumber.hashCode,
       title: title,
       body: body,
+      payload: payload,
     );
   }
 
@@ -137,7 +148,23 @@ class NotificationService {
   // Private Helpers
   // =========================================================================
 
-  static void _onTap() {
+  static void _onTap([Map<String, dynamic>? data]) {
+    String targetRoute = RoutesName.alertsNavigate;
+    
+    if (data != null) {
+      final type = data['type'] as String? ?? data['notification_type'] as String?;
+      if (type == 'promo') {
+        targetRoute = RoutesName.home;
+      } else if (type == 'order_update') {
+        final orderId = data['orderId'] ?? data['order_id'];
+        if (orderId != null) {
+          targetRoute = '${RoutesName.trackOrdersNavigate}?id=$orderId';
+        } else {
+          targetRoute = RoutesName.trackOrdersNavigate;
+        }
+      }
+    }
+
     final router = _router;
     if (router != null) {
       final loc = router.routerDelegate.currentConfiguration.uri.toString();
@@ -145,26 +172,31 @@ class NotificationService {
 
       if (!isPreAuth) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          // Changed push to go to properly handle StatefulShellRoute tab switching
-          router.go(RoutesName.alertsNavigate);
+          if (targetRoute == RoutesName.home || targetRoute == RoutesName.alertsNavigate) {
+            router.go(targetRoute);
+          } else {
+            router.push(targetRoute);
+          }
         });
         return;
       }
     }
 
-    debugPrint('[NS] queuing pending route → ${RoutesName.alertsNavigate}');
-    _pendingRoute = RoutesName.alertsNavigate;
+    debugPrint('[NS] queuing pending route → $targetRoute');
+    _pendingRoute = targetRoute;
   }
 
   static Future<void> _showStyledNotification({
     required int id,
     required String title,
     required String body,
+    String? payload,
   }) async {
     await _local.show(
      id:  id,
       title: title,
       body: body,
+      payload: payload,
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           _channel.id,

@@ -112,7 +112,7 @@ GoRouter createRouter(AuthBloc authBloc) {
                   GoRoute(
                     path: RoutesName.trackOrders,
                     pageBuilder: (c, s) {
-                      final orderId = s.extra as String?;
+                      final orderId = s.extra as String? ?? s.uri.queryParameters['id'];
                       return _slide(TrackOrderScreen(orderId: orderId), s);
                     },
                   ),

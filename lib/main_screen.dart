@@ -45,8 +45,17 @@ class _MainScreenState extends State<MainScreen> {
       buildWhen: (prev, curr) =>
       (prev is AuthAuthenticated) != (curr is AuthAuthenticated),
       builder: (context, authState) {
+        final currentLocation = GoRouterState.of(context).matchedLocation;
+        final isBaseScreen = [
+          RoutesName.services,
+          RoutesName.orders,
+          RoutesName.home,
+          RoutesName.chatBot,
+          RoutesName.alerts,
+        ].contains(currentLocation);
+
         return PopScope(
-          canPop: false,
+          canPop: !isBaseScreen,
           onPopInvokedWithResult: (didPop, result) async {
             if (didPop) return;
 
