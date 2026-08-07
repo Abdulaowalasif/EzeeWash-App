@@ -86,6 +86,13 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
       ));
     }
     await markAllReadUseCase(const NoParams());
+
+    // Re-fetch to reconcile global notification read status from SharedPreferences
+    final result = await getNotificationsUseCase(const NoParams());
+    result.fold(
+          (_) {},
+          (list) => emit(NotificationsLoaded(notifications: list)),
+    );
   }
 
   /// Silent background refresh — never emits NotificationsLoading so
@@ -126,10 +133,13 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
 
   /// Call when the authenticated user changes (logout → re-login) so the
   /// realtime subscription is re-established for the new user.
+  /// Also clears the loaded state so stale unread counts don't linger.
   void resetSubscription() {
     _realtimeSub?.cancel();
     _realtimeSub = null;
     _subscribed = false;
+    // ignore: invalid_use_of_visible_for_testing_member
+    emit(const NotificationsInitial());
   }
 
   @override

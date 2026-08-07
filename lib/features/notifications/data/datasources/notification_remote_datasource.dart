@@ -79,8 +79,21 @@ class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource
           .eq('user_id', userId)
           .eq('is_read', false);
 
-      // Note: For global markAllRead, you would fetch all current
-      // global IDs and add them to SharedPreferences.
+      // Mark global notifications as read locally via SharedPreferences
+      final globalData = await _client
+          .from(AppConstants.notificationsTable)
+          .select('id')
+          .isFilter('user_id', null);
+
+      final globalIds =
+          (globalData as List).map((e) => e['id'] as String).toList();
+
+      if (globalIds.isNotEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        final currentRead = prefs.getStringList(_readGlobalKey) ?? [];
+        final merged = {...currentRead, ...globalIds}.toList();
+        await prefs.setStringList(_readGlobalKey, merged);
+      }
     } catch (e) {
       throw ServerException(e.toString());
     }
