@@ -3,7 +3,7 @@ name: Build and Release APK
 on:
   push:
     tags:
-      - 'v*' # Trigger on version tags, e.g., v1.0.1
+      - 'v*'
 
 permissions:
   contents: write
@@ -55,10 +55,6 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
 
-      # -----------------------------
-      # Mirror Release to Public Repo
-      # -----------------------------
-
       - name: Authenticate GitHub CLI
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
@@ -78,24 +74,39 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
         run: |
-          if gh release view "${{ github.ref_name }}" \
-            --repo Abdulaowalasif/ezze-wash-apk-release >/dev/null 2>&1
-          then
-            echo "Release already exists. Uploading APK..."
+          TAG="${{ github.ref_name }}"
+          REPO="Abdulaowalasif/ezze-wash-apk-release"
+
+          git clone https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git public-repo
+
+          cd public-repo
+
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          if ! git rev-parse "${TAG}" >/dev/null 2>&1; then
+            git tag "${TAG}"
+            git push origin "${TAG}"
+          fi
+
+          cd ..
+
+          if gh release view "${TAG}" --repo "${REPO}" >/dev/null 2>&1; then
+            echo "Release exists. Uploading APK..."
 
             gh release upload \
-              "${{ github.ref_name }}" \
+              "${TAG}" \
               release-assets/* \
-              --repo Abdulaowalasif/ezze-wash-apk-release \
+              --repo "${REPO}" \
               --clobber
 
           else
-            echo "Creating release in public repository..."
+            echo "Creating release..."
 
             gh release create \
-              "${{ github.ref_name }}" \
+              "${TAG}" \
               release-assets/* \
-              --repo Abdulaowalasif/ezze-wash-apk-release \
-              --title "EzeeWash ${{ github.ref_name }}" \
+              --repo "${REPO}" \
+              --title "EzeeWash ${TAG}" \
               --generate-notes
           fi
