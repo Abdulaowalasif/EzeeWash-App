@@ -78,7 +78,7 @@ jobs:
           TAG="${{ github.ref_name }}"
           REPO="Abdulaowalasif/ezze-wash-apk-release"
 
-          git clone https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git public-repo
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" public-repo
 
           cd public-repo
 
@@ -100,7 +100,6 @@ jobs:
               release-assets/* \
               --repo "${REPO}" \
               --clobber
-
           else
             echo "Creating release..."
 
@@ -113,7 +112,8 @@ jobs:
           fi
 
       # ─────────────────────────────────────────────
-      # Cleanup only runs if the mirror step succeeded
+      # Cleanup Private Repository
+      # Keep APK only on the current/latest release
       # ─────────────────────────────────────────────
 
       - name: Cleanup Old APK Assets in Private Repo (keep latest)
@@ -124,34 +124,146 @@ jobs:
           REPO="${{ github.repository }}"
           CURRENT_TAG="${{ github.ref_name }}"
 
-          echo "Keeping APK asset only on: $CURRENT_TAG in $REPO"
+          echo "Keeping APK asset only on: $CURRENT_TAG"
+          echo "Repository: $REPO"
 
-          gh release list --repo "$REPO" --limit 100 --json tagName -q '.[].tagName' | while read -r TAG; do
+          gh release list \
+            --repo "$REPO" \
+            --limit 100 \
+            --json tagName \
+            -q '.[].tagName' |
+          while read -r TAG; do
+
             if [ "$TAG" != "$CURRENT_TAG" ]; then
-              ASSETS=$(gh release view "$TAG" --repo "$REPO" --json assets -q '.assets[].name' | grep -i '\.apk$' || true)
+
+              ASSETS=$(gh release view "$TAG" \
+                --repo "$REPO" \
+                --json assets \
+                -q '.assets[].name' |
+                grep -i '\.apk$' || true)
+
               for ASSET in $ASSETS; do
                 echo "Removing APK asset '$ASSET' from release $TAG"
-                gh release delete-asset "$TAG" "$ASSET" --repo "$REPO" --yes
+
+                gh release delete-asset \
+                  "$TAG" \
+                  "$ASSET" \
+                  --repo "$REPO" \
+                  --yes
               done
+
             fi
+
           done
 
-      - name: Cleanup Old APK Assets in Public Repo (keep latest)
+          echo "Private repository cleanup completed."
+
+      # ─────────────────────────────────────────────
+      # Cleanup Public Repository
+      #
+      # Keep APK on:
+      #   1. Current release
+      #   2. Previous release
+      #   3. Previous-previous release
+      #
+      # Delete APK from anything older.
+      # ─────────────────────────────────────────────
+
+      - name: Cleanup Old APK Assets in Public Repo (keep latest 3)
         if: success() && steps.mirror.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
         run: |
           REPO="Abdulaowalasif/ezze-wash-apk-release"
           CURRENT_TAG="${{ github.ref_name }}"
+          KEEP_PREVIOUS=2
 
-          echo "Keeping APK asset only on: $CURRENT_TAG in $REPO"
+          echo "=========================================="
+          echo "Public Repository APK Cleanup"
+          echo "=========================================="
+          echo "Repository: $REPO"
+          echo "Current release: $CURRENT_TAG"
+          echo "Current APK will NEVER be deleted."
+          echo "Keeping current + $KEEP_PREVIOUS previous releases."
+          echo "=========================================="
 
-          gh release list --repo "$REPO" --limit 100 --json tagName -q '.[].tagName' | while read -r TAG; do
-            if [ "$TAG" != "$CURRENT_TAG" ]; then
-              ASSETS=$(gh release view "$TAG" --repo "$REPO" --json assets -q '.assets[].name' | grep -i '\.apk$' || true)
-              for ASSET in $ASSETS; do
-                echo "Removing APK asset '$ASSET' from release $TAG"
-                gh release delete-asset "$TAG" "$ASSET" --repo "$REPO" --yes
-              done
+          # Get all releases except the current release.
+          #
+          # Sort by createdAt:
+          # newest -> oldest
+          #
+          # The current release is explicitly excluded so it
+          # can NEVER be selected for deletion.
+
+          gh release list \
+            --repo "$REPO" \
+            --limit 100 \
+            --json tagName,createdAt \
+            -q "map(select(.tagName != \"$CURRENT_TAG\")) | sort_by(.createdAt) | reverse | .[].tagName" \
+            > previous_tags.txt
+
+          echo ""
+          echo "Previous releases:"
+          cat previous_tags.txt || true
+
+          echo ""
+          echo "=========================================="
+          echo "Releases whose APK will be kept:"
+          echo "=========================================="
+
+          head -n "$KEEP_PREVIOUS" previous_tags.txt || true
+
+          echo ""
+          echo "=========================================="
+          echo "Cleaning old APK assets..."
+          echo "=========================================="
+
+          # Skip the newest 2 previous releases.
+          # Everything after them is old.
+
+          tail -n +$((KEEP_PREVIOUS + 1)) previous_tags.txt |
+          while read -r TAG; do
+
+            [ -z "$TAG" ] && continue
+
+            echo ""
+            echo "Cleaning old release: $TAG"
+
+            ASSETS=$(gh release view "$TAG" \
+              --repo "$REPO" \
+              --json assets \
+              -q '.assets[].name' |
+              grep -i '\.apk$' || true)
+
+            if [ -z "$ASSETS" ]; then
+              echo "No APK assets found in $TAG"
+              continue
             fi
+
+            for ASSET in $ASSETS; do
+
+              echo "Removing APK asset '$ASSET' from release $TAG"
+
+              gh release delete-asset \
+                "$TAG" \
+                "$ASSET" \
+                --repo "$REPO" \
+                --yes
+
+            done
+
           done
+
+          echo ""
+          echo "=========================================="
+          echo "Public repository cleanup completed."
+          echo "=========================================="
+          echo ""
+          echo "APK assets remain on:"
+
+          echo "Current:"
+          echo "$CURRENT_TAG"
+
+          echo ""
+          echo "Previous releases:"
+          head -n "$KEEP_PREVIOUS" previous_tags.txt || true
