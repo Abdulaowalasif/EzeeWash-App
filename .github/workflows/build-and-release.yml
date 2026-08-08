@@ -136,24 +136,22 @@ jobs:
             fi
           done
 
-      - name: Cleanup Old APK Assets in Public Repo (keep latest 3)
+      - name: Cleanup Old APK Assets in Public Repo (keep latest)
         if: success() && steps.mirror.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
         run: |
           REPO="Abdulaowalasif/ezze-wash-apk-release"
-          KEEP=3
+          CURRENT_TAG="${{ github.ref_name }}"
 
-          gh release list --repo "$REPO" --limit 100 --json tagName,createdAt \
-            -q 'sort_by(.createdAt) | reverse | .[].tagName' > all_tags.txt
+          echo "Keeping APK asset only on: $CURRENT_TAG in $REPO"
 
-          total=$(wc -l < all_tags.txt)
-          echo "Found $total releases in $REPO, keeping APK assets on newest $KEEP"
-
-          tail -n +$((KEEP + 1)) all_tags.txt | while read -r TAG; do
-            ASSETS=$(gh release view "$TAG" --repo "$REPO" --json assets -q '.assets[].name' | grep -i '\.apk$' || true)
-            for ASSET in $ASSETS; do
-              echo "Removing APK asset '$ASSET' from release $TAG"
-              gh release delete-asset "$TAG" "$ASSET" --repo "$REPO" --yes
-            done
+          gh release list --repo "$REPO" --limit 100 --json tagName -q '.[].tagName' | while read -r TAG; do
+            if [ "$TAG" != "$CURRENT_TAG" ]; then
+              ASSETS=$(gh release view "$TAG" --repo "$REPO" --json assets -q '.assets[].name' | grep -i '\.apk$' || true)
+              for ASSET in $ASSETS; do
+                echo "Removing APK asset '$ASSET' from release $TAG"
+                gh release delete-asset "$TAG" "$ASSET" --repo "$REPO" --yes
+              done
+            fi
           done

@@ -15,7 +15,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class SettingsAppUpdateCard extends StatefulWidget {
   final bool isDark;
-  
+
   const SettingsAppUpdateCard({super.key, required this.isDark});
 
   @override
@@ -27,7 +27,7 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
   String _currentVersion = 'Loading...';
   String _latestVersion = 'Loading...';
   String? _apkDownloadUrl;
-  
+
   bool _isChecking = true;
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
@@ -43,20 +43,35 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
     _checkForUpdates();
   }
 
-  /// Compares two version strings like "1.0.3" vs "1.0.2"
-  /// Returns true if [latest] is strictly newer than [current].
   bool _isNewer(String latest, String current) {
     try {
-      final l = latest.split('.').map(int.parse).toList();
-      final c = current.split('.').map(int.parse).toList();
-      for (int i = 0; i < 3; i++) {
+      // Remove any non-numeric and non-dot characters (like spaces, \n, \r, etc.)
+      final cleanLatest = latest.replaceAll(RegExp(r'[^0-9.]'), '');
+      final cleanCurrent = current.replaceAll(RegExp(r'[^0-9.]'), '');
+
+      final l = cleanLatest
+          .split('.')
+          .where((e) => e.isNotEmpty)
+          .map((e) => int.tryParse(e) ?? 0)
+          .toList();
+      final c = cleanCurrent
+          .split('.')
+          .where((e) => e.isNotEmpty)
+          .map((e) => int.tryParse(e) ?? 0)
+          .toList();
+
+      final maxLength = l.length > c.length ? l.length : c.length;
+      final maxIter = maxLength > 3 ? maxLength : 3;
+
+      for (int i = 0; i < maxIter; i++) {
         final lv = i < l.length ? l[i] : 0;
         final cv = i < c.length ? c[i] : 0;
         if (lv > cv) return true;
         if (lv < cv) return false;
       }
       return false;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Version compare error: $e');
       return false;
     }
   }
@@ -76,29 +91,38 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
       if (mounted) setState(() => _currentVersion = 'Unknown');
     }
 
-    // Fetch releases from GitHub (get latest 2 to determine previous version)
+    // Fetch releases from GitHub (get latest 10 to ensure we find ones with APKs)
     try {
       final uri = Uri.parse(
-        'https://api.github.com/repos/$_repoOwner/$_repoName/releases?per_page=2&page=1',
+        'https://api.github.com/repos/$_repoOwner/$_repoName/releases?per_page=10&page=1',
       );
       final githubToken = dotenv.env['GITHUB_PAT'] ?? '';
 
-      final response = await http.get(uri, headers: {
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'EzeeWash-App',
-        if (githubToken.isNotEmpty) 'Authorization': 'Bearer $githubToken',
-      }).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            uri,
+            headers: {
+              'Accept': 'application/vnd.github.v3+json',
+              'User-Agent': 'EzeeWash-App',
+              if (githubToken.isNotEmpty)
+                'Authorization': 'Bearer $githubToken',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       debugPrint('GitHub API status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final releases = jsonDecode(response.body) as List<dynamic>;
 
-        if (releases.isNotEmpty) {
-          // Latest release
-          final latest = releases[0] as Map<String, dynamic>;
-          final tagName = (latest['tag_name'] as String? ?? '').replaceAll('v', '');
-          final assets = (latest['assets'] as List?) ?? [];
+        // Find the latest and previous releases that actually have an APK asset
+        Map<String, dynamic>? latestReleaseWithApk;
+        Map<String, dynamic>? previousReleaseWithApk;
+        String? foundApkUrl;
+
+        for (final r in releases) {
+          final release = r as Map<String, dynamic>;
+          final assets = (release['assets'] as List?) ?? [];
 
           String? apkUrl;
           for (final asset in assets) {
@@ -109,23 +133,38 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
             }
           }
 
-          // Previous release (second in the list)
+          if (apkUrl != null) {
+            if (latestReleaseWithApk == null) {
+              latestReleaseWithApk = release;
+              foundApkUrl = apkUrl;
+            } else if (previousReleaseWithApk == null) {
+              previousReleaseWithApk = release;
+              break; // Found both latest and previous
+            }
+          }
+        }
+
+        if (latestReleaseWithApk != null) {
+          final tagName = (latestReleaseWithApk['tag_name'] as String? ?? '')
+              .replaceAll('v', '');
           String prevTag = '—';
-          if (releases.length > 1) {
-            final previous = releases[1] as Map<String, dynamic>;
-            prevTag = (previous['tag_name'] as String? ?? '').replaceAll('v', '');
-            if (prevTag.isEmpty) prevTag = '—';
+          if (previousReleaseWithApk != null) {
+            prevTag = (previousReleaseWithApk['tag_name'] as String? ?? '')
+                .replaceAll('v', '');
           }
 
-          debugPrint('Latest tag: $tagName | Previous tag: $prevTag | APK URL: $apkUrl');
+          debugPrint(
+            'Latest tag: $tagName | Previous tag: $prevTag | APK URL: $foundApkUrl',
+          );
 
           if (mounted) {
             setState(() {
               _latestVersion = tagName.isEmpty ? 'No release yet' : tagName;
               _previousVersion = prevTag;
-              _apkDownloadUrl = apkUrl;
-              _updateAvailable = tagName.isNotEmpty &&
-                  apkUrl != null &&
+              _apkDownloadUrl = foundApkUrl;
+              _updateAvailable =
+                  tagName.isNotEmpty &&
+                  foundApkUrl != null &&
                   _isNewer(tagName, _currentVersion);
             });
           }
@@ -141,7 +180,9 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
         debugPrint('GitHub: No releases found (404)');
         if (mounted) setState(() => _latestVersion = 'No releases yet');
       } else {
-        debugPrint('GitHub API error: ${response.statusCode} — ${response.body}');
+        debugPrint(
+          'GitHub API error: ${response.statusCode} — ${response.body}',
+        );
         if (mounted) {
           setState(() {
             _latestVersion = 'Error ${response.statusCode}';
@@ -162,7 +203,6 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
     if (mounted) setState(() => _isChecking = false);
   }
 
-
   Future<void> _downloadAndInstall() async {
     if (_apkDownloadUrl == null) return;
 
@@ -170,7 +210,12 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
     if (Platform.isAndroid) {
       final status = await Permission.requestInstallPackages.request();
       if (!status.isGranted) {
-        if (mounted) AppSnackBar.show(context, 'Permission required to install update.', type: SnackBarType.error);
+        if (mounted)
+          AppSnackBar.show(
+            context,
+            'Permission required to install update.',
+            type: SnackBarType.error,
+          );
         return;
       }
     }
@@ -223,7 +268,11 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
       debugPrint('Download failed: $e');
       if (mounted) {
         setState(() => _isDownloading = false);
-        AppSnackBar.show(context, 'Failed to download update.', type: SnackBarType.error);
+        AppSnackBar.show(
+          context,
+          'Failed to download update.',
+          type: SnackBarType.error,
+        );
       }
     }
   }
@@ -257,18 +306,28 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildRow('Previous Version', _isChecking ? '...' : _previousVersion, widget.isDark),
+          _buildRow(
+            'Previous Version',
+            _isChecking ? '...' : _previousVersion,
+            widget.isDark,
+          ),
           const SizedBox(height: 8),
           _buildRow('Current Version', _currentVersion, widget.isDark),
           const SizedBox(height: 8),
-          _buildRow('Latest Version', _isChecking ? 'Checking...' : _latestVersion, widget.isDark),
+          _buildRow(
+            'Latest Version',
+            _isChecking ? 'Checking...' : _latestVersion,
+            widget.isDark,
+          ),
           const SizedBox(height: 16),
-          
+
           if (_isDownloading) ...[
             LinearProgressIndicator(
               value: _downloadProgress,
               backgroundColor: AppColors.primary.withOpacity(0.1),
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.primary,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -276,51 +335,81 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
               style: AppTextStyles.caption(widget.isDark),
             ),
           ] else if (_isChecking) ...[
-             const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+            const Center(
+              child: SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
           ] else if (_hasError) ...[
-             SizedBox(
-               width: double.infinity,
-               child: ElevatedButton.icon(
-                 onPressed: _checkForUpdates,
-                 icon: const Icon(Iconsax.refresh, color: Colors.white, size: 20),
-                 label: const Text('Retry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                 style: ElevatedButton.styleFrom(
-                   backgroundColor: AppColors.error,
-                   padding: const EdgeInsets.symmetric(vertical: 12),
-                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                 ),
-               ),
-             ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _checkForUpdates,
+                icon: const Icon(
+                  Iconsax.refresh,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                label: const Text(
+                  'Retry',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
           ] else if (_updateAvailable) ...[
-             SizedBox(
-               width: double.infinity,
-               child: ElevatedButton(
-                 onPressed: _downloadAndInstall,
-                 style: ElevatedButton.styleFrom(
-                   backgroundColor: AppColors.primary,
-                   padding: const EdgeInsets.symmetric(vertical: 12),
-                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                 ),
-                 child: const Text('Update Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-               ),
-             ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _downloadAndInstall,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Update Now',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
           ] else ...[
-             Container(
-               width: double.infinity,
-               padding: const EdgeInsets.symmetric(vertical: 12),
-               decoration: BoxDecoration(
-                 color: widget.isDark ? Colors.grey.withOpacity(0.1) : Colors.grey.withOpacity(0.05),
-                 borderRadius: BorderRadius.circular(12),
-               ),
-               alignment: Alignment.center,
-               child: Text(
-                 "You're using the latest version.",
-                 style: AppTextStyles.bodyMedium(widget.isDark).copyWith(
-                   color: widget.isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
-                 ),
-               ),
-             )
-          ]
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: widget.isDark
+                    ? Colors.grey.withOpacity(0.1)
+                    : Colors.grey.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                "You're using the latest version.",
+                style: AppTextStyles.bodyMedium(widget.isDark).copyWith(
+                  color: widget.isDark
+                      ? AppColors.darkSubtext
+                      : AppColors.lightSubtext,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
