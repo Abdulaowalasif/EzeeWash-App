@@ -155,7 +155,10 @@ GoRouter createRouter(AuthBloc authBloc) {
                   ),
                   GoRoute(
                     path: RoutesName.settings,
-                    pageBuilder: (c, s) => _slide(const SettingsScreen(), s),
+                    pageBuilder: (c, s) {
+                      final autoStartUpdate = s.extra as bool? ?? false;
+                      return _slide(SettingsScreen(autoStartUpdate: autoStartUpdate), s);
+                    },
                   ),
                 ],
               ),

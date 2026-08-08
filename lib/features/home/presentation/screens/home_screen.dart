@@ -7,7 +7,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import '../../../../core/constants/app_color.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_section_header.dart';
 import '../../../../core/widgets/app_shimmer.dart';
@@ -44,7 +51,110 @@ class _HomeScreenState extends State<HomeScreen> {
       if (authState is AuthAuthenticated && authState.fromSignUp) {
         AppSnackBar.show(context, 'Account created successfully! Welcome 🎉');
       }
+      _checkAndShowUpdateDialog();
     });
+  }
+
+  Future<void> _checkAndShowUpdateDialog() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
+
+      final uri = Uri.parse(
+        'https://api.github.com/repos/Abdulaowalasif/ezze-wash-apk-release/releases?per_page=10&page=1',
+      );
+      final githubToken = dotenv.env['GITHUB_PAT'] ?? '';
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'EzeeWash-App',
+          if (githubToken.isNotEmpty) 'Authorization': 'Bearer $githubToken',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final releases = jsonDecode(response.body) as List<dynamic>;
+        String? latestVersion;
+        String? apkUrl;
+
+        for (final r in releases) {
+          final release = r as Map<String, dynamic>;
+          final assets = (release['assets'] as List?) ?? [];
+          for (final asset in assets) {
+            final name = asset['name'] as String? ?? '';
+            if (name.endsWith('.apk')) {
+              apkUrl = asset['url'] as String?;
+              latestVersion = (release['tag_name'] as String? ?? '').replaceAll('v', '');
+              break;
+            }
+          }
+          if (apkUrl != null) break;
+        }
+
+        if (latestVersion != null && apkUrl != null) {
+          final lastPrompted = prefs.getString('last_prompted_version');
+          if (latestVersion == lastPrompted) return;
+
+          final cleanLatest = latestVersion.replaceAll(RegExp(r'[^0-9.]'), '');
+          final cleanCurrent = currentVersion.replaceAll(RegExp(r'[^0-9.]'), '');
+          
+          bool isNewer = false;
+          final l = cleanLatest.split('.').where((e) => e.isNotEmpty).map((e) => int.tryParse(e) ?? 0).toList();
+          final c = cleanCurrent.split('.').where((e) => e.isNotEmpty).map((e) => int.tryParse(e) ?? 0).toList();
+          final maxLen = l.length > c.length ? l.length : c.length;
+          for (int i = 0; i < maxLen; i++) {
+            final lv = i < l.length ? l[i] : 0;
+            final cv = i < c.length ? c[i] : 0;
+            if (lv > cv) { isNewer = true; break; }
+            if (lv < cv) break;
+          }
+
+          if (isNewer && mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (ctx) {
+                final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                return AlertDialog(
+                  backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                  title: Text('Update Available', style: AppTextStyles.h4(isDark)),
+                  content: Text('A new version ($latestVersion) is available. Would you like to update now?', style: AppTextStyles.body(isDark)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  actions: [
+                    TextButton(
+                      onPressed: () async {
+                        await prefs.setString('last_prompted_version', latestVersion!);
+                        if (mounted) Navigator.pop(ctx);
+                      },
+                      child: Text('Not Now', style: AppTextStyles.buttonOutline),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () async {
+                        await prefs.setString('last_prompted_version', latestVersion!);
+                        if (mounted) {
+                          Navigator.pop(ctx);
+                          context.push(RoutesName.settingsNavigate, extra: true);
+                        }
+                      },
+                      child: const Text('Update Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                );
+              }
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Update check failed: $e');
+    }
   }
 
   @override

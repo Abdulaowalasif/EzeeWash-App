@@ -29,7 +29,8 @@ import '../widgets/settings_widgets.dart';
 import '../widgets/app_update_card.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  final bool autoStartUpdate;
+  const SettingsScreen({super.key, this.autoStartUpdate = false});
 
   @override
   Widget build(BuildContext context) {
@@ -57,10 +58,11 @@ class SettingsScreen extends StatelessWidget {
               profile: profile,
               isDark: isDark,
               isUpdating: state is ProfileUpdating,
+              autoStartUpdate: autoStartUpdate,
             );
           }
           if (state is ProfileError && (state).profile != null) {
-            return _SettingsBody(profile: (state).profile!, isDark: isDark);
+            return _SettingsBody(profile: (state).profile!, isDark: isDark, autoStartUpdate: autoStartUpdate);
           }
           return Column(
             children: [
@@ -122,11 +124,13 @@ class _SettingsBody extends StatefulWidget {
   final ProfileEntity profile;
   final bool isDark;
   final bool isUpdating;
+  final bool autoStartUpdate;
 
   const _SettingsBody({
     required this.profile,
     required this.isDark,
     this.isUpdating = false,
+    this.autoStartUpdate = false,
   });
 
   @override
@@ -216,7 +220,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
                 const SizedBox(height: 24),
                 SettingsSectionLabel(label: 'App Update', isDark: isDark),
                 const SizedBox(height: 10),
-                SettingsAppUpdateCard(isDark: isDark),
+                SettingsAppUpdateCard(isDark: isDark, autoStartUpdate: widget.autoStartUpdate),
                 const SizedBox(height: 24),
                 SettingsSectionLabel(label: 'Account', isDark: isDark),
                 const SizedBox(height: 10),

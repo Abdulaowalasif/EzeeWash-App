@@ -15,15 +15,15 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class SettingsAppUpdateCard extends StatefulWidget {
   final bool isDark;
+  final bool autoStartUpdate;
 
-  const SettingsAppUpdateCard({super.key, required this.isDark});
+  const SettingsAppUpdateCard({super.key, required this.isDark, this.autoStartUpdate = false});
 
   @override
   State<SettingsAppUpdateCard> createState() => _SettingsAppUpdateCardState();
 }
 
 class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
-  String _previousVersion = '—';
   String _currentVersion = 'Loading...';
   String _latestVersion = 'Loading...';
   String? _apkDownloadUrl;
@@ -115,9 +115,7 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
       if (response.statusCode == 200) {
         final releases = jsonDecode(response.body) as List<dynamic>;
 
-        // Find the latest and previous releases that actually have an APK asset
         Map<String, dynamic>? latestReleaseWithApk;
-        Map<String, dynamic>? previousReleaseWithApk;
         String? foundApkUrl;
 
         for (final r in releases) {
@@ -134,33 +132,23 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
           }
 
           if (apkUrl != null) {
-            if (latestReleaseWithApk == null) {
-              latestReleaseWithApk = release;
-              foundApkUrl = apkUrl;
-            } else if (previousReleaseWithApk == null) {
-              previousReleaseWithApk = release;
-              break; // Found both latest and previous
-            }
+            latestReleaseWithApk = release;
+            foundApkUrl = apkUrl;
+            break;
           }
         }
 
         if (latestReleaseWithApk != null) {
           final tagName = (latestReleaseWithApk['tag_name'] as String? ?? '')
               .replaceAll('v', '');
-          String prevTag = '—';
-          if (previousReleaseWithApk != null) {
-            prevTag = (previousReleaseWithApk['tag_name'] as String? ?? '')
-                .replaceAll('v', '');
-          }
 
           debugPrint(
-            'Latest tag: $tagName | Previous tag: $prevTag | APK URL: $foundApkUrl',
+            'Latest tag: $tagName | APK URL: $foundApkUrl',
           );
 
           if (mounted) {
             setState(() {
               _latestVersion = tagName.isEmpty ? 'No release yet' : tagName;
-              _previousVersion = prevTag;
               _apkDownloadUrl = foundApkUrl;
               _updateAvailable =
                   tagName.isNotEmpty &&
@@ -172,7 +160,6 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
           if (mounted) {
             setState(() {
               _latestVersion = 'No releases yet';
-              _previousVersion = '—';
             });
           }
         }
@@ -201,6 +188,9 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
     }
 
     if (mounted) setState(() => _isChecking = false);
+    if (widget.autoStartUpdate && _updateAvailable && !_isDownloading) {
+      _downloadAndInstall();
+    }
   }
 
   Future<void> _downloadAndInstall() async {
@@ -306,12 +296,23 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildRow(
-            'Previous Version',
-            _isChecking ? '...' : _previousVersion,
-            widget.isDark,
-          ),
-          const SizedBox(height: 8),
+
+          if (!_isChecking && !_hasError && _updateAvailable) ...[
+            Text(
+              "You're using an old version.",
+              style: AppTextStyles.body(widget.isDark).copyWith(
+                color: AppColors.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Please update to latest version.",
+              style: AppTextStyles.bodyMedium(widget.isDark),
+            ),
+            const SizedBox(height: 12),
+          ],
+
           _buildRow('Current Version', _currentVersion, widget.isDark),
           const SizedBox(height: 8),
           _buildRow(
@@ -401,11 +402,12 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
               ),
               alignment: Alignment.center,
               child: Text(
-                "You're using the latest version.",
+                "Using latest version",
                 style: AppTextStyles.bodyMedium(widget.isDark).copyWith(
                   color: widget.isDark
                       ? AppColors.darkSubtext
                       : AppColors.lightSubtext,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
