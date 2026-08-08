@@ -115,7 +115,7 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const icons = [Iconsax.heart, Iconsax.truck_fast, Iconsax.home, Icons.smart_toy_outlined, Iconsax.notification];
-    final labels = ['Services', 'Orders', 'Home', 'Bot', 'Alerts'];
+    final labels = ['Services', 'Orders', 'Home', 'Ai Guide', 'Alerts'];
 
     return Container(
       decoration: BoxDecoration(

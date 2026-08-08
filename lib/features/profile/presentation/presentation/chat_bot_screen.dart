@@ -54,17 +54,36 @@ class ChatBotScreen extends StatefulWidget {
   State<ChatBotScreen> createState() => _ChatBotScreenState();
 }
 
-class _ChatBotScreenState extends State<ChatBotScreen> {
+class _ChatBotScreenState extends State<ChatBotScreen> with TickerProviderStateMixin {
   final _ctrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final ImagePicker _picker = ImagePicker();
 
   bool _botTyping = false;
+  late final AnimationController _floatController;
+  final List<Offset> _bubbleOffsets = const [
+    Offset(0.1, 0.2),
+    Offset(0.85, 0.25),
+    Offset(0.2, 0.55),
+    Offset(0.8, 0.65),
+    Offset(0.5, 0.85),
+    Offset(0.4, 0.1),
+    Offset(0.7, 0.9),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    )..repeat(reverse: true);
+  }
 
   final List<_Message> _messages = [
     _Message(
       text:
-          "I can help you with orders, laundry tips, and more. What do you need?",
+          "Hi I am <blue>Bubble Bot</blue>💭. I can help you with orders, laundry tips, and more. What do you need?",
       sender: _Sender.bot,
       time: DateTime.now(),
     ),
@@ -172,6 +191,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
   @override
   void dispose() {
+    _floatController.dispose();
     _ctrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -183,6 +203,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       backgroundColor: bg,
@@ -191,8 +212,17 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
         title: 'Bubble Bot',
         trailing: _OnlinePill(),
       ),
-      body: Column(
+      body: Stack(
         children: [
+          ..._bubbleOffsets.asMap().entries.map((e) => _FloatingBubble(
+            controller: _floatController,
+            x: e.value.dx * size.width,
+            y: e.value.dy * size.height,
+            index: e.key,
+            isDark: isDark,
+          )),
+          Column(
+            children: [
           Expanded(
             child: ListView.builder(
               controller: _scrollCtrl,
@@ -257,6 +287,8 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
           ),
         ],
       ),
+      ],
+      ),
     );
   }
 }
@@ -285,14 +317,19 @@ class _Bubble extends StatelessWidget {
       fontSize: 14.0,
     );
     final bold = base.copyWith(fontWeight: FontWeight.w700);
+    final blueBold = bold.copyWith(color: Colors.blue);
     final spans = <TextSpan>[];
-    final rx = RegExp(r'\*([^*]+)\*');
+    final rx = RegExp(r'<blue>(.*?)</blue>|\*([^*]+)\*');
     int c = 0;
     for (final m in rx.allMatches(msg.text)) {
       if (m.start > c) {
         spans.add(TextSpan(text: msg.text.substring(c, m.start), style: base));
       }
-      spans.add(TextSpan(text: m.group(1), style: bold));
+      if (m.group(1) != null) {
+        spans.add(TextSpan(text: m.group(1), style: blueBold));
+      } else if (m.group(2) != null) {
+        spans.add(TextSpan(text: m.group(2), style: bold));
+      }
       c = m.end;
     }
     if (c < msg.text.length) {
@@ -892,5 +929,54 @@ class ChatApi {
         action: "none",
       );
     }
+  }
+}
+
+// ─── Floating bubbles ─────────────────────────────────────────────────────────
+
+class _FloatingBubble extends StatelessWidget {
+  final AnimationController controller;
+  final double x, y;
+  final int index;
+  final bool isDark;
+
+  const _FloatingBubble({
+    required this.controller,
+    required this.x,
+    required this.y,
+    required this.index,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const sizes = [58.0, 38.0, 74.0, 46.0, 30.0];
+    const delays = [0.0, 0.20, 0.45, 0.65, 0.85];
+    final sz = sizes[index % sizes.length];
+    final delay = delays[index % delays.length];
+
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (_, __) {
+        final t = (controller.value + delay) % 1.0;
+        final dy = sin(t * pi * 2) * 12;
+        final dx = cos(t * pi) * 5;
+        return Positioned(
+          left: x - sz / 2 + dx,
+          top: y - sz / 2 + dy,
+          child: Container(
+            width: sz, height: sz,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primary.withOpacity(isDark ? 0.08 : 0.05),
+              border: Border.all(
+                color: AppColors.primary.withOpacity(isDark ? 0.14 : 0.09),
+                width: 1,
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
