@@ -138,9 +138,24 @@ class _ChatBotScreenState extends State<ChatBotScreen> with TickerProviderStateM
           ? "Please analyze this fabric/item."
           : t;
 
+      final List<Map<String, dynamic>> historyData = [];
+      for (final m in _messages.sublist(0, _messages.length - 1)) {
+        String? b64;
+        if (m.imageFile != null) {
+          final bytes = await m.imageFile!.readAsBytes();
+          b64 = base64Encode(bytes);
+        }
+        historyData.add({
+          'role': m.sender == _Sender.user ? 'user' : 'model',
+          'text': m.text,
+          if (b64 != null) 'image': b64,
+        });
+      }
+
       final BotResponse botData = await ChatApi.sendMessage(
         promptText,
         imageFile: image,
+        history: historyData,
       );
 
       if (!mounted) return;
@@ -882,6 +897,7 @@ class ChatApi {
   static Future<BotResponse> sendMessage(
     String message, {
     File? imageFile,
+    List<Map<String, dynamic>>? history,
   }) async {
     String? base64Image;
 
@@ -900,6 +916,7 @@ class ChatApi {
           'message': message,
           if (base64Image != null) 'image': base64Image,
           if (userId != null) 'user_id': userId,
+          if (history != null) 'history': history,
         },
       );
 

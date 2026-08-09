@@ -14,6 +14,7 @@ Deno.serve(async (req) => {
     const message = body?.message || "Please analyze this image.";
     const imageBase64 = body?.image;
     const userId: string | null = body?.user_id ?? null;
+    const history = body?.history || [];
 
     if (!message && !imageBase64) {
       return new Response(
@@ -116,7 +117,7 @@ ${promosContext}
     // ─────────────────────────────
     // 4. System prompt
     // ─────────────────────────────
-    const prompt = `
+    const systemPrompt = `
 You are "Bubble Bot", the official AI assistant for the EzzeWash laundry service app.
 
 DATABASE KNOWLEDGE (CRITICAL):
@@ -142,24 +143,52 @@ Available action codes:
 - "nav_track_order" : User wants to track laundry.
 - "nav_pricing" : User asks about prices or a paid service is recommended.
 - "nav_profile" : User asks about their account.
-
-User message: ${message}
 `;
 
     // ─────────────────────────────
     // 5. Construct Payload Parts
     // ─────────────────────────────
-    const parts: any[] = [{ text: prompt }];
+    const contents: any[] = [];
 
+    if (history && Array.isArray(history)) {
+      for (const msg of history) {
+        const parts: any[] = [];
+        if (msg.text) {
+          parts.push({ text: msg.text });
+        }
+        if (msg.image) {
+          const cleanBase64 = msg.image.replace(/^data:image\/\w+;base64,/, "");
+          parts.push({
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: cleanBase64,
+            },
+          });
+        }
+        if (parts.length > 0) {
+          contents.push({
+            role: msg.role === 'model' ? 'model' : 'user',
+            parts: parts
+          });
+        }
+      }
+    }
+
+    const currentParts: any[] = [{ text: message }];
     if (imageBase64) {
       const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-      parts.push({
+      currentParts.push({
         inlineData: {
           mimeType: "image/jpeg",
           data: cleanBase64,
         },
       });
     }
+
+    contents.push({
+      role: 'user',
+      parts: currentParts
+    });
 
     // ─────────────────────────────
     // 6. Gemini API call
@@ -170,10 +199,14 @@ User message: ${message}
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts }],
+          systemInstruction: {
+            parts: [{ text: systemPrompt }]
+          },
+          contents: contents,
           generationConfig: {
             maxOutputTokens: 4096,
             temperature: 0.2,
+            responseMimeType: "application/json",
           },
         }),
       }
@@ -225,8 +258,17 @@ User message: ${message}
     try {
       parsed = JSON.parse(replyString);
     } catch (_) {
-      // If Gemini returned plain text instead of JSON, wrap it safely
-      parsed = { reply: replyString, action: "none", service_id: null };
+      // If there's extra conversational text, try to extract just the JSON part
+      const jsonMatch = replyString.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+        } catch (e) {
+          parsed = { reply: replyString, action: "none", service_id: null };
+        }
+      } else {
+        parsed = { reply: replyString, action: "none", service_id: null };
+      }
     }
 
     // Ensure service_id is a valid UUID from our services list, otherwise null
