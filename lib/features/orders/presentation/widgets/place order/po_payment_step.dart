@@ -15,8 +15,10 @@ class PoPaymentStep extends StatefulWidget {
   final bool cardAvailable, isDark;
   final String? stripeError, serviceName, storeName, pickupInfo, deliveryInfo;
   final String? appliedCoupon;
+  final String? selectedSize;
   final ValueChanged<PaymentMethod> onMethodChanged;
   final ValueChanged<int> onQuantityChanged;
+  final ValueChanged<String>? onSizeChanged;
   final Future<String?> Function(String code) onApplyCoupon;
   final VoidCallback onRemoveCoupon;
 
@@ -37,8 +39,10 @@ class PoPaymentStep extends StatefulWidget {
     this.pickupInfo,
     this.deliveryInfo,
     this.appliedCoupon,
+    this.selectedSize,
     required this.onMethodChanged,
     required this.onQuantityChanged,
+    this.onSizeChanged,
     required this.onApplyCoupon,
     required this.onRemoveCoupon,
   });
@@ -100,6 +104,9 @@ class _PoPaymentStepState extends State<PoPaymentStep> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isShoeClean = widget.serviceName?.toLowerCase().contains('shoe') ?? false;
+    final bool isComforterClean = widget.serviceName?.toLowerCase().contains('comfort') ?? false;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -123,7 +130,7 @@ class _PoPaymentStepState extends State<PoPaymentStep> {
                 child: Divider(color: Colors.white.withOpacity(0.15), thickness: 1),
               ),
               _SummaryLine(
-                '${widget.quantity} pcs × ৳${widget.perPcsPrice.toStringAsFixed(0)}',
+                '${widget.quantity} ${isShoeClean ? 'pairs' : 'pcs'} × ৳${widget.perPcsPrice.toStringAsFixed(0)}',
                 '৳${widget.subtotal.toStringAsFixed(0)}',
               ),
               _SummaryLine(
@@ -232,11 +239,63 @@ class _PoPaymentStepState extends State<PoPaymentStep> {
 
         const SizedBox(height: 28),
 
+        if (isComforterClean) ...[
+          Text(
+            'Select Size',
+            style: GoogleFonts.alexandria(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: widget.isDark ? Colors.white : AppColors.lightText,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: ['Single', 'Twin XL', 'Double', 'Queen', 'King'].map((size) {
+              final isSelected = widget.selectedSize == size;
+              return GestureDetector(
+                onTap: () => widget.onSizeChanged?.call(size),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSelected ? 20 : 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary
+                        : (widget.isDark ? AppColors.darkSurface : AppColors.lightSurface),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primary
+                          : (widget.isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                    ),
+                  ),
+                  child: Text(
+                    size,
+                    style: GoogleFonts.alexandria(
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected
+                          ? Colors.white
+                          : (widget.isDark ? Colors.white70 : AppColors.lightText),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 28),
+        ],
+
         // ── Quantity Selector ──────────────────────────────────────────────
         AppQuantitySelector(
           quantity: widget.quantity,
           isDark: widget.isDark,
-          priceLabel: '৳${widget.perPcsPrice.toStringAsFixed(0)} per piece',
+          title: isShoeClean ? 'Select Pair' : 'Number of Pieces',
+          priceLabel: '৳${widget.perPcsPrice.toStringAsFixed(0)} per ${isShoeClean ? 'pair' : 'piece'}',
           onChanged: widget.onQuantityChanged,
         ),
 

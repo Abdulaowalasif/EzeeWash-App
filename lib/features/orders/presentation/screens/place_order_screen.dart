@@ -55,6 +55,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   int? _serviceIdx;
   int? _storeIdx;
   int _quantity = 1;
+  String? _selectedComforterSize;
 
   // ─── Schedule ────────────────────────────────────────────────────────────────
   late DateTime _pickupDate;
@@ -513,12 +514,20 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       pickupTime: _pickupTime == 'Select time' ? null : _pickupTime,
       deliveryDate: _deliveryDate,
       deliveryTime: _deliveryTime == 'Select time' ? null : _deliveryTime,
-      specialInstructions:
-      _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+      specialInstructions: _buildSpecialInstructions(),
       paymentMethod: method,
       couponCode: _appliedCoupon,
       discountAmount: _discountAmount,
     );
+  }
+
+  String? _buildSpecialInstructions() {
+    final note = _noteCtrl.text.trim();
+    if (_selectedComforterSize != null) {
+      if (note.isEmpty) return 'Size: $_selectedComforterSize';
+      return 'Size: $_selectedComforterSize\n$note';
+    }
+    return note.isEmpty ? null : note;
   }
 
   Future<void> _handleStripePayment() async {
@@ -768,6 +777,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           isDark: isDark,
           stripeError: _stripeError,
           appliedCoupon: _appliedCoupon,
+          selectedSize: _selectedComforterSize,
+          onSizeChanged: (s) => setState(() => _selectedComforterSize = s),
           serviceName: rp?.serviceName ??
               (_serviceIdx != null ? _services[_serviceIdx!].title : ''),
           storeName: rp?.storeName ??
