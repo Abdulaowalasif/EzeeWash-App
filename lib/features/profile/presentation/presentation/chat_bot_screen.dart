@@ -77,7 +77,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> with TickerProviderStateM
     _floatController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 5),
-    )..repeat(reverse: true);
+    )..repeat();
   }
 
   final List<_Message> _messages = [
@@ -975,9 +975,9 @@ class _FloatingBubble extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (_, __) {
-        final t = (controller.value + delay) % 1.0;
+        final t = controller.value + delay;
         final dy = sin(t * pi * 2) * 12;
-        final dx = cos(t * pi) * 5;
+        final dx = cos(t * pi * 2) * 8;
         return Positioned(
           left: x - sz / 2 + dx,
           top: y - sz / 2 + dy,

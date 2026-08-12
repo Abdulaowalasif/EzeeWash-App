@@ -152,8 +152,27 @@ jobs:
                   --yes
               done
 
-            fi
-
           done
 
           echo "Private repository cleanup completed."
+
+      # ─────────────────────────────────────────────
+      # Send Push Notification via OneSignal
+      # ─────────────────────────────────────────────
+
+      - name: Send OneSignal Push Notification
+        if: success()
+        env:
+          ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
+          ONESIGNAL_REST_API_KEY: ${{ secrets.ONESIGNAL_REST_API_KEY }}
+        run: |
+          curl --request POST \
+            --url https://onesignal.com/api/v1/notifications \
+            --header "Authorization: Basic $ONESIGNAL_REST_API_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{
+              "app_id": "'"$ONESIGNAL_APP_ID"'",
+              "included_segments": ["Subscribed Users"],
+              "headings": {"en": "New Update Available! 🎉"},
+              "contents": {"en": "Version ${{ github.ref_name }} of EzeeWash is now available. Tap to get the latest features and improvements."}
+            }'

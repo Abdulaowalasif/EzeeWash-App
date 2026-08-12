@@ -252,7 +252,15 @@ class _PoPaymentStepState extends State<PoPaymentStep> {
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: ['Single', 'Twin XL', 'Double', 'Queen', 'King'].map((size) {
+            children: [
+              {'name': 'Single', 'dim': '50 x 80 in'},
+              {'name': 'Twin XL', 'dim': '68 x 90 in'},
+              {'name': 'Double', 'dim': '78 x 86 in'},
+              {'name': 'Queen', 'dim': '90 x 90 in'},
+              {'name': 'King', 'dim': '104 x 92 in'},
+            ].map((item) {
+              final size = item['name']!;
+              final dim = item['dim']!;
               final isSelected = widget.selectedSize == size;
               return GestureDetector(
                 onTap: () => widget.onSizeChanged?.call(size),
@@ -274,7 +282,7 @@ class _PoPaymentStepState extends State<PoPaymentStep> {
                     ),
                   ),
                   child: Text(
-                    size,
+                    isSelected ? '$size ($dim)' : size,
                     style: GoogleFonts.alexandria(
                       fontSize: 13,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -473,24 +481,27 @@ class _CouponInputField extends StatelessWidget {
         ? AppColors.error
         : (isDark ? AppColors.darkBorder : AppColors.lightBorder);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: 1),
-      ),
-      child: Row(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Icon(
-              Iconsax.discount_shape,
-              color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
-              size: 20,
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            decoration: BoxDecoration(
+              color: surfaceColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: borderColor, width: 1),
             ),
-          ),
-          Expanded(
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Icon(
+                    Iconsax.discount_shape,
+                    color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                    size: 20,
+                  ),
+                ),
+                Expanded(
             child: TextField(
               controller: controller,
               textInputAction: TextInputAction.done,
@@ -515,36 +526,42 @@ class _CouponInputField extends StatelessWidget {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: isLoading
-                ? const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary),
-              ),
-            )
-                : TextButton(
-              onPressed: onApply,
-              style: TextButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: Text(
-                'Apply',
-                style: GoogleFonts.alexandria(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
         ],
       ),
+    ),
+  ),
+  const SizedBox(width: 12),
+        isLoading
+            ? Container(
+                width: 50,
+                height: 50,
+                alignment: Alignment.center,
+                child: const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary),
+                ),
+              )
+            : SizedBox(
+                height: 52, // Match the typical height of the input field container
+                child: TextButton(
+                  onPressed: onApply,
+                  style: TextButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: Text(
+                    'Apply',
+                    style: GoogleFonts.alexandria(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+      ],
     );
   }
 }
