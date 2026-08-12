@@ -481,27 +481,24 @@ class _CouponInputField extends StatelessWidget {
         ? AppColors.error
         : (isDark ? AppColors.darkBorder : AppColors.lightBorder);
 
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            decoration: BoxDecoration(
-              color: surfaceColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: borderColor, width: 1),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1),
+      ),
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Icon(
+              Iconsax.discount_shape,
+              color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+              size: 20,
             ),
-            child: Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: Icon(
-                    Iconsax.discount_shape,
-                    color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
-                    size: 20,
-                  ),
-                ),
-                Expanded(
+          ),
+          Expanded(
             child: TextField(
               controller: controller,
               textInputAction: TextInputAction.done,
@@ -526,42 +523,39 @@ class _CouponInputField extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
-    ),
-  ),
-  const SizedBox(width: 12),
-        isLoading
-            ? Container(
-                width: 50,
-                height: 50,
-                alignment: Alignment.center,
-                child: const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary),
-                ),
-              )
-            : SizedBox(
-                height: 52, // Match the typical height of the input field container
-                child: TextButton(
-                  onPressed: onApply,
-                  style: TextButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          const SizedBox(width: 8),
+          isLoading
+              ? Container(
+                  width: 50,
+                  height: 50,
+                  alignment: Alignment.center,
+                  child: const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary),
                   ),
-                  child: Text(
-                    'Apply',
-                    style: GoogleFonts.alexandria(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+                )
+              : SizedBox(
+                  height: 50,
+                  child: TextButton(
+                    onPressed: onApply,
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      'Apply',
+                      style: GoogleFonts.alexandria(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
-      ],
+        ],
+      ),
     );
   }
 }

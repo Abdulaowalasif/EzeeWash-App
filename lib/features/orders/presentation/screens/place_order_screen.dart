@@ -91,7 +91,20 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       // ── FIXED: Adding the discount amount back to find the TRUE base price ──
       return (rp.totalPrice - _kServiceCharge + rp.discountAmount) / rp.itemCount;
     }
-    return _serviceIdx != null ? _services[_serviceIdx!].price : 0.0;
+
+    final double basePrice = _serviceIdx != null ? _services[_serviceIdx!].price : 0.0;
+
+    if (_selectedComforterSize != null) {
+      switch (_selectedComforterSize) {
+        case 'Single': return basePrice * 0.5;
+        case 'Twin XL': return basePrice * 0.75;
+        case 'Double': return basePrice * 1.0;
+        case 'Queen': return basePrice * 1.5;
+        case 'King': return basePrice * 2.0;
+      }
+    }
+
+    return basePrice;
   }
 
   double get _subtotal => _perPcsPrice * _quantity;
@@ -712,6 +725,11 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               onTap: () => setState(() {
                 _serviceIdx = i;
                 _storeIdx = null;
+                if (_services[i].title.toLowerCase().contains('comfort')) {
+                  _selectedComforterSize = 'Double';
+                } else {
+                  _selectedComforterSize = null;
+                }
               }),
             );
           }),
@@ -778,7 +796,21 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           stripeError: _stripeError,
           appliedCoupon: _appliedCoupon,
           selectedSize: _selectedComforterSize,
-          onSizeChanged: (s) => setState(() => _selectedComforterSize = s),
+          onSizeChanged: (s) => setState(() {
+            _selectedComforterSize = s;
+            if (_appliedCoupon != null && _appliedDiscountType != null && _appliedDiscountValue != null) {
+              if (_appliedMinOrderAmount != null && (_subtotal + _kServiceCharge) < _appliedMinOrderAmount!) {
+                _removeCoupon();
+                AppSnackBar.show(
+                  context,
+                  'Coupon removed: Minimum order of ৳${_appliedMinOrderAmount!.toStringAsFixed(0)} required.',
+                  isError: true,
+                );
+              } else {
+                _discountAmount = _computeDiscount(_appliedDiscountType!, _appliedDiscountValue!, _appliedMaxDiscount);
+              }
+            }
+          }),
           serviceName: rp?.serviceName ??
               (_serviceIdx != null ? _services[_serviceIdx!].title : ''),
           storeName: rp?.storeName ??

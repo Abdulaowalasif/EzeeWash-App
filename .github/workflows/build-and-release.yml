@@ -151,7 +151,7 @@ jobs:
                   --repo "$REPO" \
                   --yes
               done
-
+            fi
           done
 
           echo "Private repository cleanup completed."
