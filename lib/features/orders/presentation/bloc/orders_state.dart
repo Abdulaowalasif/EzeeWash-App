@@ -54,10 +54,11 @@ final class OrderPlacing extends OrdersState {
 
 /// Order placed successfully.
 final class OrderPlaced extends OrdersState {
+  final String orderId;
   final String orderNumber;
-  const OrderPlaced({required this.orderNumber});
+  const OrderPlaced({required this.orderId, required this.orderNumber});
   @override
-  List<Object> get props => [orderNumber];
+  List<Object> get props => [orderId, orderNumber];
 }
 
 /// A cancel request is in progress — disable the cancel button.

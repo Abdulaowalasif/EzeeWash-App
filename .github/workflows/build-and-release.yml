@@ -172,7 +172,7 @@ jobs:
             --header "Content-Type: application/json" \
             --data '{
               "app_id": "'"$ONESIGNAL_APP_ID"'",
-              "included_segments": ["Subscribed Users"],
+              "included_segments": ["Total Subscriptions"],
               "headings": {"en": "New Update Available! 🎉"},
               "contents": {"en": "Version ${{ github.ref_name }} of EzeeWash is now available. Tap to get the latest features and improvements."}
             }'

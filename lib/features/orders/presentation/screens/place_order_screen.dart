@@ -223,6 +223,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         _services = services;
         _stores = stores;
         _serviceIdx = preIdx;
+        if (preIdx != null && services[preIdx].title.toLowerCase().contains('comfort')) {
+          _selectedComforterSize = 'Double';
+        }
         _dataLoading = false;
       });
 
@@ -620,9 +623,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       listener: (context, state) {
         if (state is OrderPlaced) {
           context.read<OrdersBloc>().add(const OrdersLoadRequested());
+          context.pop(); // Remove PlaceOrderScreen from the current stack
           context.go(
-            '${RoutesName.orders}/${RoutesName.confirmedOrders}',
-            extra: state.orderNumber,
+            RoutesName.confirmedOrdersNavigate,
+            extra: {'orderNumber': state.orderNumber, 'orderId': state.orderId},
           );
         } else if (state is OrdersError) {
           setState(() => _stripeLoading = false);

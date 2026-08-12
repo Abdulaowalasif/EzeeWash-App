@@ -11,7 +11,8 @@ import '../../../../core/widgets/widgets.dart';
 
 class BookingConfirmedScreen extends StatelessWidget {
   final String orderNumber;
-  const BookingConfirmedScreen({super.key, required this.orderNumber});
+  final String orderId;
+  const BookingConfirmedScreen({super.key, required this.orderNumber, required this.orderId});
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +114,7 @@ class BookingConfirmedScreen extends StatelessWidget {
                   AppGradientButton(
                     label: 'Track My Order',
                     icon: Icons.my_location_rounded,
-                    onPressed: () => context.go(RoutesName.orders), // Goes to orders screen
+                    onPressed: () => context.go(RoutesName.trackOrdersNavigate, extra: orderId),
                     verticalPadding: 16,
                     borderRadius: 16,
                   ),
@@ -122,7 +123,10 @@ class BookingConfirmedScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => context.go(RoutesName.home),
+                      onPressed: () {
+                        context.pop(); // Remove Booking Confirmed from Orders stack
+                        context.go(RoutesName.home);
+                      },
                       icon: const Icon(Icons.home_rounded,
                           color: AppColors.primary, size: 20),
                       label: Text('Back to Home',

@@ -97,7 +97,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         }
       },
       (order) {
-        emit(OrderPlaced(orderNumber: order.orderNumber));
+        emit(OrderPlaced(orderId: order.id, orderNumber: order.orderNumber));
         // After placing, reload orders so the new order appears on
         // the OrderScreen immediately. The 600 ms delay gives Supabase time
         // to commit the row before we fetch.

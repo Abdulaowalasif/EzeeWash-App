@@ -119,9 +119,14 @@ GoRouter createRouter(AuthBloc authBloc) {
                   GoRoute(
                     path: RoutesName.confirmedOrders,
                     pageBuilder: (c, s) {
-                      final orderNumber = s.extra as String? ?? 'EZ000001';
+                      final extraMap = s.extra as Map<String, dynamic>? ?? {};
+                      final orderNumber = extraMap['orderNumber'] as String? ?? 'EZ000001';
+                      final orderId = extraMap['orderId'] as String? ?? '';
                       return _slide(
-                        BookingConfirmedScreen(orderNumber: orderNumber),
+                        BookingConfirmedScreen(
+                          orderNumber: orderNumber,
+                          orderId: orderId,
+                        ),
                         s,
                       );
                     },
