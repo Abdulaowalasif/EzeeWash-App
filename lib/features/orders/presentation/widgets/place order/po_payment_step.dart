@@ -6,27 +6,35 @@ import 'package:iconsax/iconsax.dart';
 import '../../../../../core/constants/app_color.dart';
 import '../../../../../core/widgets/form/app_quantity_selector.dart';
 import '../../../domain/entities/place_orders_params.dart';
+import '../../models/reorder_params.dart';
+import '../../../../services/domain/entities/service_entity.dart';
+import '../../../../../core/widgets/app_network_image.dart';
 
 class PoPaymentStep extends StatefulWidget {
   final PaymentMethod selectedMethod;
-  final double perPcsPrice, subtotal, serviceCharge, totalPrice;
+  final double subtotal, serviceCharge, totalPrice;
   final double discountAmount;
-  final int quantity;
   final bool cardAvailable, isDark;
   final String? stripeError, serviceName, storeName, pickupInfo, deliveryInfo;
   final String? appliedCoupon;
-  final String? selectedSize;
+  
+  final List<int>? selectedIndices;
+  final List<ServiceEntity>? services;
+  final Map<int, int>? serviceQuantities;
+  final Map<int, Map<String, int>>? comforterQuantities;
+  final ReorderParams? reorderParams;
+
   final ValueChanged<PaymentMethod> onMethodChanged;
-  final ValueChanged<int> onQuantityChanged;
-  final ValueChanged<String>? onSizeChanged;
+  final void Function(int, int) onQuantityChanged;
+  final void Function(int, String, int)? onComforterQtyChanged;
+  final ValueChanged<int>? onAddService;
+  final ValueChanged<int>? onRemoveService;
   final Future<String?> Function(String code) onApplyCoupon;
   final VoidCallback onRemoveCoupon;
 
   const PoPaymentStep({
     super.key,
     required this.selectedMethod,
-    required this.perPcsPrice,
-    required this.quantity,
     required this.subtotal,
     required this.serviceCharge,
     required this.totalPrice,
@@ -39,10 +47,16 @@ class PoPaymentStep extends StatefulWidget {
     this.pickupInfo,
     this.deliveryInfo,
     this.appliedCoupon,
-    this.selectedSize,
+    this.selectedIndices,
+    this.services,
+    this.serviceQuantities,
+    this.comforterQuantities,
+    this.reorderParams,
+    this.onAddService,
+    this.onRemoveService,
     required this.onMethodChanged,
     required this.onQuantityChanged,
-    this.onSizeChanged,
+    this.onComforterQtyChanged,
     required this.onApplyCoupon,
     required this.onRemoveCoupon,
   });
@@ -102,10 +116,120 @@ class _PoPaymentStepState extends State<PoPaymentStep> {
 
   bool get _isApplied => widget.appliedCoupon != null;
 
+  void _showAddServiceDialog(BuildContext context) {
+    if (widget.services == null || widget.selectedIndices == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: widget.isDark ? AppColors.darkSurface : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final unselected = <int>[];
+        for (int i = 0; i < widget.services!.length; i++) {
+          if (!widget.selectedIndices!.contains(i)) unselected.add(i);
+        }
+
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.5,
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add Another Service',
+                  style: GoogleFonts.alexandria(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: widget.isDark ? Colors.white : AppColors.lightText,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (unselected.isEmpty)
+                  Text(
+                    'All services are already added.',
+                    style: TextStyle(color: widget.isDark ? Colors.white70 : Colors.black54),
+                  )
+                else
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: unselected.length,
+                      itemBuilder: (ctx, index) {
+                        final idx = unselected[index];
+                        final s = widget.services![idx];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            widget.onAddService?.call(idx);
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: widget.isDark ? AppColors.darkSurface : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: widget.isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                              ),
+                              boxShadow: [
+                                if (!widget.isDark)
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                AppNetworkImage(
+                                  url: s.imageUrl,
+                                  width: 50,
+                                  height: 50,
+                                  radius: 12,
+                                  isDark: widget.isDark,
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    s.title,
+                                    style: GoogleFonts.alexandria(
+                                      fontSize: 15,
+                                      color: widget.isDark ? Colors.white : AppColors.lightText,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                const Icon(Iconsax.add_circle, color: AppColors.primary),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bool isShoeClean = widget.serviceName?.toLowerCase().contains('shoe') ?? false;
-    final bool isComforterClean = widget.serviceName?.toLowerCase().contains('comfort') ?? false;
+    final bool isShoeClean =
+        widget.serviceName?.toLowerCase().contains('shoe') ?? false;
+    final bool isComforterClean =
+        widget.serviceName?.toLowerCase().contains('comfort') ?? false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,21 +241,46 @@ class _PoPaymentStepState extends State<PoPaymentStep> {
           decoration: BoxDecoration(
             gradient: AppColors.gradient,
             borderRadius: BorderRadius.circular(24),
-            
           ),
           child: Column(
             children: [
-              _SummaryLine('Service', widget.serviceName ?? ''),
+              if ((widget.selectedIndices?.length ?? 0) > 0 && widget.services != null)
+                ...widget.selectedIndices!.map((idx) {
+                  final service = widget.services![idx];
+                  final isC = service.title.toLowerCase().contains('comfort');
+                  double price = 0;
+                  int qty = 0;
+                  if (isC) {
+                    final sizes = widget.comforterQuantities?[idx] ?? {};
+                    sizes.forEach((s, q) {
+                      double mult = 1.0;
+                      switch (s) {
+                        case 'Single': mult = 0.5; break;
+                        case 'Twin XL': mult = 0.75; break;
+                        case 'Double': mult = 1.0; break;
+                        case 'Queen': mult = 1.5; break;
+                        case 'King': mult = 2.0; break;
+                      }
+                      price += (service.price * mult) * q;
+                      qty += q;
+                    });
+                  } else {
+                    qty = widget.serviceQuantities?[idx] ?? 1;
+                    price = service.price * qty;
+                  }
+                  return _SummaryLine('${service.title} (x$qty)', '৳${price.toStringAsFixed(0)}');
+                })
+              else
+                _SummaryLine('Service', widget.serviceName ?? ''),
               _SummaryLine('Store', widget.storeName ?? ''),
               _SummaryLine('Pickup', widget.pickupInfo ?? ''),
               _SummaryLine('Delivery', widget.deliveryInfo ?? ''),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Divider(color: Colors.white.withOpacity(0.15), thickness: 1),
-              ),
-              _SummaryLine(
-                '${widget.quantity} ${isShoeClean ? 'pairs' : 'pcs'} × ৳${widget.perPcsPrice.toStringAsFixed(0)}',
-                '৳${widget.subtotal.toStringAsFixed(0)}',
+                child: Divider(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  thickness: 1,
+                ),
               ),
               _SummaryLine(
                 'Service Charge',
@@ -146,7 +295,10 @@ class _PoPaymentStepState extends State<PoPaymentStep> {
                 ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Divider(color: Colors.white.withOpacity(0.25), thickness: 1),
+                child: Divider(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  thickness: 1,
+                ),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -201,20 +353,20 @@ class _PoPaymentStepState extends State<PoPaymentStep> {
           ),
           child: _isApplied
               ? _AppliedCouponTicket(
-            key: const ValueKey('applied'),
-            code: widget.appliedCoupon!,
-            discountAmount: widget.discountAmount,
-            isDark: widget.isDark,
-            onRemove: _remove,
-          )
+                  key: const ValueKey('applied'),
+                  code: widget.appliedCoupon!,
+                  discountAmount: widget.discountAmount,
+                  isDark: widget.isDark,
+                  onRemove: _remove,
+                )
               : _CouponInputField(
-            key: const ValueKey('input'),
-            controller: _couponCtrl,
-            isDark: widget.isDark,
-            isLoading: _couponLoading,
-            hasError: _couponError != null,
-            onApply: _apply,
-          ),
+                  key: const ValueKey('input'),
+                  controller: _couponCtrl,
+                  isDark: widget.isDark,
+                  isLoading: _couponLoading,
+                  hasError: _couponError != null,
+                  onApply: _apply,
+                ),
         ),
 
         // Error Message display
@@ -223,7 +375,11 @@ class _PoPaymentStepState extends State<PoPaymentStep> {
             padding: const EdgeInsets.only(top: 8, left: 4),
             child: Row(
               children: [
-                const Icon(Iconsax.info_circle, color: AppColors.error, size: 16),
+                const Icon(
+                  Iconsax.info_circle,
+                  color: AppColors.error,
+                  size: 16,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   _couponError!,
@@ -239,73 +395,141 @@ class _PoPaymentStepState extends State<PoPaymentStep> {
 
         const SizedBox(height: 28),
 
-        if (isComforterClean) ...[
-          Text(
-            'Select Size',
-            style: GoogleFonts.alexandria(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: widget.isDark ? Colors.white : AppColors.lightText,
-            ),
+        if (widget.reorderParams != null) ...[
+          AppQuantitySelector(
+            quantity: widget.reorderParams!.itemCount,
+            isDark: widget.isDark,
+            title: isShoeClean ? 'Select Pair' : 'Number of Pieces',
+            priceLabel: '৳${(widget.reorderParams!.totalPrice / widget.reorderParams!.itemCount).toStringAsFixed(0)} per ${isShoeClean ? 'pair' : 'piece'}',
+            onChanged: (q) => widget.onQuantityChanged(-1, q),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+        ] else if (widget.selectedIndices != null && widget.services != null) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              {'name': 'Single', 'dim': '50 x 80 in'},
-              {'name': 'Twin XL', 'dim': '68 x 90 in'},
-              {'name': 'Double', 'dim': '78 x 86 in'},
-              {'name': 'Queen', 'dim': '90 x 90 in'},
-              {'name': 'King', 'dim': '104 x 92 in'},
-            ].map((item) {
-              final size = item['name']!;
-              final dim = item['dim']!;
-              final isSelected = widget.selectedSize == size;
-              return GestureDetector(
-                onTap: () => widget.onSizeChanged?.call(size),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isSelected ? 20 : 14,
-                    vertical: 10,
+              Text(
+                'Services & Quantities',
+                style: GoogleFonts.alexandria(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: widget.isDark ? Colors.white : AppColors.lightText,
+                ),
+              ),
+              if (widget.onAddService != null)
+                TextButton.icon(
+                  onPressed: () => _showAddServiceDialog(context),
+                  icon: const Icon(Iconsax.add_circle, size: 18),
+                  label: Text(
+                    'Add',
+                    style: GoogleFonts.alexandria(fontWeight: FontWeight.bold),
                   ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primary
-                        : (widget.isDark ? AppColors.darkSurface : AppColors.lightSurface),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.primary
-                          : (widget.isDark ? AppColors.darkBorder : AppColors.lightBorder),
-                    ),
-                  ),
-                  child: Text(
-                    isSelected ? '$size ($dim)' : size,
-                    style: GoogleFonts.alexandria(
-                      fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected
-                          ? Colors.white
-                          : (widget.isDark ? Colors.white70 : AppColors.lightText),
-                    ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ),
-              );
-            }).toList(),
+            ],
           ),
-          const SizedBox(height: 28),
-        ],
+          const SizedBox(height: 12),
+          ...widget.selectedIndices!.map((idx) {
+            final service = widget.services![idx];
+            final bool isS = service.title.toLowerCase().contains('shoe');
+            final bool isC = service.title.toLowerCase().contains('comfort');
 
-        // ── Quantity Selector ──────────────────────────────────────────────
-        AppQuantitySelector(
-          quantity: widget.quantity,
-          isDark: widget.isDark,
-          title: isShoeClean ? 'Select Pair' : 'Number of Pieces',
-          priceLabel: '৳${widget.perPcsPrice.toStringAsFixed(0)} per ${isShoeClean ? 'pair' : 'piece'}',
-          onChanged: widget.onQuantityChanged,
-        ),
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: widget.isDark ? AppColors.darkSurface : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: widget.isDark ? Colors.white12 : Colors.grey.shade200,
+                ),
+                boxShadow: [
+                  if (!widget.isDark)
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          service.title,
+                          style: GoogleFonts.alexandria(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: widget.isDark ? Colors.white : AppColors.lightText,
+                          ),
+                        ),
+                      ),
+                      if (widget.onRemoveService != null)
+                        InkWell(
+                          onTap: () => widget.onRemoveService!(idx),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              Iconsax.trash,
+                              size: 18,
+                              color: AppColors.error.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (isC) ...[
+                    ...[
+                      {'name': 'Single', 'dim': '50 x 80 in', 'multiplier': 0.5},
+                      {'name': 'Twin XL', 'dim': '68 x 90 in', 'multiplier': 0.75},
+                      {'name': 'Double', 'dim': '78 x 86 in', 'multiplier': 1.0},
+                      {'name': 'Queen', 'dim': '90 x 90 in', 'multiplier': 1.5},
+                      {'name': 'King', 'dim': '104 x 92 in', 'multiplier': 2.0},
+                    ].map((item) {
+                      final size = item['name'] as String;
+                      final dim = item['dim'] as String;
+                      final multiplier = item['multiplier'] as double;
+                      final currentQty = widget.comforterQuantities?[idx]?[size] ?? 0;
+                      final sizePrice = service.price * multiplier;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: AppQuantitySelector(
+                          quantity: currentQty,
+                          min: 0,
+                          isDark: widget.isDark,
+                          title: '$size ($dim)',
+                          priceLabel: '৳${sizePrice.toStringAsFixed(0)} / pc',
+                          onChanged: (newQty) {
+                            widget.onComforterQtyChanged?.call(idx, size, newQty);
+                          },
+                        ),
+                      );
+                    }),
+                  ] else ...[
+                    AppQuantitySelector(
+                      quantity: widget.serviceQuantities?[idx] ?? 1,
+                      isDark: widget.isDark,
+                      title: isS ? 'Select Pair' : 'Number of Pieces',
+                      priceLabel: '৳${service.price.toStringAsFixed(0)} per ${isS ? 'pair' : 'piece'}',
+                      onChanged: (q) => widget.onQuantityChanged(idx, q),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }),
+        ],
 
         const SizedBox(height: 28),
 
@@ -395,19 +619,26 @@ class _AppliedCouponTicket extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: successColor.withOpacity(isDark ? 0.15 : 0.08),
+        color: successColor.withValues(alpha: isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: successColor.withOpacity(0.5), width: 1.5),
+        border: Border.all(
+          color: successColor.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: successColor.withOpacity(0.2),
+              color: successColor.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Iconsax.ticket_discount, color: successColor, size: 20),
+            child: const Icon(
+              Iconsax.ticket_discount,
+              color: successColor,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -426,7 +657,11 @@ class _AppliedCouponTicket extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Icon(Icons.verified_rounded, color: successColor, size: 16),
+                    const Icon(
+                      Icons.verified_rounded,
+                      color: successColor,
+                      size: 16,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 2),
@@ -443,13 +678,16 @@ class _AppliedCouponTicket extends StatelessWidget {
           ),
           IconButton(
             onPressed: onRemove,
-            icon: Icon(Icons.close_rounded,
-                color: isDark ? Colors.white54 : Colors.black45,
-                size: 22
+            icon: Icon(
+              Icons.close_rounded,
+              color: isDark ? Colors.white54 : Colors.black45,
+              size: 22,
             ),
             tooltip: 'Remove Coupon',
             style: IconButton.styleFrom(
-              backgroundColor: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+              backgroundColor: isDark
+                  ? Colors.white10
+                  : Colors.black.withValues(alpha: 0.05),
             ),
           ),
         ],
@@ -476,7 +714,9 @@ class _CouponInputField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final surfaceColor = isDark
+        ? AppColors.darkSurface
+        : AppColors.lightSurface;
     final borderColor = hasError
         ? AppColors.error
         : (isDark ? AppColors.darkBorder : AppColors.lightBorder);
@@ -514,7 +754,9 @@ class _CouponInputField extends StatelessWidget {
                 hintText: 'Enter promo code',
                 hintStyle: GoogleFonts.alexandria(
                   fontSize: 13,
-                  color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                  color: isDark
+                      ? AppColors.darkSubtext
+                      : AppColors.lightSubtext,
                   fontWeight: FontWeight.normal,
                   letterSpacing: 0,
                 ),
@@ -532,7 +774,10 @@ class _CouponInputField extends StatelessWidget {
                   child: const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColors.primary,
+                    ),
                   ),
                 )
               : SizedBox(
@@ -543,7 +788,9 @@ class _CouponInputField extends StatelessWidget {
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: Text(
                       'Apply',
@@ -567,7 +814,12 @@ class _SummaryLine extends StatelessWidget {
   final Color? valueColor;
   final bool isBold;
 
-  const _SummaryLine(this.label, this.value, {this.valueColor, this.isBold = false});
+  const _SummaryLine(
+    this.label,
+    this.value, {
+    this.valueColor,
+    this.isBold = false,
+  });
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -578,7 +830,7 @@ class _SummaryLine extends StatelessWidget {
         Text(
           label,
           style: GoogleFonts.alexandria(
-            color: Colors.white.withOpacity(0.85),
+            color: Colors.white.withValues(alpha: 0.85),
             fontSize: 13,
           ),
         ),
@@ -627,7 +879,7 @@ class _PaymentOpt extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: selected
-            ? color.withOpacity(0.08)
+            ? color.withValues(alpha: 0.08)
             : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
@@ -644,7 +896,7 @@ class _PaymentOpt extends StatelessWidget {
             height: 52,
             decoration: BoxDecoration(
               color: selected
-                  ? color.withOpacity(0.12)
+                  ? color.withValues(alpha: 0.12)
                   : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
               borderRadius: BorderRadius.circular(14),
             ),
@@ -674,9 +926,12 @@ class _PaymentOpt extends StatelessWidget {
                     if (badge != null) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
-                          color: color.withOpacity(0.12),
+                          color: color.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -696,7 +951,9 @@ class _PaymentOpt extends StatelessWidget {
                   subtitle,
                   style: GoogleFonts.alexandria(
                     fontSize: 12,
-                    color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                    color: isDark
+                        ? AppColors.darkSubtext
+                        : AppColors.lightSubtext,
                   ),
                 ),
               ],
@@ -734,7 +991,9 @@ class _CardUnavailableTile extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: isDark ? Colors.grey.shade800.withOpacity(0.5) : Colors.grey.shade50,
+      color: isDark
+          ? Colors.grey.shade800.withValues(alpha: 0.5)
+          : Colors.grey.shade50,
       borderRadius: BorderRadius.circular(20),
       border: Border.all(
         color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
@@ -745,10 +1004,16 @@ class _CardUnavailableTile extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+            color: isDark
+                ? Colors.white10
+                : Colors.black.withValues(alpha: 0.05),
             shape: BoxShape.circle,
           ),
-          child: Icon(Iconsax.card_slash, color: Colors.grey.shade400, size: 22),
+          child: Icon(
+            Iconsax.card_slash,
+            color: Colors.grey.shade400,
+            size: 22,
+          ),
         ),
         const SizedBox(width: 14),
         Expanded(

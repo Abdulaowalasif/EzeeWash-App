@@ -8,13 +8,21 @@ import '../repositories/store_repository.dart';
 
 // ─── Get All Stores ───────────────────────────────────────────────────────────
 
-class GetAllStoresUseCase implements UseCase<List<StoreEntity>, NoParams> {
+class GetAllStoresUseCase
+    implements UseCase<List<StoreEntity>, GetAllStoresParams> {
   final StoresRepository repository;
   GetAllStoresUseCase(this.repository);
 
   @override
-  Future<Either<Failure, List<StoreEntity>>> call(NoParams params) =>
-      repository.getAllStores();
+  Future<Either<Failure, List<StoreEntity>>> call(GetAllStoresParams params) =>
+      repository.getAllStores(forceRefresh: params.forceRefresh);
+}
+
+class GetAllStoresParams extends Equatable {
+  final bool forceRefresh;
+  const GetAllStoresParams({this.forceRefresh = false});
+  @override
+  List<Object> get props => [forceRefresh];
 }
 
 // ─── Get Store By ID ──────────────────────────────────────────────────────────
@@ -25,12 +33,13 @@ class GetStoreByIdUseCase implements UseCase<StoreEntity, StoreIdParams> {
 
   @override
   Future<Either<Failure, StoreEntity>> call(StoreIdParams params) =>
-      repository.getStoreById(params.id);
+      repository.getStoreById(params.id, forceRefresh: params.forceRefresh);
 }
 
 class StoreIdParams extends Equatable {
   final String id;
-  const StoreIdParams(this.id);
+  final bool forceRefresh;
+  const StoreIdParams(this.id, {this.forceRefresh = false});
   @override
-  List<Object> get props => [id];
+  List<Object> get props => [id, forceRefresh];
 }

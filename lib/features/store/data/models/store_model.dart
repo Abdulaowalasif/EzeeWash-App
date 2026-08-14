@@ -80,8 +80,8 @@ class StoreModel extends StoreEntity {
       // ── MAP THE JOINED SLOT BOOKINGS ──
       bookings: j['store_slot_bookings'] != null
           ? (j['store_slot_bookings'] as List)
-          .map((e) => StoreSlotBookingModel.fromJson(e))
-          .toList()
+                .map((e) => StoreSlotBookingModel.fromJson(e))
+                .toList()
           : null,
     );
   }

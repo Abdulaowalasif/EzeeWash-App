@@ -90,7 +90,9 @@ class _AppStatusResultViewState extends State<AppStatusResultView>
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
+          constraints: BoxConstraints(
+            maxWidth: Responsive.maxContentWidth(context),
+          ),
           child: Column(
             children: [
               const SizedBox(height: 24),
@@ -106,7 +108,7 @@ class _AppStatusResultViewState extends State<AppStatusResultView>
                       gradient: widget.gradient,
                       boxShadow: [
                         BoxShadow(
-                          color: widget.glowColor.withOpacity(0.4),
+                          color: widget.glowColor.withValues(alpha: 0.4),
                           blurRadius: 28,
                           offset: const Offset(0, 10),
                         ),
@@ -127,7 +129,9 @@ class _AppStatusResultViewState extends State<AppStatusResultView>
                       style: GoogleFonts.alexandria(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
-                        color: widget.isDark ? Colors.white : AppColors.lightText,
+                        color: widget.isDark
+                            ? Colors.white
+                            : AppColors.lightText,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -158,12 +162,12 @@ class _AppStatusResultViewState extends State<AppStatusResultView>
                           : AppColors.lightSurface,
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
-                        color: widget.borderColor.withOpacity(0.3),
+                        color: widget.borderColor.withValues(alpha: 0.3),
                         width: 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: widget.borderColor.withOpacity(0.08),
+                          color: widget.borderColor.withValues(alpha: 0.08),
                           blurRadius: 16,
                           offset: const Offset(0, 6),
                         ),
@@ -188,53 +192,55 @@ class _AppStatusResultViewState extends State<AppStatusResultView>
                   width: double.infinity,
                   child: widget.buttonOutlined
                       ? ElevatedButton(
-                    onPressed: widget.onButton,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.isDark
-                          ? AppColors.darkSurface
-                          : Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        side: BorderSide(
-                            color: widget.buttonColor, width: 1.5),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      widget.buttonLabel,
-                      style: GoogleFonts.alexandria(
-                        color: widget.buttonColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  )
+                          onPressed: widget.onButton,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: widget.isDark
+                                ? AppColors.darkSurface
+                                : Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              side: BorderSide(
+                                color: widget.buttonColor,
+                                width: 1.5,
+                              ),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            widget.buttonLabel,
+                            style: GoogleFonts.alexandria(
+                              color: widget.buttonColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        )
                       : Container(
-                    decoration: BoxDecoration(
-                      gradient: AppColors.gradient,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: ElevatedButton(
-                      onPressed: widget.onButton,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
+                          decoration: BoxDecoration(
+                            gradient: AppColors.gradient,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: ElevatedButton(
+                            onPressed: widget.onButton,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            child: Text(
+                              widget.buttonLabel,
+                              style: GoogleFonts.alexandria(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        widget.buttonLabel,
-                        style: GoogleFonts.alexandria(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ),
                 ),
               ),
               const SizedBox(height: 20),

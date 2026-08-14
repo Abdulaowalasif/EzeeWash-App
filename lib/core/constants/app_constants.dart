@@ -17,17 +17,19 @@ class AppConstants {
 
   // ── Google auth redirect uri ──────────────────────────────────────────────────────────────
   static final googleAuthRedirectUri = dotenv.env['GOOGLE_AUTH_REDIRECT'] ?? '';
-  
+
   // ── Google Native Auth Client IDs ──────────────────────────────────────────────────────────
   static final googleWebClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? '';
   static final googleIosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID'] ?? '';
 
   // ── Firebase app id ──────────────────────────────────────────────────────────────
-  static final firebaseAndroidAppId=dotenv.env['FIREBASE_ANDROID_APP_ID'] ?? '';
-  static final firebaseAndroidApiKey=dotenv.env['FIREBASE_ANDROID_API_KEY'] ?? '';
+  static final firebaseAndroidAppId =
+      dotenv.env['FIREBASE_ANDROID_APP_ID'] ?? '';
+  static final firebaseAndroidApiKey =
+      dotenv.env['FIREBASE_ANDROID_API_KEY'] ?? '';
 
-  static final firebaseIosAppId=dotenv.env['FIREBASE_IOS_APP_ID'] ?? '';
-  static final firebaseIosApiKey=dotenv.env['FIREBASE_IOS_API_KEY'] ?? '';
+  static final firebaseIosAppId = dotenv.env['FIREBASE_IOS_APP_ID'] ?? '';
+  static final firebaseIosApiKey = dotenv.env['FIREBASE_IOS_API_KEY'] ?? '';
 
   // App
   static const appName = 'EzzeWash';
@@ -62,6 +64,11 @@ class AppConstants {
   static const reviewsTable = 'reviews';
   static const addressesTable = 'user_addresses';
   static const storeSlotBookingsTable = 'store_slot_bookings';
+  static const promosTable = 'promos';
+  static const ridersTable = 'riders';
+  static const riderRatingsTable = 'rider_ratings';
+  static const avatarsTable = 'avatars';
+  static const serverTimeTable = 'server_time';
 
   //darkmap style
 

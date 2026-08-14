@@ -1,4 +1,5 @@
 // lib/features/auth/data/datasources/auth_remote_datasource.dart
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -49,9 +50,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final res = await _client.auth.signInWithPassword(
         email: email,
         password: password,
-      );
+      ).timeout(const Duration(seconds: 15));
       if (res.user == null) throw AuthException('Sign in failed.');
       return await _loadOrCreateProfile(res.user!);
+    } on TimeoutException {
+      throw AuthException('Connection timed out. Please check your internet connection.');
     } on supa.AuthApiException catch (e) {
       throw AuthException(_friendly(e.message));
     } on AuthException {
@@ -74,7 +77,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         email: email,
         password: password,
         data: {'full_name': fullName},
-      );
+      ).timeout(const Duration(seconds: 15));
 
       if (res.user == null) {
         throw AuthException('Registration failed. Please try again.');
@@ -83,6 +86,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       if (res.session == null) return null;
 
       return await _fetchProfileOnly(res.user!, fallbackName: fullName);
+    } on TimeoutException {
+      throw AuthException('Connection timed out. Please check your internet connection.');
     } on supa.AuthApiException catch (e) {
       throw AuthException(_friendly(e.message));
     } on AuthException {
@@ -115,8 +120,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final webClientId = AppConstants.googleWebClientId;
       final iosClientId = AppConstants.googleIosClientId;
 
-      if (webClientId.isEmpty ||
-          webClientId == 'YOUR_WEB_CLIENT_ID_HERE') {
+      if (webClientId.isEmpty || webClientId == 'YOUR_WEB_CLIENT_ID_HERE') {
         throw AuthException(
           'Google Web Client ID is missing. Please update your .env file with a valid Client ID.',
         );
@@ -127,19 +131,18 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       // Initialize Google Sign-In
       await googleSignIn.initialize(
         serverClientId: webClientId,
-        clientId: Platform.isIOS &&
-            iosClientId.isNotEmpty &&
-            iosClientId != 'YOUR_IOS_CLIENT_ID_HERE'
+        clientId:
+            Platform.isIOS &&
+                iosClientId.isNotEmpty &&
+                iosClientId != 'YOUR_IOS_CLIENT_ID_HERE'
             ? iosClientId
             : null,
       );
 
       // Authenticate the user
-      final GoogleSignInAccount googleUser =
-      await googleSignIn.authenticate();
+      final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
 
-      final GoogleSignInAuthentication googleAuth =
-          googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
       final idToken = googleAuth.idToken;
 
@@ -160,9 +163,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         return;
       }
 
-      throw AuthException(
-        e.description ?? 'Google Sign-In failed.',
-      );
+      throw AuthException(e.description ?? 'Google Sign-In failed.');
     } on supa.AuthApiException catch (e) {
       throw AuthException(_friendly(e.message));
     } catch (e, stackTrace) {
@@ -190,6 +191,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> signOut() async {
     try {
+      await _client.removeAllChannels();
       await _client.auth.signOut();
     } catch (e) {
       throw AuthException(e.toString());
@@ -278,7 +280,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         'full_name':
             authUser.userMetadata?['full_name'] as String? ??
             authUser.email?.split('@').first,
-      }, onConflict: 'id');
+      }, onConflict: 'id').timeout(const Duration(seconds: 15));
     } catch (_) {}
 
     final afterUpsert = await _safeSelect(authUser.id);
@@ -295,9 +297,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       final rows = await _client
           .from(AppConstants.profilesTable)
-          .select()
+          .select('id, full_name, email, phone, avatar_url, address')
           .eq('id', userId)
-          .limit(1);
+          .limit(1)
+          .timeout(const Duration(seconds: 15));
 
       if ((rows as List).isEmpty) return null;
       return rows.first;

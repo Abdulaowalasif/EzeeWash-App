@@ -17,7 +17,9 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     try {
       final user = await remoteDataSource.signInWithEmail(
-          email: email, password: password);
+        email: email,
+        password: password,
+      );
       return Right(user);
     } on AuthException catch (e) {
       return Left(AuthFailure(e.message));
@@ -102,8 +104,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Stream<UserEntity?> get authStateChanges =>
-      remoteDataSource.authStateChanges;
+  Stream<UserEntity?> get authStateChanges => remoteDataSource.authStateChanges;
 
   @override
   Future<Either<Failure, void>> resetPassword({required String email}) async {

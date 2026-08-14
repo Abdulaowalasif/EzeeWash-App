@@ -18,11 +18,31 @@ class OrderFlowingTimeline extends StatelessWidget {
   });
 
   static const _steps = [
-    {'threshold': 2, 'title': 'Confirmed', 'sub': 'Store has accepted your order.'},
-    {'threshold': 4, 'title': 'Picked Up', 'sub': 'Items picked up and heading to laundry.'},
-    {'threshold': 7, 'title': 'Cleaning', 'sub': 'Washing, drying, and ironing.'},
-    {'threshold': 9, 'title': 'Out for Delivery', 'sub': 'Rider is on the way to deliver.'},
-    {'threshold': 10, 'title': 'Delivered', 'sub': 'Order completed successfully.'},
+    {
+      'threshold': 2,
+      'title': 'Confirmed',
+      'sub': 'Store has accepted your order.',
+    },
+    {
+      'threshold': 4,
+      'title': 'Picked Up',
+      'sub': 'Items picked up and heading to laundry.',
+    },
+    {
+      'threshold': 7,
+      'title': 'Cleaning',
+      'sub': 'Washing, drying, and ironing.',
+    },
+    {
+      'threshold': 9,
+      'title': 'Out for Delivery',
+      'sub': 'Rider is on the way to deliver.',
+    },
+    {
+      'threshold': 10,
+      'title': 'Delivered',
+      'sub': 'Order completed successfully.',
+    },
   ];
 
   @override
@@ -33,7 +53,8 @@ class OrderFlowingTimeline extends StatelessWidget {
         final step = e.value;
         final threshold = step['threshold'] as int;
         final isDone = currentLevel >= threshold;
-        final isActive = !isDone &&
+        final isActive =
+            !isDone &&
             (index == 0 ||
                 currentLevel >= (_steps[index - 1]['threshold'] as int));
         final isLast = index == _steps.length - 1;
@@ -85,23 +106,25 @@ class _TimelineStep extends StatelessWidget {
                     : (isDark ? Colors.white12 : Colors.grey.shade200),
                 border: isActive
                     ? Border.all(
-                        color: AppColors.primary.withOpacity(0.3), width: 4)
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        width: 4,
+                      )
                     : null,
               ),
               child: isDone
                   ? const Icon(Icons.check, size: 14, color: Colors.white)
                   : (isActive
-                      ? Center(
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.primary,
+                        ? Center(
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.primary,
+                              ),
                             ),
-                          ),
-                        )
-                      : null),
+                          )
+                        : null),
             ),
             if (!isLast)
               SizedBox(
@@ -111,8 +134,9 @@ class _TimelineStep extends StatelessWidget {
                   alignment: Alignment.topCenter,
                   children: [
                     Container(
-                        width: 2,
-                        color: isDark ? Colors.white12 : Colors.grey.shade200),
+                      width: 2,
+                      color: isDark ? Colors.white12 : Colors.grey.shade200,
+                    ),
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 600),
                       curve: Curves.easeInOut,
@@ -135,8 +159,9 @@ class _TimelineStep extends StatelessWidget {
                 Text(
                   title,
                   style: AppTextStyles.body(isDark).copyWith(
-                    fontWeight:
-                        isDone || isActive ? FontWeight.bold : FontWeight.w500,
+                    fontWeight: isDone || isActive
+                        ? FontWeight.bold
+                        : FontWeight.w500,
                     color: isDone || isActive
                         ? (isDark ? Colors.white : Colors.black87)
                         : Colors.grey.shade500,

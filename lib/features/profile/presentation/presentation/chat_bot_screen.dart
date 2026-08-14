@@ -54,7 +54,8 @@ class ChatBotScreen extends StatefulWidget {
   State<ChatBotScreen> createState() => _ChatBotScreenState();
 }
 
-class _ChatBotScreenState extends State<ChatBotScreen> with TickerProviderStateMixin {
+class _ChatBotScreenState extends State<ChatBotScreen>
+    with TickerProviderStateMixin {
   final _ctrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final ImagePicker _picker = ImagePicker();
@@ -100,7 +101,12 @@ class _ChatBotScreenState extends State<ChatBotScreen> with TickerProviderStateM
 
   Future<void> _pickImage() async {
     try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+        maxWidth: 800,
+        maxHeight: 800,
+      );
       if (image != null) {
         // Send the image with an optional caption if they typed something
         _send(_ctrl.text, image: File(image.path));
@@ -140,15 +146,9 @@ class _ChatBotScreenState extends State<ChatBotScreen> with TickerProviderStateM
 
       final List<Map<String, dynamic>> historyData = [];
       for (final m in _messages.sublist(0, _messages.length - 1)) {
-        String? b64;
-        if (m.imageFile != null) {
-          final bytes = await m.imageFile!.readAsBytes();
-          b64 = base64Encode(bytes);
-        }
         historyData.add({
           'role': m.sender == _Sender.user ? 'user' : 'model',
           'text': m.text,
-          if (b64 != null) 'image': b64,
         });
       }
 
@@ -229,80 +229,82 @@ class _ChatBotScreenState extends State<ChatBotScreen> with TickerProviderStateM
       ),
       body: Stack(
         children: [
-          ..._bubbleOffsets.asMap().entries.map((e) => _FloatingBubble(
-            controller: _floatController,
-            x: e.value.dx * size.width,
-            y: e.value.dy * size.height,
-            index: e.key,
-            isDark: isDark,
-          )),
+          ..._bubbleOffsets.asMap().entries.map(
+            (e) => _FloatingBubble(
+              controller: _floatController,
+              x: e.value.dx * size.width,
+              y: e.value.dy * size.height,
+              index: e.key,
+              isDark: isDark,
+            ),
+          ),
           Column(
             children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollCtrl,
-              padding: EdgeInsets.fromLTRB(
-                Responsive.horizontalPadding(context),
-                24,
-                Responsive.horizontalPadding(context),
-                16,
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollCtrl,
+                  padding: EdgeInsets.fromLTRB(
+                    Responsive.horizontalPadding(context),
+                    24,
+                    Responsive.horizontalPadding(context),
+                    16,
+                  ),
+                  itemCount: _messages.length + (_botTyping ? 1 : 0),
+                  itemBuilder: (ctx, i) {
+                    if (_botTyping && i == _messages.length) {
+                      return _TypingRow(isDark: isDark);
+                    }
+
+                    final msg = _messages[i];
+
+                    return _Bubble(
+                      msg: msg,
+                      isDark: isDark,
+                      onBookNow: msg.serviceId != null
+                          ? () => context.go(
+                              '/orders/place-orders',
+                              extra: msg.serviceId,
+                            )
+                          : null,
+                      onBotAction: msg.botAction != null
+                          ? () {
+                              switch (msg.botAction) {
+                                case 'nav_track_order':
+                                  context.go('/orders/track-orders');
+                                  break;
+                                case 'nav_pricing':
+                                  context.go('/services');
+                                  break;
+                                case 'nav_profile':
+                                  context.pop();
+                                  break;
+                              }
+                            }
+                          : null,
+                    );
+                  },
+                ),
               ),
-              itemCount: _messages.length + (_botTyping ? 1 : 0),
-              itemBuilder: (ctx, i) {
-                if (_botTyping && i == _messages.length) {
-                  return _TypingRow(isDark: isDark);
-                }
 
-                final msg = _messages[i];
-
-                return _Bubble(
-                  msg: msg,
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: _ChipRow(
+                  chips: _chips,
                   isDark: isDark,
-                  onBookNow: msg.serviceId != null
-                      ? () => context.go(
-                          '/orders/place-orders',
-                          extra: msg.serviceId,
-                        )
-                      : null,
-                  onBotAction: msg.botAction != null
-                      ? () {
-                          switch (msg.botAction) {
-                            case 'nav_track_order':
-                              context.go('/orders/track-orders');
-                              break;
-                            case 'nav_pricing':
-                              context.go('/services');
-                              break;
-                            case 'nav_profile':
-                              context.pop();
-                              break;
-                          }
-                        }
-                      : null,
-                );
-              },
-            ),
-          ),
+                  onTap: (text) => _send(text),
+                ),
+              ),
 
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12.0),
-            child: _ChipRow(
-              chips: _chips,
-              isDark: isDark,
-              onTap: (text) => _send(text),
-            ),
-          ),
-
-          _Bar(
-            ctrl: _ctrl,
-            isDark: isDark,
-            bg: bg,
-            onSend: (text) => _send(text),
-            onPickImage: _pickImage,
+              _Bar(
+                ctrl: _ctrl,
+                isDark: isDark,
+                bg: bg,
+                onSend: (text) => _send(text),
+                onPickImage: _pickImage,
+              ),
+            ],
           ),
         ],
-      ),
-      ],
       ),
     );
   }
@@ -390,13 +392,13 @@ class _Bubble extends StatelessWidget {
                       bottomLeft: Radius.circular(isUser ? 22 : 4),
                       bottomRight: Radius.circular(isUser ? 4 : 22),
                     ),
-                    
+
                     border: isUser
                         ? null
                         : Border.all(
                             color: isDark
                                 ? AppColors.darkBorder
-                                : Colors.grey.withOpacity(0.15),
+                                : Colors.grey.withValues(alpha: 0.15),
                             width: 1,
                           ),
                   ),
@@ -476,7 +478,7 @@ class _Bubble extends StatelessWidget {
                                   ? AppColors.darkBackground
                                   : AppColors.lightBackground,
                               border: Border.all(
-                                color: AppColors.primary.withOpacity(0.3),
+                                color: AppColors.primary.withValues(alpha: 0.3),
                                 width: 1,
                               ),
                               borderRadius: BorderRadius.circular(16),
@@ -567,7 +569,7 @@ class _TypingRow extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
                   blurRadius: 14,
                   offset: const Offset(0, 4),
                 ),
@@ -575,7 +577,7 @@ class _TypingRow extends StatelessWidget {
               border: Border.all(
                 color: isDark
                     ? AppColors.darkBorder
-                    : AppColors.lightBorder.withOpacity(0.6),
+                    : AppColors.lightBorder.withValues(alpha: 0.6),
                 width: 1.2,
               ),
             ),
@@ -624,7 +626,7 @@ class _DotsState extends State<_Dots> with SingleTickerProviderStateMixin {
       width: 7,
       height: 7,
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.8),
+        color: AppColors.primary.withValues(alpha: 0.8),
         shape: BoxShape.circle,
       ),
     ),
@@ -674,16 +676,15 @@ class _ChipRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 18),
             decoration: BoxDecoration(
               color: isDark
-                  ? AppColors.darkSurface.withOpacity(0.5)
+                  ? AppColors.darkSurface.withValues(alpha: 0.5)
                   : Colors.white,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: isDark
                     ? AppColors.darkBorder
-                    : AppColors.primary.withOpacity(0.15),
+                    : AppColors.primary.withValues(alpha: 0.15),
                 width: 1,
               ),
-              
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -741,12 +742,14 @@ class _Bar extends StatelessWidget {
         color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: isDark ? AppColors.darkBorder : Colors.grey.withOpacity(0.1),
+          color: isDark
+              ? AppColors.darkBorder
+              : Colors.grey.withValues(alpha: 0.1),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -840,8 +843,11 @@ class _Avatar extends StatelessWidget {
     decoration: BoxDecoration(
       gradient: AppColors.gradient,
       shape: BoxShape.circle,
-      
-      border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
+
+      border: Border.all(
+        color: Colors.white.withValues(alpha: 0.15),
+        width: 1.5,
+      ),
     ),
     child: Icon(
       Icons.smart_toy_rounded,
@@ -860,9 +866,9 @@ class _OnlinePill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
     decoration: BoxDecoration(
-      color: AppColors.success.withOpacity(0.15),
+      color: AppColors.success.withValues(alpha: 0.15),
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: AppColors.success.withOpacity(0.3)),
+      border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
@@ -914,9 +920,9 @@ class ChatApi {
         'bubble-bot',
         body: {
           'message': message,
-          if (base64Image != null) 'image': base64Image,
-          if (userId != null) 'user_id': userId,
-          if (history != null) 'history': history,
+          'image': base64Image,
+          'user_id': userId,
+          'history': history,
         },
       );
 
@@ -974,7 +980,7 @@ class _FloatingBubble extends StatelessWidget {
 
     return AnimatedBuilder(
       animation: controller,
-      builder: (_, __) {
+      builder: (context, child) {
         final t = controller.value + delay;
         final dy = sin(t * pi * 2) * 12;
         final dx = cos(t * pi * 2) * 8;
@@ -982,12 +988,15 @@ class _FloatingBubble extends StatelessWidget {
           left: x - sz / 2 + dx,
           top: y - sz / 2 + dy,
           child: Container(
-            width: sz, height: sz,
+            width: sz,
+            height: sz,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.primary.withOpacity(isDark ? 0.08 : 0.05),
+              color: AppColors.primary.withValues(alpha: isDark ? 0.08 : 0.05),
               border: Border.all(
-                color: AppColors.primary.withOpacity(isDark ? 0.14 : 0.09),
+                color: AppColors.primary.withValues(
+                  alpha: isDark ? 0.14 : 0.09,
+                ),
                 width: 1,
               ),
             ),

@@ -25,10 +25,8 @@ class NotificationsAppBar extends StatelessWidget
       trailing: BlocBuilder<NotificationsBloc, NotificationsState>(
         buildWhen: (prev, curr) {
           // Only rebuild when the hasUnread flag changes.
-          final prevUnread =
-              prev is NotificationsLoaded && prev.hasUnread;
-          final currUnread =
-              curr is NotificationsLoaded && curr.hasUnread;
+          final prevUnread = prev is NotificationsLoaded && prev.hasUnread;
+          final currUnread = curr is NotificationsLoaded && curr.hasUnread;
           return prevUnread != currUnread;
         },
         builder: (context, state) {
@@ -36,20 +34,16 @@ class NotificationsAppBar extends StatelessWidget
             return const SizedBox.shrink();
           }
           return GestureDetector(
-            onTap: () => context
-                .read<NotificationsBloc>()
-                .add(const NotificationsMarkAllReadRequested()),
+            onTap: () => context.read<NotificationsBloc>().add(
+              const NotificationsMarkAllReadRequested(),
+            ),
             child: Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(
-                'Mark All Read',
-                style: AppTextStyles.buttonSmall,
-              ),
+              child: Text('Mark All Read', style: AppTextStyles.buttonSmall),
             ),
           );
         },

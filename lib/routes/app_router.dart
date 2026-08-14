@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/di/injection_container.dart';
 import '../core/screens/error_screen.dart';
 import '../core/service/notification_service.dart';
 import '../core/utils/onboarding_prefs.dart';
@@ -14,6 +15,7 @@ import '../features/home/presentation/screens/home_screen.dart';
 import '../features/notifications/presentation/screens/notification_screen.dart';
 import '../features/onboarding/presentation/screen/onboarding_screen.dart';
 import '../features/orders/presentation/bloc/orders_bloc.dart';
+import '../features/orders/presentation/bloc/checkout_cubit.dart';
 import '../features/orders/presentation/models/reorder_params.dart';
 import '../features/orders/presentation/screens/booking_confirmed_screen.dart';
 import '../features/orders/presentation/screens/order_screen.dart';
@@ -79,7 +81,8 @@ GoRouter createRouter(AuthBloc authBloc) {
                 path: RoutesName.services,
                 // NoTransitionPage: branch switching is instant — the
                 // bottom nav pill animation is the only motion needed.
-                pageBuilder: (c, s) => const NoTransitionPage(child: ServiceScreen()),
+                pageBuilder: (c, s) =>
+                    const NoTransitionPage(child: ServiceScreen()),
               ),
             ],
           ),
@@ -89,7 +92,8 @@ GoRouter createRouter(AuthBloc authBloc) {
             routes: [
               GoRoute(
                 path: RoutesName.orders,
-                pageBuilder: (c, s) => const NoTransitionPage(child: OrderScreen()),
+                pageBuilder: (c, s) =>
+                    const NoTransitionPage(child: OrderScreen()),
                 routes: [
                   GoRoute(
                     path: RoutesName.placeOrders,
@@ -98,11 +102,14 @@ GoRouter createRouter(AuthBloc authBloc) {
                       final screen = extra is ReorderParams
                           ? PlaceOrderScreen(reorderParams: extra)
                           : PlaceOrderScreen(
-                        preSelectedServiceId: extra as String?,
-                      );
+                              preSelectedServiceId: extra as String?,
+                            );
                       return _slide(
-                        BlocProvider.value(
-                          value: c.read<OrdersBloc>(),
+                        MultiBlocProvider(
+                          providers: [
+                            BlocProvider.value(value: c.read<OrdersBloc>()),
+                            BlocProvider(create: (_) => sl<CheckoutCubit>()),
+                          ],
                           child: screen,
                         ),
                         s,
@@ -112,7 +119,8 @@ GoRouter createRouter(AuthBloc authBloc) {
                   GoRoute(
                     path: RoutesName.trackOrders,
                     pageBuilder: (c, s) {
-                      final orderId = s.extra as String? ?? s.uri.queryParameters['id'];
+                      final orderId =
+                          s.extra as String? ?? s.uri.queryParameters['id'];
                       return _slide(TrackOrderScreen(orderId: orderId), s);
                     },
                   ),
@@ -120,7 +128,8 @@ GoRouter createRouter(AuthBloc authBloc) {
                     path: RoutesName.confirmedOrders,
                     pageBuilder: (c, s) {
                       final extraMap = s.extra as Map<String, dynamic>? ?? {};
-                      final orderNumber = extraMap['orderNumber'] as String? ?? 'EZ000001';
+                      final orderNumber =
+                          extraMap['orderNumber'] as String? ?? 'EZ000001';
                       final orderId = extraMap['orderId'] as String? ?? '';
                       return _slide(
                         BookingConfirmedScreen(
@@ -141,7 +150,8 @@ GoRouter createRouter(AuthBloc authBloc) {
             routes: [
               GoRoute(
                 path: RoutesName.home,
-                pageBuilder: (c, s) => const NoTransitionPage(child: HomeScreen()),
+                pageBuilder: (c, s) =>
+                    const NoTransitionPage(child: HomeScreen()),
                 routes: [
                   GoRoute(
                     path: RoutesName.changePassword,
@@ -150,19 +160,20 @@ GoRouter createRouter(AuthBloc authBloc) {
                   ),
                   GoRoute(
                     path: RoutesName.helpSupport,
-                    pageBuilder: (c, s) =>
-                        _slide(const HelpSupportScreen(), s),
+                    pageBuilder: (c, s) => _slide(const HelpSupportScreen(), s),
                   ),
                   GoRoute(
                     path: RoutesName.termsPolicy,
-                    pageBuilder: (c, s) =>
-                        _slide(const TermsPolicyScreen(), s),
+                    pageBuilder: (c, s) => _slide(const TermsPolicyScreen(), s),
                   ),
                   GoRoute(
                     path: RoutesName.settings,
                     pageBuilder: (c, s) {
                       final autoStartUpdate = s.extra as bool? ?? false;
-                      return _slide(SettingsScreen(autoStartUpdate: autoStartUpdate), s);
+                      return _slide(
+                        SettingsScreen(autoStartUpdate: autoStartUpdate),
+                        s,
+                      );
                     },
                   ),
                 ],
@@ -175,7 +186,8 @@ GoRouter createRouter(AuthBloc authBloc) {
             routes: [
               GoRoute(
                 path: RoutesName.chatBot,
-                pageBuilder: (c, s) => const NoTransitionPage(child: ChatBotScreen()),
+                pageBuilder: (c, s) =>
+                    const NoTransitionPage(child: ChatBotScreen()),
               ),
             ],
           ),
@@ -185,7 +197,12 @@ GoRouter createRouter(AuthBloc authBloc) {
             routes: [
               GoRoute(
                 path: RoutesName.alerts,
-                pageBuilder: (c, s) => const NoTransitionPage(child: NotificationScreen()),
+                pageBuilder: (c, s) {
+                  final tab = s.uri.queryParameters['tab'];
+                  return NoTransitionPage(
+                    child: NotificationScreen(initialTab: tab),
+                  );
+                },
               ),
             ],
           ),
@@ -218,16 +235,17 @@ CustomTransitionPage<void> _slide(Widget child, GoRouterState state) =>
       reverseTransitionDuration: const Duration(milliseconds: 380),
       transitionsBuilder: (_, animation, secondaryAnimation, child) {
         return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(1.0, 0.0),
-            end: Offset.zero,
-          ).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutQuart,
-              reverseCurve: Curves.easeInQuart,
-            ),
-          ),
+          position:
+              Tween<Offset>(
+                begin: const Offset(1.0, 0.0),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutQuart,
+                  reverseCurve: Curves.easeInQuart,
+                ),
+              ),
           child: child,
         );
       },

@@ -43,8 +43,8 @@ class OrderEntity extends Equatable {
   final DateTime createdAt;
 
   // ── Payment fields ────────────────────────────────────────────────────────
-  final String paymentMethod;   // 'cash_on_delivery' | 'stripe'
-  final String paymentStatus;   // 'pending' | 'paid' | 'failed' | 'refunded'
+  final String paymentMethod; // 'cash_on_delivery' | 'stripe'
+  final String paymentStatus; // 'pending' | 'paid' | 'failed' | 'refunded'
   final String? stripePaymentIntentId;
 
   // ─── NEW: Coupon fields ───
@@ -56,9 +56,9 @@ class OrderEntity extends Equatable {
   final double? riderLng;
 
   // ── Rider IDs from orders table ─────────────────────────────────────────
-  final String? riderId;          // current assigned rider (orders.rider_id)
-  final String? pickupRiderId;    // orders.pickup_rider_id
-  final String? deliveryRiderId;  // orders.delivery_rider_id
+  final String? riderId; // current assigned rider (orders.rider_id)
+  final String? pickupRiderId; // orders.pickup_rider_id
+  final String? deliveryRiderId; // orders.delivery_rider_id
 
   final String? riderName;
   final String? riderPhone;

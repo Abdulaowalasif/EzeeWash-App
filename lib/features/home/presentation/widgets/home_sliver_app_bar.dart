@@ -36,14 +36,14 @@ class HomeSliverAppBar extends StatelessWidget {
           final statusBarHeight = MediaQuery.of(context).padding.top;
           final minHeight = kToolbarHeight + statusBarHeight;
 
-          final percent =
-          ((top - minHeight) / (_expandedHeight - minHeight)).clamp(0.0, 1.0);
+          final percent = ((top - minHeight) / (_expandedHeight - minHeight))
+              .clamp(0.0, 1.0);
 
-          final titleCollapsedTop =
-              statusBarHeight + (kToolbarHeight - 40) / 2;
+          final titleCollapsedTop = statusBarHeight + (kToolbarHeight - 40) / 2;
           final titleExpandedTop = statusBarHeight + 16.0;
           final currentTitleTop =
-              titleCollapsedTop + (titleExpandedTop - titleCollapsedTop) * percent;
+              titleCollapsedTop +
+              (titleExpandedTop - titleCollapsedTop) * percent;
 
           final currentScale = 1.0 + (0.35 * percent);
 
@@ -53,7 +53,13 @@ class HomeSliverAppBar extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 bottom: Radius.circular(24),
               ),
-              
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Stack(
               children: [

@@ -1,18 +1,6 @@
-// lib/core/widgets/form/app_selectable_card.dart
-//
-// A tappable animated card with a selection state.
-// Used for service cards, store cards, and payment options across the app.
-//
-// Usage:
-//   AppSelectableCard(
-//     selected: _serviceIdx == i,
-//     isDark: isDark,
-//     onTap: () => setState(() => _serviceIdx = i),
-//     child: Row(children: [...]),
-//   )
-
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../constants/app_color.dart';
+import '../app_network_image.dart';
 
 class AppSelectableCard extends StatelessWidget {
   final bool selected;
@@ -44,7 +32,7 @@ class AppSelectableCard extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: selected
-              ? _accent.withOpacity(isDark ? 0.15 : 0.07)
+              ? _accent.withValues(alpha: isDark ? 0.15 : 0.07)
               : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
@@ -66,14 +54,14 @@ class AppSelectedBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 28,
-        height: 28,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: AppColors.gradient,
-        ),
-        child: const Icon(Icons.check, color: Colors.white, size: 16),
-      );
+    width: 28,
+    height: 28,
+    decoration: const BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: AppColors.gradient,
+    ),
+    child: const Icon(Icons.check, color: Colors.white, size: 16),
+  );
 }
 
 /// Thumbnail/icon box shown on the leading end of a service or store card.
@@ -93,28 +81,30 @@ class AppItemThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          gradient: selected && imageUrl == null ? AppColors.gradient : null,
-          color: selected
-              ? null
-              : (isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9)),
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
-          child: imageUrl != null
-              ? Image.network(
-                  imageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Icon(
-                    fallbackIcon,
-                    color: selected ? Colors.white : Colors.grey,
-                  ),
-                )
-              : Icon(fallbackIcon,
-                  color: selected ? Colors.white : Colors.grey),
-        ),
-      );
+    width: 56,
+    height: 56,
+    decoration: BoxDecoration(
+      gradient: selected && imageUrl == null ? AppColors.gradient : null,
+      color: selected
+          ? null
+          : (isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9)),
+      borderRadius: BorderRadius.circular(15),
+    ),
+    child: imageUrl != null
+        ? AppNetworkImage(
+            url: imageUrl,
+            width: 56,
+            height: 56,
+            radius: 15,
+            fallbackIcon: fallbackIcon,
+            isDark: isDark,
+          )
+        : Icon(
+            fallbackIcon,
+            color: selected
+                ? Colors.white
+                : (isDark ? Colors.white70 : Colors.grey.shade600),
+            size: 26,
+          ),
+  );
 }

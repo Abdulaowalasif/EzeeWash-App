@@ -85,89 +85,92 @@ class BusinessLogicUtils {
   BusinessLogicUtils._();
 
   // ─── Core Business Hours ───────────────────────────────────────────────────
-  static const int kOpenHour         = 8;   // 08:00 – normal open
-  static const int kCloseHour        = 20;  // 20:00 – normal close
-  static const int kLastOrderHour    = 19;  // 19:00 – last pickup slot START
-  static const int kLastDeliveryHour = 18;  // 18:00 – EC-23 delivery cut-off
-  static const int kSlotInterval     = 2;   // 2-hour window width
+  static const int kOpenHour = 8; // 08:00 – normal open
+  static const int kCloseHour = 20; // 20:00 – normal close
+  static const int kLastOrderHour = 19; // 19:00 – last pickup slot START
+  static const int kLastDeliveryHour = 18; // 18:00 – EC-23 delivery cut-off
+  static const int kSlotInterval = 2; // 2-hour window width
 
   // ─── Lead-Time Buffers ────────────────────────────────────────────────────
-  static const int kPickupBuffer     = 2;   // EC-04 same-day lead time (h)
-  static const int kRushHourBuffer   = 3;   // EC-31 16–19h pickup buffer (h)
-  static const int kWeatherBuffer    = 2;   // EC-35 monsoon extra buffer (h)
-  static const int kLastMinuteBuffer = 1;   // EC-24 extra h within 30m of cutoff
-  static const int kLargeItemBuffer  = 1;   // EC-49 large-item inspection (h)
-  static const int kQCBuffer         = 1;   // EC-34 mandatory QC before delivery (h)
-  static const int kFragileBuffer    = 2;   // EC-58 couture/fragile extra (h)
-  static const int kFacilityBuffer   = 24;  // EC-53 plant-overload extra (h)
-  static const int kMorningBuffer    = 10;  // EC-07 late-night next-BD start (h)
-  static const int kLateNightCutoff  = 18;  // EC-07 threshold hour
+  static const int kPickupBuffer = 2; // EC-04 same-day lead time (h)
+  static const int kRushHourBuffer = 3; // EC-31 16–19h pickup buffer (h)
+  static const int kWeatherBuffer = 2; // EC-35 monsoon extra buffer (h)
+  static const int kLastMinuteBuffer = 1; // EC-24 extra h within 30m of cutoff
+  static const int kLargeItemBuffer = 1; // EC-49 large-item inspection (h)
+  static const int kQCBuffer = 1; // EC-34 mandatory QC before delivery (h)
+  static const int kFragileBuffer = 2; // EC-58 couture/fragile extra (h)
+  static const int kFacilityBuffer = 24; // EC-53 plant-overload extra (h)
+  static const int kMorningBuffer = 10; // EC-07 late-night next-BD start (h)
+  static const int kLateNightCutoff = 18; // EC-07 threshold hour
 
   // ─── Breaks & Dead-Zones ──────────────────────────────────────────────────
-  static const int kLunchStart       = 13;   // EC-21
-  static const int kLunchEnd         = 14;   // EC-21
+  static const int kLunchStart = 13; // EC-21
+  static const int kLunchEnd = 14; // EC-21
   // EC-36: Jummah 12:30–14:30 → block slots that START at 12 or 14 (2h slots)
-  static const int kJummahBlockA     = 12;   // 12:00 slot covers 12:30 prayer start
-  static const int kJummahBlockB     = 14;   // 14:00 slot overlaps prayer end (14:30)
+  static const int kJummahBlockA = 12; // 12:00 slot covers 12:30 prayer start
+  static const int kJummahBlockB = 14; // 14:00 slot overlaps prayer end (14:30)
   // EC-44: shift-change 14:00–14:30 → block the 14h slot
-  static const int kShiftChangeHour  = 14;
+  static const int kShiftChangeHour = 14;
 
   // ─── Capacity ─────────────────────────────────────────────────────────────
-  static const int    kSlotLimit        = 100;  // max orders per slot per store
-  static const int    kUnitLimit        = 500;  // EC-38 physical unit cap per slot
-  static const double kVipHeadroom      = 0.05; // EC-37/50 5% reserved for priority
-  static const int    kBulkThreshold    = 15;   // EC-32 items above this = bulk
-  static const double kHighValueThreshold = 5000.0; // EC-45 high-value MOV (BDT)
-  static const double kPeakSlotMOV      = 300.0;    // EC-39 weekend min order value
+  static const int kSlotLimit = 100; // max orders per slot per store
+  static const int kUnitLimit = 500; // EC-38 physical unit cap per slot
+  static const double kVipHeadroom = 0.05; // EC-37/50 5% reserved for priority
+  static const int kBulkThreshold = 15; // EC-32 items above this = bulk
+  static const double kHighValueThreshold =
+      5000.0; // EC-45 high-value MOV (BDT)
+  static const double kPeakSlotMOV = 300.0; // EC-39 weekend min order value
 
   // ─── Service Processing Times (hours) ─────────────────────────────────────
-  static const int kExpressHours  = 5;
+  static const int kExpressHours = 5;
   static const int kStandardHours = 12;
 
   // EC-25/42: category → processing hours
   static const Map<String, int> kCategoryProcessingHours = {
-    'express'  : 5,
-    'standard' : 12,
-    'leather'  : 48,
-    'suits'    : 48,
-    'blankets' : 96,
-    'carpets'  : 120,
-    'curtains' : 96,
-    'couture'  : 72,
+    'express': 5,
+    'standard': 12,
+    'leather': 48,
+    'suits': 48,
+    'blankets': 96,
+    'carpets': 120,
+    'curtains': 96,
+    'couture': 72,
     'leather_couture': 120,
   };
 
   // EC-40/47: zone → traffic multiplier on lead-time buffer
   static const Map<String, double> kZoneTrafficMultipliers = {
-    'old_dhaka'   : 1.5,
-    'uttara'      : 1.2,
-    'mirpur'      : 1.3,
-    'mohakhali'   : 1.1,
-    'gulshan'     : 1.0,
-    'default'     : 1.0,
+    'old_dhaka': 1.5,
+    'uttara': 1.2,
+    'mirpur': 1.3,
+    'mohakhali': 1.1,
+    'gulshan': 1.0,
+    'default': 1.0,
   };
 
   // EC-54: zone → minimum order value (BDT)
   static const Map<String, double> kZoneMOV = {
-    'old_dhaka' : 400.0,
-    'uttara'    : 350.0,
-    'mirpur'    : 350.0,
-    'default'   : 0.0,
+    'old_dhaka': 400.0,
+    'uttara': 350.0,
+    'mirpur': 350.0,
+    'default': 0.0,
   };
 
   // EC-30: festive weeks (month, weekNumber 1-5) where surge applies
   // Eid ul-Fitr 2025 week, Eid ul-Adha 2025 week, Durga Puja 2025 week
   static final List<DateTime> _festiveSurgeWeekStarts = [
-    DateTime(2025, 3, 24), DateTime(2025, 6, 2),
-    DateTime(2026, 3, 16), DateTime(2026, 5, 25),
+    DateTime(2025, 3, 24),
+    DateTime(2025, 6, 2),
+    DateTime(2026, 3, 16),
+    DateTime(2026, 5, 25),
   ];
 
   // ─── Operational Toggles (flip these without touching other logic) ─────────
   static const bool isEmergencyKillSwitchActive = false; // EC-55
-  static const bool isFacilityOverloaded        = false; // EC-53
-  static const bool isRamadanActive             = false; // EC-03
-  static const bool isWeatherDelayActive        = false; // EC-35
-  static const bool isRiderFatigueActive        = false; // EC-56
+  static const bool isFacilityOverloaded = false; // EC-53
+  static const bool isRamadanActive = false; // EC-03
+  static const bool isWeatherDelayActive = false; // EC-35
+  static const bool isRiderFatigueActive = false; // EC-56
 
   // EC-22: blackout dates (hartals, maintenance, etc.) – add as needed
   static final Set<String> _blackoutDates = {
@@ -176,15 +179,21 @@ class BusinessLogicUtils {
 
   // ─── Bangladesh Public Holidays ───────────────────────────────────────────
   static const List<(int, int)> _fixedHolidays = [
-    (2, 21), (3, 17), (3, 26), (4, 14),
-    (5,  1), (8, 15), (12, 16), (12, 25),
+    (2, 21),
+    (3, 17),
+    (3, 26),
+    (4, 14),
+    (5, 1),
+    (8, 15),
+    (12, 16),
+    (12, 25),
   ];
 
   static final List<DateTime> _islamicHolidays = [
     // Eid ul-Fitr 2025
     DateTime(2025, 3, 30), DateTime(2025, 3, 31), DateTime(2025, 4, 1),
     // Eid ul-Adha 2025
-    DateTime(2025, 6, 6),  DateTime(2025, 6, 7),  DateTime(2025, 6, 8),
+    DateTime(2025, 6, 6), DateTime(2025, 6, 7), DateTime(2025, 6, 8),
     // Eid ul-Fitr 2026
     DateTime(2026, 3, 20), DateTime(2026, 3, 21), DateTime(2026, 3, 22),
     // Eid ul-Adha 2026
@@ -200,8 +209,7 @@ class BusinessLogicUtils {
   // ─── Day Classification ───────────────────────────────────────────────────
 
   // EC-01: weekend
-  static bool isWeekend(DateTime d) =>
-      d.weekday == DateTime.friday;
+  static bool isWeekend(DateTime d) => d.weekday == DateTime.friday;
 
   // EC-02: fixed or Islamic public holiday
   static bool isPublicHoliday(DateTime d) {
@@ -209,12 +217,14 @@ class BusinessLogicUtils {
       if (d.month == m && d.day == day) return true;
     }
     return _islamicHolidays.any(
-            (h) => h.year == d.year && h.month == d.month && h.day == d.day);
+      (h) => h.year == d.year && h.month == d.month && h.day == d.day,
+    );
   }
 
   // EC-22: hartal / maintenance blackout
   static bool isBlackoutDate(DateTime d) {
-    final key = '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+    final key =
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
     return _blackoutDates.contains(key);
   }
 
@@ -236,10 +246,10 @@ class BusinessLogicUtils {
   /// Master closed-day predicate (EC-01/02/22/48/55)
   static bool isClosedDay(DateTime d) {
     if (isEmergencyKillSwitchActive) return true; // EC-55
-    if (isWeekend(d))       return true;          // EC-01
-    if (isPublicHoliday(d)) return true;          // EC-02
-    if (isBlackoutDate(d))  return true;          // EC-22
-    if (isBridgeDay(d))     return true;          // EC-48
+    if (isWeekend(d)) return true; // EC-01
+    if (isPublicHoliday(d)) return true; // EC-02
+    if (isBlackoutDate(d)) return true; // EC-22
+    if (isBridgeDay(d)) return true; // EC-48
     return false;
   }
 
@@ -255,8 +265,7 @@ class BusinessLogicUtils {
   // ─── Effective Hours (Ramadan + Holiday-eve aware) ────────────────────────
 
   // EC-03/41: effective opening hour
-  static int effectiveOpenHour(DateTime d) =>
-      isRamadanActive ? 10 : kOpenHour;
+  static int effectiveOpenHour(DateTime d) => isRamadanActive ? 10 : kOpenHour;
 
   // EC-03/41: effective closing hour
   static int effectiveCloseHour(DateTime d) {
@@ -267,7 +276,9 @@ class BusinessLogicUtils {
   // EC-23: last delivery slot start (always ≤ kLastDeliveryHour)
   static int effectiveLastDeliveryHour(DateTime d) {
     final close = effectiveCloseHour(d);
-    return close <= kLastDeliveryHour ? close - kSlotInterval : kLastDeliveryHour;
+    return close <= kLastDeliveryHour
+        ? close - kSlotInterval
+        : kLastDeliveryHour;
   }
 
   // EC-05/08: last pickup slot start
@@ -280,17 +291,21 @@ class BusinessLogicUtils {
   static StoreHours resolveStoreHours(DateTime d, {StoreHours? storeOverride}) {
     if (storeOverride != null) return storeOverride;
     return StoreHours(
-      openHour      : effectiveOpenHour(d),
-      closeHour     : effectiveCloseHour(d),
-      lastOrderHour : effectiveLastOrderHour(d),
+      openHour: effectiveOpenHour(d),
+      closeHour: effectiveCloseHour(d),
+      lastOrderHour: effectiveLastOrderHour(d),
     );
   }
 
   // ─── Next Business Day ────────────────────────────────────────────────────
   // EC-10/16: loops past any consecutive block of closed days
-  static DateTime getNextBusinessDay(DateTime from, {StoreHours? storeOverride}) {
-    DateTime next = DateTime(from.year, from.month, from.day)
-        .add(const Duration(days: 1)); // EC-16: DateTime arithmetic is calendar-safe
+  static DateTime getNextBusinessDay(
+    DateTime from, {
+    StoreHours? storeOverride,
+  }) {
+    DateTime next = DateTime(from.year, from.month, from.day).add(
+      const Duration(days: 1),
+    ); // EC-16: DateTime arithmetic is calendar-safe
     while (isClosedDay(next)) {
       next = next.add(const Duration(days: 1));
     }
@@ -311,13 +326,15 @@ class BusinessLogicUtils {
   }
 
   // EC-15: 30-day advance booking cap
-  static DateTime getMaxPickupDate() =>
-      nowBST.add(const Duration(days: 30));
+  static DateTime getMaxPickupDate() => nowBST.add(const Duration(days: 30));
 
   // EC-14: clamp stale/past date to the earliest valid business date
-  static DateTime clampToMinPickupDate(DateTime d, {StoreHours? storeOverride}) {
+  static DateTime clampToMinPickupDate(
+    DateTime d, {
+    StoreHours? storeOverride,
+  }) {
     final min = getMinPickupDate(storeOverride: storeOverride);
-    final dOnly   = DateTime(d.year, d.month, d.day);
+    final dOnly = DateTime(d.year, d.month, d.day);
     final minOnly = DateTime(min.year, min.month, min.day);
     if (dOnly.isBefore(minOnly) || isClosedDay(d)) {
       return getNextBusinessDay(d, storeOverride: storeOverride);
@@ -331,20 +348,23 @@ class BusinessLogicUtils {
 
   static int parseHour(String t) {
     if (t.isEmpty || t == 'Select time') return kOpenHour;
-    try { return DateFormat('hh:mm a').parse(t).hour; }
-    catch (_) { return kOpenHour; }
+    try {
+      return DateFormat('hh:mm a').parse(t).hour;
+    } catch (_) {
+      return kOpenHour;
+    }
   }
 
   static String formatDate(DateTime d) =>
-      '${d.day.toString().padLeft(2,'0')}/'
-          '${d.month.toString().padLeft(2,'0')}/'
-          '${d.year}';
+      '${d.day.toString().padLeft(2, '0')}/'
+      '${d.month.toString().padLeft(2, '0')}/'
+      '${d.year}';
 
   // ─── Slot Grid Alignment ──────────────────────────────────────────────────
   // EC-17: snap rawHour UP to the next boundary aligned from openHour
   static int _alignToSlot(int rawHour, int openHour) {
     if (rawHour <= openHour) return openHour;
-    final offset    = rawHour - openHour;
+    final offset = rawHour - openHour;
     final intervals = (offset + kSlotInterval - 1) ~/ kSlotInterval;
     return openHour + intervals * kSlotInterval;
   }
@@ -372,21 +392,24 @@ class BusinessLogicUtils {
   ///   [isSubscriptionUser] EC-59: true → no early-slot reservation
   ///   [storeOverride]     EC-26: custom store hours
   static List<String> getAvailableSlots(
-      DateTime date, {
-        bool isPickup = true,
-        int? minHourOverride,
-        List<String> categories = const [],
-        String zone = 'default',
-        bool isSubscriptionUser = false,
-        StoreHours? storeOverride,
-      }) {
+    DateTime date, {
+    bool isPickup = true,
+    int? minHourOverride,
+    List<String> categories = const [],
+    String zone = 'default',
+    bool isSubscriptionUser = false,
+    StoreHours? storeOverride,
+  }) {
     if (isClosedDay(date)) return []; // EC-01/02/22/48/55
 
-    final hours  = resolveStoreHours(date, storeOverride: storeOverride); // EC-26
-    final open   = hours.openHour;
-    final close  = hours.closeHour;
-    final now    = nowBST; // EC-46/28
-    final isFri  = date.weekday == DateTime.friday; // EC-36
+    final hours = resolveStoreHours(
+      date,
+      storeOverride: storeOverride,
+    ); // EC-26
+    final open = hours.openHour;
+    final close = hours.closeHour;
+    final now = nowBST; // EC-46/28
+    final isFri = date.weekday == DateTime.friday; // EC-36
 
     int start = open;
 
@@ -406,13 +429,18 @@ class BusinessLogicUtils {
       if (isWeatherDelayActive) buffer += kWeatherBuffer;
 
       // EC-49: large-item inspection buffer (carpets, blankets)
-      if (categories.any((c) => ['carpets', 'blankets', 'curtains'].contains(c.toLowerCase()))) {
+      if (categories.any(
+        (c) => ['carpets', 'blankets', 'curtains'].contains(c.toLowerCase()),
+      )) {
         buffer += kLargeItemBuffer;
       }
 
       // EC-24: last-minute buffer — within 30 min of cutoff
-      final minutesToCutoff = (hours.lastOrderHour * 60) - (now.hour * 60 + now.minute);
-      if (minutesToCutoff >= 0 && minutesToCutoff <= 30) buffer += kLastMinuteBuffer;
+      final minutesToCutoff =
+          (hours.lastOrderHour * 60) - (now.hour * 60 + now.minute);
+      if (minutesToCutoff >= 0 && minutesToCutoff <= 30) {
+        buffer += kLastMinuteBuffer;
+      }
 
       // EC-06: midnight/early-AM safety — buffer can't produce a negative or sub-open hour
       start = _alignToSlot((now.hour + buffer).ceil(), open); // EC-17
@@ -458,7 +486,9 @@ class BusinessLogicUtils {
       }
 
       // EC-59: reserve early Sunday slots for subscribers only
-      if (!isSubscriptionUser && date.weekday == DateTime.sunday && h < 10) continue;
+      if (!isSubscriptionUser && date.weekday == DateTime.sunday && h < 10) {
+        continue;
+      }
 
       slots.add(formatHour(h));
     }
@@ -469,24 +499,31 @@ class BusinessLogicUtils {
   /// Returns valid delivery slots for [deliveryDate] respecting pickup & service.
   /// EC-11/12/13/18/23/60
   static List<String> getDeliverySlots(
-      DateTime deliveryDate, {
-        required DateTime pickupDate,
-        required String pickupTime,
-        required String serviceName,
-        List<String> categories = const [],
-        int totalItems = 1,
-        String zone = 'default',
-        bool isSubscriptionUser = false,
-        StoreHours? storeOverride,
-      }) {
+    DateTime deliveryDate, {
+    required DateTime pickupDate,
+    required String pickupTime,
+    required String serviceName,
+    List<String> categories = const [],
+    int totalItems = 1,
+    String zone = 'default',
+    bool isSubscriptionUser = false,
+    StoreHours? storeOverride,
+  }) {
     if (isClosedDay(deliveryDate)) return []; // EC-11
 
-    final minDt      = calculateMinDelivery(
-      pickupDate, pickupTime, serviceName,
-      categories: categories, totalItems: totalItems,
+    final minDt = calculateMinDelivery(
+      pickupDate,
+      pickupTime,
+      serviceName,
+      categories: categories,
+      totalItems: totalItems,
     );
     final minDateOnly = DateTime(minDt.year, minDt.month, minDt.day);
-    final delDateOnly = DateTime(deliveryDate.year, deliveryDate.month, deliveryDate.day);
+    final delDateOnly = DateTime(
+      deliveryDate.year,
+      deliveryDate.month,
+      deliveryDate.day,
+    );
 
     if (delDateOnly.isBefore(minDateOnly)) return []; // EC-18
 
@@ -516,19 +553,19 @@ class BusinessLogicUtils {
   /// Use this on the **order** and **re-order** screens so users never see
   /// slots that are at capacity.
   static Future<List<String>> getAvailableSlotsFiltered(
-      String storeId,
-      DateTime date, {
-        bool isPickup = true,
-        int? minHourOverride,
-        List<String> categories = const [],
-        String zone = 'default',
-        bool isSubscriptionUser = false,
-        bool isVIP = false,
-        double orderValue = 0.0,
-        int activeRiders = 10,
-        int orderItemCount = 1,
-        StoreHours? storeOverride,
-      }) async {
+    String storeId,
+    DateTime date, {
+    bool isPickup = true,
+    int? minHourOverride,
+    List<String> categories = const [],
+    String zone = 'default',
+    bool isSubscriptionUser = false,
+    bool isVIP = false,
+    double orderValue = 0.0,
+    int activeRiders = 10,
+    int orderItemCount = 1,
+    StoreHours? storeOverride,
+  }) async {
     final slots = getAvailableSlots(
       date,
       isPickup: isPickup,
@@ -543,15 +580,17 @@ class BusinessLogicUtils {
 
     // Check each slot's capacity concurrently for performance.
     final checks = await Future.wait(
-      slots.map((slot) => isSlotAvailable(
-        storeId,
-        date,
-        slot,
-        isVIP: isVIP,
-        orderValue: orderValue,
-        activeRiders: activeRiders,
-        orderItemCount: orderItemCount,
-      )),
+      slots.map(
+        (slot) => isSlotAvailable(
+          storeId,
+          date,
+          slot,
+          isVIP: isVIP,
+          orderValue: orderValue,
+          activeRiders: activeRiders,
+          orderItemCount: orderItemCount,
+        ),
+      ),
     );
 
     return [
@@ -565,21 +604,21 @@ class BusinessLogicUtils {
   /// Use this on the **order** and **re-order** screens for delivery slot
   /// selection so unavailable slots are never presented to the user.
   static Future<List<String>> getDeliverySlotsFiltered(
-      String storeId,
-      DateTime deliveryDate, {
-        required DateTime pickupDate,
-        required String pickupTime,
-        required String serviceName,
-        List<String> categories = const [],
-        int totalItems = 1,
-        String zone = 'default',
-        bool isSubscriptionUser = false,
-        bool isVIP = false,
-        double orderValue = 0.0,
-        int activeRiders = 10,
-        int orderItemCount = 1,
-        StoreHours? storeOverride,
-      }) async {
+    String storeId,
+    DateTime deliveryDate, {
+    required DateTime pickupDate,
+    required String pickupTime,
+    required String serviceName,
+    List<String> categories = const [],
+    int totalItems = 1,
+    String zone = 'default',
+    bool isSubscriptionUser = false,
+    bool isVIP = false,
+    double orderValue = 0.0,
+    int activeRiders = 10,
+    int orderItemCount = 1,
+    StoreHours? storeOverride,
+  }) async {
     final slots = getDeliverySlots(
       deliveryDate,
       pickupDate: pickupDate,
@@ -595,15 +634,17 @@ class BusinessLogicUtils {
     if (slots.isEmpty) return [];
 
     final checks = await Future.wait(
-      slots.map((slot) => isSlotAvailable(
-        storeId,
-        deliveryDate,
-        slot,
-        isVIP: isVIP,
-        orderValue: orderValue,
-        activeRiders: activeRiders,
-        orderItemCount: orderItemCount,
-      )),
+      slots.map(
+        (slot) => isSlotAvailable(
+          storeId,
+          deliveryDate,
+          slot,
+          isVIP: isVIP,
+          orderValue: orderValue,
+          activeRiders: activeRiders,
+          orderItemCount: orderItemCount,
+        ),
+      ),
     );
 
     return [
@@ -616,16 +657,21 @@ class BusinessLogicUtils {
   /// Counts [hoursNeeded] *business* hours forward from pickup moment.
   /// EC-09/10/12/25/32/33/34/53/58/60
   static DateTime calculateMinDelivery(
-      DateTime pickupDate,
-      String pickupTime,
-      String serviceName, {
-        List<String> categories  = const [],
-        int    totalItems        = 1,
-        bool   isFragile         = false,
-        StoreHours? storeOverride,
-      }) {
+    DateTime pickupDate,
+    String pickupTime,
+    String serviceName, {
+    List<String> categories = const [],
+    int totalItems = 1,
+    bool isFragile = false,
+    StoreHours? storeOverride,
+  }) {
     final pHour = parseHour(pickupTime);
-    DateTime cursor = DateTime(pickupDate.year, pickupDate.month, pickupDate.day, pHour);
+    DateTime cursor = DateTime(
+      pickupDate.year,
+      pickupDate.month,
+      pickupDate.day,
+      pHour,
+    );
 
     // EC-33: always use longest duration across all categories in the order
     int baseHours = _resolveProcessingHours(serviceName, categories);
@@ -647,8 +693,8 @@ class BusinessLogicUtils {
     baseHours += kQCBuffer;
 
     // EC-58: fragile/couture special handling
-    final hasFragile = isFragile ||
-        categories.any((c) => c.toLowerCase() == 'couture');
+    final hasFragile =
+        isFragile || categories.any((c) => c.toLowerCase() == 'couture');
     if (hasFragile) baseHours += kFragileBuffer;
 
     int hoursRemaining = baseHours;
@@ -676,7 +722,10 @@ class BusinessLogicUtils {
   }
 
   // EC-33: resolve processing hours — longest wins across service + categories
-  static int _resolveProcessingHours(String serviceName, List<String> categories) {
+  static int _resolveProcessingHours(
+    String serviceName,
+    List<String> categories,
+  ) {
     int hours = serviceName.toLowerCase().contains('express')
         ? kExpressHours
         : kStandardHours;
@@ -690,16 +739,19 @@ class BusinessLogicUtils {
   // ─── Min Delivery Date (date-only) ────────────────────────────────────────
   /// EC-11/18: date-only helper; advances past any closed day.
   static DateTime getMinDeliveryDate(
-      DateTime pickupDate,
-      String pickupTime,
-      String serviceName, {
-        List<String> categories = const [],
-        int totalItems          = 1,
-        StoreHours? storeOverride,
-      }) {
+    DateTime pickupDate,
+    String pickupTime,
+    String serviceName, {
+    List<String> categories = const [],
+    int totalItems = 1,
+    StoreHours? storeOverride,
+  }) {
     final dt = calculateMinDelivery(
-      pickupDate, pickupTime, serviceName,
-      categories: categories, totalItems: totalItems,
+      pickupDate,
+      pickupTime,
+      serviceName,
+      categories: categories,
+      totalItems: totalItems,
       storeOverride: storeOverride,
     );
     // EC-11: advance past any closed day (race condition guard)
@@ -714,8 +766,13 @@ class BusinessLogicUtils {
   /// Called at checkout confirm. Returns true if the pickup slot is STILL
   /// in the future with sufficient buffer (EC-29: 2h modification deadline).
   static bool isSubmissionStillValid(DateTime pickupDate, String pickupTime) {
-    final pHour    = parseHour(pickupTime);
-    final pickupDT = DateTime(pickupDate.year, pickupDate.month, pickupDate.day, pHour);
+    final pHour = parseHour(pickupTime);
+    final pickupDT = DateTime(
+      pickupDate.year,
+      pickupDate.month,
+      pickupDate.day,
+      pHour,
+    );
     final deadline = nowBST.add(const Duration(hours: 2)); // EC-29
     return pickupDT.isAfter(deadline);
   }
@@ -735,9 +792,9 @@ class BusinessLogicUtils {
           .from('server_time') // a lightweight view/function
           .select('now')
           .single();
-      final after  = DateTime.now().toUtc();
+      final after = DateTime.now().toUtc();
       final serverTime = DateTime.parse(response['now'] as String);
-      final deviceMid  = before.add(after.difference(before) ~/ 2);
+      final deviceMid = before.add(after.difference(before) ~/ 2);
       return serverTime.difference(deviceMid);
     } catch (_) {
       return Duration.zero; // fail-open
@@ -752,8 +809,9 @@ class BusinessLogicUtils {
     required String zone,
   }) {
     // Weekend pickup requires minimum order value
-    final isWeekendPickup = pickupDate.weekday == DateTime.sunday
-        || pickupDate.weekday == DateTime.monday; // Sun/Mon = BD workweek start
+    final isWeekendPickup =
+        pickupDate.weekday == DateTime.sunday ||
+        pickupDate.weekday == DateTime.monday; // Sun/Mon = BD workweek start
     final zoneMOV = kZoneMOV[zone] ?? 0.0;
     if (isWeekendPickup && orderValue < kPeakSlotMOV) return false;
     if (orderValue < zoneMOV) return false; // EC-54: zone-based MOV
@@ -768,18 +826,18 @@ class BusinessLogicUtils {
   /// EC-52: dynamic limit is also capped by (activeRiders × 15).
   /// EC-19: fails open on any network error.
   static Future<bool> isSlotAvailable(
-      String storeId,
-      DateTime date,
-      String time, {
-        bool   isVIP           = false,
-        double orderValue      = 0.0,
-        int    activeRiders    = 10,
-        int    orderItemCount  = 1,
-      }) async {
+    String storeId,
+    DateTime date,
+    String time, {
+    bool isVIP = false,
+    double orderValue = 0.0,
+    int activeRiders = 10,
+    int orderItemCount = 1,
+  }) async {
     try {
-      final hour       = parseHour(time);
+      final hour = parseHour(time);
       final startRange = DateTime(date.year, date.month, date.day, hour);
-      final endRange   = startRange.add(const Duration(hours: kSlotInterval));
+      final endRange = startRange.add(const Duration(hours: kSlotInterval));
 
       final response = await Supabase.instance.client
           .from(AppConstants.ordersTable)
@@ -789,18 +847,20 @@ class BusinessLogicUtils {
           .lt('pickup_date', endRange.toIso8601String());
 
       final orderCount = response.length;
-      final unitCount  = (response as List)
-          .fold<int>(0, (s, r) => s + ((r['item_count'] as int?) ?? 1));
+      final unitCount = (response as List).fold<int>(
+        0,
+        (s, r) => s + ((r['item_count'] as int?) ?? 1),
+      );
 
       // EC-38: physical unit saturation check
       if (unitCount + orderItemCount > kUnitLimit) return false;
 
       // EC-52: rider-based dynamic limit
-      final riderLimit    = activeRiders * 15;
-      final dynamicLimit  = riderLimit < kSlotLimit ? riderLimit : kSlotLimit;
+      final riderLimit = activeRiders * 15;
+      final dynamicLimit = riderLimit < kSlotLimit ? riderLimit : kSlotLimit;
 
       // EC-37/45/50: priority vs non-priority soft-cap
-      final isPriority    = isVIP || orderValue >= kHighValueThreshold;
+      final isPriority = isVIP || orderValue >= kHighValueThreshold;
       final effectiveLimit = isPriority
           ? dynamicLimit
           : (dynamicLimit * (1.0 - kVipHeadroom)).floor();
@@ -822,7 +882,9 @@ class BusinessLogicUtils {
     int activeRiders = 10,
   }) async {
     final primary = await isSlotAvailable(
-      primaryStoreId, pickupDate, pickupTime,
+      primaryStoreId,
+      pickupDate,
+      pickupTime,
       activeRiders: activeRiders,
     );
     if (primary) return primaryStoreId;
@@ -833,21 +895,36 @@ class BusinessLogicUtils {
   // ─── Display Helpers ──────────────────────────────────────────────────────
 
   /// Human-readable processing time label.
-  static String processingTimeLabel(String serviceName, {List<String> categories = const []}) {
+  static String processingTimeLabel(
+    String serviceName, {
+    List<String> categories = const [],
+  }) {
     final hours = _resolveProcessingHours(serviceName, categories);
-    if (hours <= kExpressHours)  return '$hours-hour express processing';
+    if (hours <= kExpressHours) return '$hours-hour express processing';
     if (hours <= kStandardHours) return '$hours-hour standard processing';
     return '${hours ~/ 24}-day specialist processing';
   }
 
   /// Human-readable reason for empty slot list.
   static String noSlotsReason(DateTime date) {
-    if (isEmergencyKillSwitchActive) return 'Bookings are temporarily suspended. Please try again later.';
-    if (isBlackoutDate(date))        return 'Service unavailable on this date (scheduled maintenance).';
-    if (isPublicHoliday(date))       return 'Public holiday — store is closed.';
-    if (isWeekend(date))             return 'Store closed on weekends (Friday & Saturday).';
-    if (isBridgeDay(date))           return 'Bridge holiday — store is closed today.';
-    if (isFestiveSurgeWeek(date))    return 'Festive week — limited slots due to high demand.';
+    if (isEmergencyKillSwitchActive) {
+      return 'Bookings are temporarily suspended. Please try again later.';
+    }
+    if (isBlackoutDate(date)) {
+      return 'Service unavailable on this date (scheduled maintenance).';
+    }
+    if (isPublicHoliday(date)) {
+      return 'Public holiday — store is closed.';
+    }
+    if (isWeekend(date)) {
+      return 'Store closed on weekends (Friday & Saturday).';
+    }
+    if (isBridgeDay(date)) {
+      return 'Bridge holiday — store is closed today.';
+    }
+    if (isFestiveSurgeWeek(date)) {
+      return 'Festive week — limited slots due to high demand.';
+    }
     return 'No slots available — store operating hours have passed for this date.';
   }
 }

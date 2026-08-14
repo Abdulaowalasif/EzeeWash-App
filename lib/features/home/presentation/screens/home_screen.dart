@@ -1,9 +1,12 @@
+// ignore_for_file: use_build_context_synchronously
 // lib/features/home/presentation/screens/home_screen.dart
 //
 // Refactored: AppSnackBar replaces inline SnackBar construction.
 
 import 'package:ezzewash/features/promos/presentation/screen/promo_banner.dart';
 import 'package:flutter/material.dart';
+import '../../../../features/profile/presentation/bloc/profile_bloc.dart';
+import '../../../../features/profile/presentation/bloc/profile_event.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,6 +27,8 @@ import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../promos/presentation/bloc/promo_bloc.dart';
 import '../../../promos/presentation/bloc/promo_event.dart';
 import '../../../promos/presentation/bloc/promo_state.dart';
+import '../../../services/presentation/bloc/service_bloc.dart';
+import '../../../services/presentation/bloc/service_event.dart';
 import '../widgets/home_widgets.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -45,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<PromoBloc>().add(WatchPromosStarted());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authState = context.read<AuthBloc>().state;
       if (authState is AuthAuthenticated && authState.fromSignUp) {
@@ -66,14 +70,17 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       final githubToken = dotenv.env['GITHUB_PAT'] ?? '';
 
-      final response = await http.get(
-        uri,
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'EzeeWash-App',
-          if (githubToken.isNotEmpty) 'Authorization': 'Bearer $githubToken',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            uri,
+            headers: {
+              'Accept': 'application/vnd.github.v3+json',
+              'User-Agent': 'EzeeWash-App',
+              if (githubToken.isNotEmpty)
+                'Authorization': 'Bearer $githubToken',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final releases = jsonDecode(response.body) as List<dynamic>;
@@ -87,7 +94,10 @@ class _HomeScreenState extends State<HomeScreen> {
             final name = asset['name'] as String? ?? '';
             if (name.endsWith('.apk')) {
               apkUrl = asset['url'] as String?;
-              latestVersion = (release['tag_name'] as String? ?? '').replaceAll('v', '');
+              latestVersion = (release['tag_name'] as String? ?? '').replaceAll(
+                'v',
+                '',
+              );
               break;
             }
           }
@@ -99,55 +109,100 @@ class _HomeScreenState extends State<HomeScreen> {
           if (latestVersion == lastPrompted) return;
 
           final cleanLatest = latestVersion.replaceAll(RegExp(r'[^0-9.]'), '');
-          final cleanCurrent = currentVersion.replaceAll(RegExp(r'[^0-9.]'), '');
-          
+          final cleanCurrent = currentVersion.replaceAll(
+            RegExp(r'[^0-9.]'),
+            '',
+          );
+
           bool isNewer = false;
-          final l = cleanLatest.split('.').where((e) => e.isNotEmpty).map((e) => int.tryParse(e) ?? 0).toList();
-          final c = cleanCurrent.split('.').where((e) => e.isNotEmpty).map((e) => int.tryParse(e) ?? 0).toList();
+          final l = cleanLatest
+              .split('.')
+              .where((e) => e.isNotEmpty)
+              .map((e) => int.tryParse(e) ?? 0)
+              .toList();
+          final c = cleanCurrent
+              .split('.')
+              .where((e) => e.isNotEmpty)
+              .map((e) => int.tryParse(e) ?? 0)
+              .toList();
           final maxLen = l.length > c.length ? l.length : c.length;
           for (int i = 0; i < maxLen; i++) {
             final lv = i < l.length ? l[i] : 0;
             final cv = i < c.length ? c[i] : 0;
-            if (lv > cv) { isNewer = true; break; }
+            if (lv > cv) {
+              isNewer = true;
+              break;
+            }
             if (lv < cv) break;
           }
 
-          if (isNewer && mounted) {
+          if (isNewer && context.mounted) {
             showDialog(
               context: context,
               barrierDismissible: false,
               builder: (ctx) {
                 final isDark = Theme.of(ctx).brightness == Brightness.dark;
                 return AlertDialog(
-                  backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                  title: Text('Update Available', style: AppTextStyles.h4(isDark)),
-                  content: Text('A new version ($latestVersion) is available. Would you like to update now?', style: AppTextStyles.body(isDark)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  backgroundColor: isDark
+                      ? AppColors.darkSurface
+                      : AppColors.lightSurface,
+                  title: Text(
+                    'Update Available',
+                    style: AppTextStyles.h4(isDark),
+                  ),
+                  content: Text(
+                    'A new version ($latestVersion) is available. Would you like to update now?',
+                    style: AppTextStyles.body(isDark),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   actions: [
                     TextButton(
                       onPressed: () async {
-                        await prefs.setString('last_prompted_version', latestVersion!);
-                        if (mounted) Navigator.pop(ctx);
+                        await prefs.setString(
+                          'last_prompted_version',
+                          latestVersion!,
+                        );
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
                       },
-                      child: Text('Not Now', style: AppTextStyles.buttonOutline),
+                      child: Text(
+                        'Not Now',
+                        style: AppTextStyles.buttonOutline,
+                      ),
                     ),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onPressed: () async {
-                        await prefs.setString('last_prompted_version', latestVersion!);
-                        if (mounted) {
+                        await prefs.setString(
+                          'last_prompted_version',
+                          latestVersion!,
+                        );
+                        if (ctx.mounted && context.mounted) {
                           Navigator.pop(ctx);
-                          context.push(RoutesName.settingsNavigate, extra: true);
+                          context.push(
+                            RoutesName.settingsNavigate,
+                            extra: true,
+                          );
                         }
                       },
-                      child: const Text('Update Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'Update Now',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 );
-              }
+              },
             );
           }
         }
@@ -213,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 15),
                       HomeRecentOrders(isDark: isDark),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -247,7 +302,9 @@ class HomePromoSection extends StatelessWidget {
           final now = DateTime.now();
           final validPromos = state.promos.where((p) {
             if (!p.isActive) return false;
-            if (p.validUntil != null && p.validUntil!.isBefore(now)) return false;
+            if (p.validUntil != null && p.validUntil!.isBefore(now)) {
+              return false;
+            }
             return true;
           }).toList();
 

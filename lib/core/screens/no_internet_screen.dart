@@ -6,7 +6,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_color.dart';
 import '../theme/app_text_styles.dart';
-import '../widgets/common_widgets.dart';
+import '../widgets/widgets.dart';
 
 class NoInternetScreen extends StatefulWidget {
   final bool isDarkMode;
@@ -30,8 +30,7 @@ class _NoInternetScreenState extends State<NoInternetScreen>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
     _pulseAnimation = Tween<double>(begin: 0.9, end: 1.0).animate(
-      CurvedAnimation(
-          parent: _pulseController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
 
@@ -52,8 +51,9 @@ class _NoInternetScreenState extends State<NoInternetScreen>
     final isDark = widget.isDarkMode;
 
     return Scaffold(
-      backgroundColor:
-      isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -72,14 +72,17 @@ class _NoInternetScreenState extends State<NoInternetScreen>
                           : AppColors.lightSurface,
                       shape: BoxShape.circle,
                       border: Border.all(
-                          color: isDark
-                              ? AppColors.darkBorder
-                              : AppColors.lightBorder,
-                          width: 1.5),
-                      
+                        color: isDark
+                            ? AppColors.darkBorder
+                            : AppColors.lightBorder,
+                        width: 1.5,
+                      ),
                     ),
-                    child: const Icon(Icons.wifi_off_rounded,
-                        size: 48, color: AppColors.primary),
+                    child: const Icon(
+                      Icons.wifi_off_rounded,
+                      size: 48,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 40),
@@ -111,10 +114,11 @@ class _NoInternetScreenState extends State<NoInternetScreen>
                   'Automatically reconnecting...',
                   style: AppTextStyles.caption(isDark).copyWith(
                     fontStyle: FontStyle.italic,
-                    color: (isDark
-                        ? AppColors.darkSubtext
-                        : AppColors.lightSubtext)
-                        .withOpacity(0.7),
+                    color:
+                        (isDark
+                                ? AppColors.darkSubtext
+                                : AppColors.lightSubtext)
+                            .withValues(alpha: 0.7),
                   ),
                 ),
               ],

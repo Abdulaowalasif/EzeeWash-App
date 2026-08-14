@@ -12,7 +12,8 @@ abstract class NotificationsRemoteDataSource {
   Stream<List<Map<String, dynamic>>> watchNotifications(String userId);
 }
 
-class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource {
+class NotificationsRemoteDataSourceImpl
+    implements NotificationsRemoteDataSource {
   final SupabaseClient _client;
   static const String _readGlobalKey = 'read_global_notifications';
 
@@ -53,7 +54,7 @@ class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource
           .update({'is_read': true})
           .eq('id', notificationId)
           .not('user_id', 'is', null) // Safety lock
-          .select();
+          .select('id');
 
       // 2. Update Locally (If it was a global notification)
       if ((response as List).isEmpty) {
@@ -85,8 +86,9 @@ class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource
           .select('id')
           .isFilter('user_id', null);
 
-      final globalIds =
-          (globalData as List).map((e) => e['id'] as String).toList();
+      final globalIds = (globalData as List)
+          .map((e) => e['id'] as String)
+          .toList();
 
       if (globalIds.isNotEmpty) {
         final prefs = await SharedPreferences.getInstance();

@@ -73,10 +73,13 @@ class OrderModel extends OrderEntity {
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> j) {
-    final steps = (j['order_timelines'] as List? ?? [])
-        .map((t) => OrderTimelineStepModel.fromJson(t as Map<String, dynamic>))
-        .toList()
-      ..sort((a, b) => a.stepOrder.compareTo(b.stepOrder));
+    final steps =
+        (j['order_timelines'] as List? ?? [])
+            .map(
+              (t) => OrderTimelineStepModel.fromJson(t as Map<String, dynamic>),
+            )
+            .toList()
+          ..sort((a, b) => a.stepOrder.compareTo(b.stepOrder));
 
     final serviceMap = j['services'] as Map?;
     final status = j['status'] as String? ?? 'pending';
@@ -85,11 +88,18 @@ class OrderModel extends OrderEntity {
     Map<String, dynamic>? activeRiderData;
 
     if (status == 'confirmed' || status == 'pending') {
-      activeRiderData = j['pickup_rider'] as Map<String, dynamic>? ?? j['riders'] as Map<String, dynamic>?;
-    } else if (status == 'ready' || status == 'out_for_delivery' || status == 'delivered') {
-      activeRiderData = j['delivery_rider'] as Map<String, dynamic>? ?? j['riders'] as Map<String, dynamic>?;
+      activeRiderData =
+          j['pickup_rider'] as Map<String, dynamic>? ??
+          j['riders'] as Map<String, dynamic>?;
+    } else if (status == 'ready' ||
+        status == 'out_for_delivery' ||
+        status == 'delivered') {
+      activeRiderData =
+          j['delivery_rider'] as Map<String, dynamic>? ??
+          j['riders'] as Map<String, dynamic>?;
     } else {
-      activeRiderData = j['pickup_rider'] as Map<String, dynamic>? ??
+      activeRiderData =
+          j['pickup_rider'] as Map<String, dynamic>? ??
           j['delivery_rider'] as Map<String, dynamic>? ??
           j['riders'] as Map<String, dynamic>?;
     }
@@ -134,16 +144,16 @@ class OrderModel extends OrderEntity {
       riderLng: (activeRiderData?['current_lng'] as num?)?.toDouble(),
 
       // ── Rider profile mapped to entities ────────────────────────────────────
-      riderId:           j['rider_id']              as String?,
-      pickupRiderId:     j['pickup_rider_id']       as String?,
-      deliveryRiderId:   j['delivery_rider_id']     as String?,
-      riderName:         activeRiderData?['full_name']     as String?,
-      riderPhone:        activeRiderData?['phone']         as String?,
-      riderAvatarUrl:    activeRiderData?['avatar_url']    as String?,
-      riderVehicleType:  activeRiderData?['vehicle_type']  as String?,
+      riderId: j['rider_id'] as String?,
+      pickupRiderId: j['pickup_rider_id'] as String?,
+      deliveryRiderId: j['delivery_rider_id'] as String?,
+      riderName: activeRiderData?['full_name'] as String?,
+      riderPhone: activeRiderData?['phone'] as String?,
+      riderAvatarUrl: activeRiderData?['avatar_url'] as String?,
+      riderVehicleType: activeRiderData?['vehicle_type'] as String?,
       riderVehiclePlate: activeRiderData?['vehicle_plate'] as String?,
-      riderRating:       (activeRiderData?['rating'] as num?)?.toDouble(),
-      riderIsOnline:     activeRiderData?['is_online']     as bool? ?? false,
+      riderRating: (activeRiderData?['rating'] as num?)?.toDouble(),
+      riderIsOnline: activeRiderData?['is_online'] as bool? ?? false,
     );
   }
 

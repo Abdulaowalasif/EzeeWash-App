@@ -18,19 +18,18 @@ class AppSnackBar {
   AppSnackBar._();
 
   static void show(
-      BuildContext context,
-      String message, {
-        SnackBarType type = SnackBarType.success,
-        // Legacy boolean support — maps to error type.
-        bool? isError,
-      }) {
+    BuildContext context,
+    String message, {
+    SnackBarType type = SnackBarType.success,
+    // Legacy boolean support — maps to error type.
+    bool? isError,
+  }) {
     if (!context.mounted) return;
 
-    final resolvedType =
-    isError == true ? SnackBarType.error : type;
+    final resolvedType = isError == true ? SnackBarType.error : type;
 
     final Color bg = switch (resolvedType) {
-      SnackBarType.error   => AppColors.error,
+      SnackBarType.error => AppColors.error,
       SnackBarType.warning => AppColors.warning,
       SnackBarType.success => AppColors.success,
     };

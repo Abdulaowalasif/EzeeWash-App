@@ -6,7 +6,6 @@ import '../../../../core/utils/usecase.dart';
 import '../entities/notification_entity.dart';
 import '../repositories/notification_repositories.dart';
 
-
 // ─── Get Notifications ────────────────────────────────────────────────────────
 
 class GetNotificationsUseCase
@@ -21,8 +20,7 @@ class GetNotificationsUseCase
 
 // ─── Mark One Read ────────────────────────────────────────────────────────────
 
-class MarkNotificationReadUseCase
-    implements UseCase<void, MarkReadParams> {
+class MarkNotificationReadUseCase implements UseCase<void, MarkReadParams> {
   final NotificationsRepository repository;
   MarkNotificationReadUseCase(this.repository);
 
@@ -48,3 +46,15 @@ class MarkAllNotificationsReadUseCase implements UseCase<void, NoParams> {
   Future<Either<Failure, void>> call(NoParams params) =>
       repository.markAllRead();
 }
+
+// ─── Watch Notifications ──────────────────────────────────────────────────────
+
+class WatchNotificationsUseCase {
+  final NotificationsRepository repository;
+  WatchNotificationsUseCase(this.repository);
+
+  Stream<List<Map<String, dynamic>>> call(String userId) {
+    return repository.watchNotifications(userId);
+  }
+}
+

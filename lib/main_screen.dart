@@ -32,7 +32,7 @@ class _MainScreenState extends State<MainScreen> {
     final currentLocation = GoRouterState.of(context).matchedLocation;
     final ordersIsInSubRoute =
         currentLocation.startsWith(RoutesName.orders) &&
-            currentLocation.length > RoutesName.orders.length;
+        currentLocation.length > RoutesName.orders.length;
 
     final shouldReset = isSameBranch || ordersIsInSubRoute;
 
@@ -43,7 +43,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       buildWhen: (prev, curr) =>
-      (prev is AuthAuthenticated) != (curr is AuthAuthenticated),
+          (prev is AuthAuthenticated) != (curr is AuthAuthenticated),
       builder: (context, authState) {
         final currentLocation = GoRouterState.of(context).matchedLocation;
         final isBaseScreen = [
@@ -59,32 +59,53 @@ class _MainScreenState extends State<MainScreen> {
           onPopInvokedWithResult: (didPop, result) async {
             if (didPop) return;
 
-            final shouldPop = await showDialog<bool>(
-              context: context,
-              builder: (context) {
-                final isDark = Theme.of(context).brightness == Brightness.dark;
-                return AlertDialog(
-                  backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                  title: Text('Exit App', style: AppTextStyles.h4(isDark)),
-                  content: Text('Are you sure you want to exit EzeeWash?', style: AppTextStyles.body(isDark)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: Text('Cancel', style: AppTextStyles.buttonOutline),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            final shouldPop =
+                await showDialog<bool>(
+                  context: context,
+                  builder: (context) {
+                    final isDark =
+                        Theme.of(context).brightness == Brightness.dark;
+                    return AlertDialog(
+                      backgroundColor: isDark
+                          ? AppColors.darkSurface
+                          : AppColors.lightSurface,
+                      title: Text('Exit App', style: AppTextStyles.h4(isDark)),
+                      content: Text(
+                        'Are you sure you want to exit EzeeWash?',
+                        style: AppTextStyles.body(isDark),
                       ),
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Exit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                );
-              },
-            ) ?? false;
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: Text(
+                            'Cancel',
+                            style: AppTextStyles.buttonOutline,
+                          ),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: const Text(
+                            'Exit',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ) ??
+                false;
 
             if (shouldPop) {
               SystemNavigator.pop();
@@ -94,9 +115,9 @@ class _MainScreenState extends State<MainScreen> {
             body: widget.navigationShell,
             bottomNavigationBar: authState is AuthAuthenticated
                 ? _BottomNav(
-              currentIndex: widget.navigationShell.currentIndex,
-              onTap: _onTap,
-            )
+                    currentIndex: widget.navigationShell.currentIndex,
+                    onTap: _onTap,
+                  )
                 : null,
           ),
         );
@@ -114,7 +135,13 @@ class _BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    const icons = [Iconsax.heart, Iconsax.truck_fast, Iconsax.home, Icons.smart_toy_outlined, Iconsax.notification];
+    const icons = [
+      Iconsax.heart,
+      Iconsax.truck_fast,
+      Iconsax.home,
+      Icons.smart_toy_outlined,
+      Iconsax.notification,
+    ];
     final labels = ['Services', 'Orders', 'Home', 'Ai Guide', 'Alerts'];
 
     return Container(
@@ -122,7 +149,7 @@ class _BottomNav extends StatelessWidget {
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.06),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
             blurRadius: 12,
             offset: const Offset(0, -3),
           ),
@@ -151,7 +178,6 @@ class _BottomNav extends StatelessWidget {
                         decoration: BoxDecoration(
                           gradient: AppColors.gradient,
                           borderRadius: BorderRadius.circular(16),
-                          
                         ),
                       ),
                     ),
@@ -159,7 +185,11 @@ class _BottomNav extends StatelessWidget {
                   Row(
                     children: List.generate(5, (i) {
                       final isSelected = currentIndex == i;
-                      final contentColor = isSelected ? Colors.white : (isDark ? Colors.grey.shade400 : Colors.grey.shade600);
+                      final contentColor = isSelected
+                          ? Colors.white
+                          : (isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600);
 
                       return Expanded(
                         child: GestureDetector(
@@ -169,12 +199,22 @@ class _BottomNav extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               i == 4
-                                  ? _NotificationBadge(icon: icons[i], color: contentColor)
-                                  : Icon(icons[i], size: 22, color: contentColor),
+                                  ? _NotificationBadge(
+                                      icon: icons[i],
+                                      color: contentColor,
+                                    )
+                                  : Icon(
+                                      icons[i],
+                                      size: 22,
+                                      color: contentColor,
+                                    ),
                               const SizedBox(height: 4),
                               AnimatedDefaultTextStyle(
                                 duration: const Duration(milliseconds: 200),
-                                style: AppTextStyles.navLabel(contentColor, selected: isSelected),
+                                style: AppTextStyles.navLabel(
+                                  contentColor,
+                                  selected: isSelected,
+                                ),
                                 child: Text(labels[i]),
                               ),
                             ],
@@ -213,10 +253,17 @@ class _NotificationBadge extends StatelessWidget {
                 right: -6,
                 child: Container(
                   padding: const EdgeInsets.all(3),
-                  decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                  decoration: const BoxDecoration(
+                    color: AppColors.error,
+                    shape: BoxShape.circle,
+                  ),
                   child: Text(
                     unread > 9 ? '9+' : '$unread',
-                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),

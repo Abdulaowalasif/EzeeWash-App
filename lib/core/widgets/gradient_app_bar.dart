@@ -51,15 +51,15 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
           children: [
             backEnabled == true
                 ? GestureDetector(
-              onTap: () => context.pop(),
-              child:
-              leading ??
-                  const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-            )
+                    onTap: () => context.pop(),
+                    child:
+                        leading ??
+                        const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                  )
                 : SizedBox(),
             const SizedBox(width: 16),
             Expanded(

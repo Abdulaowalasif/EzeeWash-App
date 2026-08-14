@@ -8,13 +8,22 @@ import '../repositories/service_repository.dart';
 
 // ─── Get All Services ─────────────────────────────────────────────────────────
 
-class GetAllServicesUseCase implements UseCase<List<ServiceEntity>, NoParams> {
+class GetAllServicesUseCase
+    implements UseCase<List<ServiceEntity>, GetAllServicesParams> {
   final ServicesRepository repository;
   GetAllServicesUseCase(this.repository);
 
   @override
-  Future<Either<Failure, List<ServiceEntity>>> call(NoParams params) =>
-      repository.getAllServices();
+  Future<Either<Failure, List<ServiceEntity>>> call(
+    GetAllServicesParams params,
+  ) => repository.getAllServices(forceRefresh: params.forceRefresh);
+}
+
+class GetAllServicesParams extends Equatable {
+  final bool forceRefresh;
+  const GetAllServicesParams({this.forceRefresh = false});
+  @override
+  List<Object> get props => [forceRefresh];
 }
 
 // ─── Get Services By Category ─────────────────────────────────────────────────
@@ -26,14 +35,18 @@ class GetServicesByCategoryUseCase
 
   @override
   Future<Either<Failure, List<ServiceEntity>>> call(CategoryParams params) =>
-      repository.getServicesByCategory(params.category);
+      repository.getServicesByCategory(
+        params.category,
+        forceRefresh: params.forceRefresh,
+      );
 }
 
 class CategoryParams extends Equatable {
   final String category;
-  const CategoryParams(this.category);
+  final bool forceRefresh;
+  const CategoryParams(this.category, {this.forceRefresh = false});
   @override
-  List<Object> get props => [category];
+  List<Object> get props => [category, forceRefresh];
 }
 
 // ─── Get Service By ID ────────────────────────────────────────────────────────
@@ -44,12 +57,13 @@ class GetServiceByIdUseCase implements UseCase<ServiceEntity, ServiceIdParams> {
 
   @override
   Future<Either<Failure, ServiceEntity>> call(ServiceIdParams params) =>
-      repository.getServiceById(params.id);
+      repository.getServiceById(params.id, forceRefresh: params.forceRefresh);
 }
 
 class ServiceIdParams extends Equatable {
   final String id;
-  const ServiceIdParams(this.id);
+  final bool forceRefresh;
+  const ServiceIdParams(this.id, {this.forceRefresh = false});
   @override
-  List<Object> get props => [id];
+  List<Object> get props => [id, forceRefresh];
 }

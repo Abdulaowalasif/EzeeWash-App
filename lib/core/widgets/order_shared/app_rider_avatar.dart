@@ -14,6 +14,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../constants/app_color.dart';
+import '../app_network_image.dart';
 
 class AppRiderAvatar extends StatelessWidget {
   final String name;
@@ -30,7 +31,7 @@ class AppRiderAvatar extends StatelessWidget {
   });
 
   Widget _fallback() => Container(
-    color: AppColors.primary.withOpacity(0.12),
+    color: AppColors.primary.withValues(alpha: 0.12),
     alignment: Alignment.center,
     child: Text(
       name.isNotEmpty ? name[0].toUpperCase() : 'R',
@@ -54,20 +55,19 @@ class AppRiderAvatar extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: AppColors.primary.withOpacity(0.3),
+              color: AppColors.primary.withValues(alpha: 0.3),
               width: 3,
             ),
-            
           ),
-          child: ClipOval(
-            child: photoUrl != null
-                ? Image.network(
-              photoUrl!,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => _fallback(),
-            )
-                : _fallback(),
-          ),
+          child: photoUrl != null
+              ? AppNetworkImage(
+                  url: photoUrl!,
+                  width: size,
+                  height: size,
+                  radius: size / 2, // Circular
+                  fallbackIcon: Icons.motorcycle,
+                )
+              : _fallback(),
         ),
         Container(
           width: badgeSize,

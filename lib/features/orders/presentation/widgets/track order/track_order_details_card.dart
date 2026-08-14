@@ -32,14 +32,12 @@ class TrackOrderDetailsCard extends StatelessWidget {
     final targetAddress = isDeliveryTarget
         ? (order.deliveryAddress ?? order.pickupAddress)
         : order.pickupAddress;
-    final dateLabel =
-        isDeliveryTarget ? 'Estimated Delivery' : 'Scheduled Pickup';
-    final dateValue =
-        isDeliveryTarget ? order.deliveryDate : order.pickupDate;
-    final timeValue =
-        isDeliveryTarget ? order.deliveryTime : order.pickupTime;
-    final iconColor =
-        isDeliveryTarget ? AppColors.success : AppColors.primary;
+    final dateLabel = isDeliveryTarget
+        ? 'Estimated Delivery'
+        : 'Scheduled Pickup';
+    final dateValue = isDeliveryTarget ? order.deliveryDate : order.pickupDate;
+    final timeValue = isDeliveryTarget ? order.deliveryTime : order.pickupTime;
+    final iconColor = isDeliveryTarget ? AppColors.success : AppColors.primary;
 
     return AppSurfaceCard(
       isDark: isDark,
@@ -68,7 +66,7 @@ class TrackOrderDetailsCard extends StatelessWidget {
             title: dateLabel,
             sub: dateValue != null
                 ? '${dateValue.day}/${dateValue.month}/${dateValue.year}'
-                    '${timeValue != null ? " at $timeValue" : ""}'
+                      '${timeValue != null ? " at $timeValue" : ""}'
                 : 'To be updated',
             isDark: isDark,
           ),

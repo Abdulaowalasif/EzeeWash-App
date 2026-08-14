@@ -17,7 +17,11 @@ class SettingsAppUpdateCard extends StatefulWidget {
   final bool isDark;
   final bool autoStartUpdate;
 
-  const SettingsAppUpdateCard({super.key, required this.isDark, this.autoStartUpdate = false});
+  const SettingsAppUpdateCard({
+    super.key,
+    required this.isDark,
+    this.autoStartUpdate = false,
+  });
 
   @override
   State<SettingsAppUpdateCard> createState() => _SettingsAppUpdateCardState();
@@ -142,9 +146,7 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
           final tagName = (latestReleaseWithApk['tag_name'] as String? ?? '')
               .replaceAll('v', '');
 
-          debugPrint(
-            'Latest tag: $tagName | APK URL: $foundApkUrl',
-          );
+          debugPrint('Latest tag: $tagName | APK URL: $foundApkUrl');
 
           if (mounted) {
             setState(() {
@@ -200,12 +202,13 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
     if (Platform.isAndroid) {
       final status = await Permission.requestInstallPackages.request();
       if (!status.isGranted) {
-        if (mounted)
+        if (mounted) {
           AppSnackBar.show(
             context,
             'Permission required to install update.',
             type: SnackBarType.error,
           );
+        }
         return;
       }
     }
@@ -300,10 +303,9 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
           if (!_isChecking && !_hasError && _updateAvailable) ...[
             Text(
               "You're using an old version.",
-              style: AppTextStyles.body(widget.isDark).copyWith(
-                color: AppColors.error,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTextStyles.body(
+                widget.isDark,
+              ).copyWith(color: AppColors.error, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             Text(
@@ -325,7 +327,7 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
           if (_isDownloading) ...[
             LinearProgressIndicator(
               value: _downloadProgress,
-              backgroundColor: AppColors.primary.withOpacity(0.1),
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
               valueColor: const AlwaysStoppedAnimation<Color>(
                 AppColors.primary,
               ),
@@ -396,8 +398,8 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
                 color: widget.isDark
-                    ? Colors.grey.withOpacity(0.1)
-                    : Colors.grey.withOpacity(0.05),
+                    ? Colors.grey.withValues(alpha: 0.1)
+                    : Colors.grey.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.center,

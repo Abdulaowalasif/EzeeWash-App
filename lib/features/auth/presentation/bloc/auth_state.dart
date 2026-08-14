@@ -31,7 +31,6 @@ final class AuthUnauthenticated extends AuthState {
   const AuthUnauthenticated();
 }
 
-
 final class AuthSignedUp extends AuthState {
   final String email;
   const AuthSignedUp(this.email);
@@ -43,6 +42,7 @@ final class AuthSignedUp extends AuthState {
 class AuthPasswordChanged extends AuthState {
   const AuthPasswordChanged();
 }
+
 final class AuthPasswordResetSent extends AuthState {
   const AuthPasswordResetSent();
 }

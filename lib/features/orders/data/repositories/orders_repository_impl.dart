@@ -12,10 +12,7 @@ class OrdersRepositoryImpl implements OrdersRepository {
   final OrdersRemoteDataSource remoteDataSource;
   final SupabaseClient client;
 
-  OrdersRepositoryImpl({
-    required this.remoteDataSource,
-    required this.client,
-  });
+  OrdersRepositoryImpl({required this.remoteDataSource, required this.client});
 
   @override
   Future<Either<Failure, List<OrderEntity>>> getOrders() async {
@@ -44,7 +41,9 @@ class OrdersRepositoryImpl implements OrdersRepository {
   }
 
   @override
-  Future<Either<Failure, OrderEntity>> placeOrder(PlaceOrderParams params) async {
+  Future<Either<Failure, OrderEntity>> placeOrder(
+    PlaceOrderParams params,
+  ) async {
     final userId = client.auth.currentUser?.id;
     if (userId == null) return const Left(AuthFailure('Not authenticated'));
     try {
@@ -73,4 +72,90 @@ class OrdersRepositoryImpl implements OrdersRepository {
   @override
   Stream<List<Map<String, dynamic>>> watchOrders(String userId) =>
       remoteDataSource.watchOrders(userId);
+
+  @override
+  Stream<Map<String, dynamic>?> watchRider(String riderId) =>
+      remoteDataSource.watchRider(riderId);
+
+  @override
+  Future<Either<Failure, void>> submitServiceReview(
+    String orderId,
+    String serviceId,
+    double rating,
+    String? comment,
+  ) async {
+    final userId = client.auth.currentUser?.id;
+    if (userId == null) return const Left(AuthFailure('Not authenticated'));
+    try {
+      await remoteDataSource.submitServiceReview(
+        orderId,
+        serviceId,
+        userId,
+        rating,
+        comment,
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(UnexpectedFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> submitRiderRating(
+    String orderId,
+    String riderId,
+    String ratingType,
+    double stars,
+    String? comment,
+  ) async {
+    final userId = client.auth.currentUser?.id;
+    if (userId == null) return const Left(AuthFailure('Not authenticated'));
+    try {
+      await remoteDataSource.submitRiderRating(
+        orderId,
+        riderId,
+        userId,
+        ratingType,
+        stars,
+        comment,
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(UnexpectedFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, double>> validateCoupon(
+    ValidateCouponParams params,
+  ) async {
+    final userId = client.auth.currentUser?.id;
+    if (userId == null) return const Left(AuthFailure('Not authenticated'));
+    try {
+      final discount = await remoteDataSource.validateCoupon(userId, params);
+      return Right(discount);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(UnexpectedFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> createPaymentIntent(
+    CreatePaymentIntentParams params,
+  ) async {
+    try {
+      final clientSecret = await remoteDataSource.createPaymentIntent(params);
+      return Right(clientSecret);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(UnexpectedFailure(e.toString()));
+    }
+  }
 }

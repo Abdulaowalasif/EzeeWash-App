@@ -60,7 +60,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _OnboardingData(
       title: 'Drop it.\nWe\'ll handle\nthe rest.',
       subtitle:
-      'Schedule a pickup in seconds. No queues, no hassle — just fresh, clean laundry at your door.',
+          'Schedule a pickup in seconds. No queues, no hassle — just fresh, clean laundry at your door.',
       icon: Icons.local_laundry_service_rounded,
       tag: 'PICKUP',
       bubbleOffsets: [
@@ -74,7 +74,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _OnboardingData(
       title: 'Live updates,\nevery step\nof the way.',
       subtitle:
-      'Track your order in real-time — from pickup to wash to delivery. Always know where your clothes are.',
+          'Track your order in real-time — from pickup to wash to delivery. Always know where your clothes are.',
       icon: Icons.timeline_rounded,
       tag: 'TRACKING',
       bubbleOffsets: [
@@ -88,7 +88,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _OnboardingData(
       title: 'Clean clothes.\nZero\nworries.',
       subtitle:
-      'Professional care with premium detergents. Your garments treated with the attention they deserve.',
+          'Professional care with premium detergents. Your garments treated with the attention they deserve.',
       icon: Icons.dry_cleaning_rounded,
       tag: 'CARE',
       bubbleOffsets: [
@@ -132,40 +132,67 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     // Text stagger intervals
     _chipFade = Tween(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _textController,
-            curve: const Interval(0.00, 0.45, curve: Curves.easeOut)));
+      CurvedAnimation(
+        parent: _textController,
+        curve: const Interval(0.00, 0.45, curve: Curves.easeOut),
+      ),
+    );
     _chipSlide = Tween(begin: 18.0, end: 0.0).animate(
-        CurvedAnimation(parent: _textController,
-            curve: const Interval(0.00, 0.45, curve: Curves.easeOutCubic)));
+      CurvedAnimation(
+        parent: _textController,
+        curve: const Interval(0.00, 0.45, curve: Curves.easeOutCubic),
+      ),
+    );
     _titleFade = Tween(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _textController,
-            curve: const Interval(0.22, 0.68, curve: Curves.easeOut)));
+      CurvedAnimation(
+        parent: _textController,
+        curve: const Interval(0.22, 0.68, curve: Curves.easeOut),
+      ),
+    );
     _titleSlideY = Tween(begin: 24.0, end: 0.0).animate(
-        CurvedAnimation(parent: _textController,
-            curve: const Interval(0.22, 0.68, curve: Curves.easeOutCubic)));
+      CurvedAnimation(
+        parent: _textController,
+        curve: const Interval(0.22, 0.68, curve: Curves.easeOutCubic),
+      ),
+    );
     _subtitleFade = Tween(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _textController,
-            curve: const Interval(0.44, 1.00, curve: Curves.easeOut)));
+      CurvedAnimation(
+        parent: _textController,
+        curve: const Interval(0.44, 1.00, curve: Curves.easeOut),
+      ),
+    );
     _subtitleSlideY = Tween(begin: 18.0, end: 0.0).animate(
-        CurvedAnimation(parent: _textController,
-            curve: const Interval(0.44, 1.00, curve: Curves.easeOutCubic)));
+      CurvedAnimation(
+        parent: _textController,
+        curve: const Interval(0.44, 1.00, curve: Curves.easeOutCubic),
+      ),
+    );
 
     // Card entry
     _cardScale = Tween(begin: 0.84, end: 1.0).animate(
-        CurvedAnimation(parent: _cardController, curve: Curves.easeOutBack));
+      CurvedAnimation(parent: _cardController, curve: Curves.easeOutBack),
+    );
     _cardFade = Tween(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _cardController,
-            curve: const Interval(0.0, 0.6, curve: Curves.easeOut)));
+      CurvedAnimation(
+        parent: _cardController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      ),
+    );
     _iconSpin = Tween(begin: -0.25, end: 0.0).animate(
-        CurvedAnimation(parent: _cardController, curve: Curves.easeOutCubic));
+      CurvedAnimation(parent: _cardController, curve: Curves.easeOutCubic),
+    );
     _iconScale = Tween(begin: 0.5, end: 1.0).animate(
-        CurvedAnimation(parent: _cardController, curve: Curves.easeOutBack));
+      CurvedAnimation(parent: _cardController, curve: Curves.easeOutBack),
+    );
 
     // Ripple
     _rippleRadius = Tween(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _rippleController, curve: Curves.easeOut));
-    _rippleOpacity = Tween(begin: 0.40, end: 0.0).animate(
-        CurvedAnimation(parent: _rippleController, curve: Curves.easeIn));
+      CurvedAnimation(parent: _rippleController, curve: Curves.easeOut),
+    );
+    _rippleOpacity = Tween(
+      begin: 0.40,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _rippleController, curve: Curves.easeIn));
 
     _playPageAnimations();
   }
@@ -214,8 +241,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final size = MediaQuery.of(context).size;
     final data = _pages[_currentPage];
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final bgColor = isDark
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
+    final surfaceColor = isDark
+        ? AppColors.darkSurface
+        : AppColors.lightSurface;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
@@ -226,21 +257,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             _AmbientBackground(isDark: isDark, pageIndex: _currentPage),
 
             // Particle trails
-            ...List.generate(8, (i) => _ParticleTrail(
-              controller: _particleController,
-              index: i,
-              size: size,
-              isDark: isDark,
-            )),
+            ...List.generate(
+              8,
+              (i) => _ParticleTrail(
+                controller: _particleController,
+                index: i,
+                size: size,
+                isDark: isDark,
+              ),
+            ),
 
             // Floating bubbles
-            ...data.bubbleOffsets.asMap().entries.map((e) => _FloatingBubble(
-              controller: _floatController,
-              x: e.value.dx * size.width,
-              y: e.value.dy * size.height,
-              index: e.key,
-              isDark: isDark,
-            )),
+            ...data.bubbleOffsets.asMap().entries.map(
+              (e) => _FloatingBubble(
+                controller: _floatController,
+                x: e.value.dx * size.width,
+                y: e.value.dy * size.height,
+                index: e.key,
+                isDark: isDark,
+              ),
+            ),
 
             // Pages
             PageView.builder(
@@ -268,7 +304,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
             // Bottom controls
             Positioned(
-              left: 0, right: 0, bottom: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               child: _BottomControls(
                 currentPage: _currentPage,
                 totalPages: _pages.length,
@@ -306,15 +344,21 @@ class _AmbientBackground extends StatelessWidget {
             radius: 1.2,
             colors: isDark
                 ? [
-              Color.lerp(AppColors.darkBackground, AppColors.primary,
-                  0.08 + pageIndex * 0.03)!,
-              AppColors.darkBackground,
-            ]
+                    Color.lerp(
+                      AppColors.darkBackground,
+                      AppColors.primary,
+                      0.08 + pageIndex * 0.03,
+                    )!,
+                    AppColors.darkBackground,
+                  ]
                 : [
-              Color.lerp(AppColors.lightBackground, AppColors.primary,
-                  0.05 + pageIndex * 0.02)!,
-              AppColors.lightBackground,
-            ],
+                    Color.lerp(
+                      AppColors.lightBackground,
+                      AppColors.primary,
+                      0.05 + pageIndex * 0.02,
+                    )!,
+                    AppColors.lightBackground,
+                  ],
           ),
         ),
       ),
@@ -346,10 +390,11 @@ class _ParticleTrail extends StatelessWidget {
 
     return AnimatedBuilder(
       animation: controller,
-      builder: (_, __) {
+      builder: (_, _) {
         final t = (controller.value + phase) % 1.0;
         final y = size.height * (0.92 - t * 0.84);
-        final x = size.width * xFrac +
+        final x =
+            size.width * xFrac +
             math.sin(t * math.pi * 2 + phase * math.pi) * 16;
         final opacity = t < 0.15
             ? (t / 0.15) * (isDark ? 0.22 : 0.13)
@@ -365,7 +410,7 @@ class _ParticleTrail extends StatelessWidget {
             height: particleSize,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.primary.withOpacity(opacity),
+              color: AppColors.primary.withValues(alpha: opacity),
             ),
           ),
         );
@@ -400,7 +445,7 @@ class _FloatingBubble extends StatelessWidget {
 
     return AnimatedBuilder(
       animation: controller,
-      builder: (_, __) {
+      builder: (_, _) {
         final t = (controller.value + delay) % 1.0;
         final dy = math.sin(t * math.pi * 2) * 12;
         final dx = math.cos(t * math.pi) * 5;
@@ -408,12 +453,15 @@ class _FloatingBubble extends StatelessWidget {
           left: x - sz / 2 + dx,
           top: y - sz / 2 + dy,
           child: Container(
-            width: sz, height: sz,
+            width: sz,
+            height: sz,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.primary.withOpacity(isDark ? 0.08 : 0.05),
+              color: AppColors.primary.withValues(alpha: isDark ? 0.08 : 0.05),
               border: Border.all(
-                color: AppColors.primary.withOpacity(isDark ? 0.14 : 0.09),
+                color: AppColors.primary.withValues(
+                  alpha: isDark ? 0.14 : 0.09,
+                ),
                 width: 1,
               ),
             ),
@@ -457,7 +505,9 @@ class _PageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final subtextColor = isDark ? AppColors.darkSubtext : AppColors.lightSubtext;
+    final subtextColor = isDark
+        ? AppColors.darkSubtext
+        : AppColors.lightSubtext;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -498,10 +548,14 @@ class _PageContent extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(isDark ? 0.16 : 0.09),
+                color: AppColors.primary.withValues(
+                  alpha: isDark ? 0.16 : 0.09,
+                ),
                 borderRadius: BorderRadius.circular(99),
                 border: Border.all(
-                  color: AppColors.primary.withOpacity(isDark ? 0.28 : 0.20),
+                  color: AppColors.primary.withValues(
+                    alpha: isDark ? 0.28 : 0.20,
+                  ),
                 ),
               ),
               child: Text(
@@ -595,13 +649,20 @@ class _IllustrationCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
-              ? [const Color(0xFF182FA0), AppColors.primary, AppColors.secondary]
-              : [AppColors.primary, AppColors.secondary, const Color(0xFF1A2580)],
+              ? [
+                  const Color(0xFF182FA0),
+                  AppColors.primary,
+                  AppColors.secondary,
+                ]
+              : [
+                  AppColors.primary,
+                  AppColors.secondary,
+                  const Color(0xFF1A2580),
+                ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(32),
-        
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(32),
@@ -609,22 +670,26 @@ class _IllustrationCard extends StatelessWidget {
           children: [
             // Mesh circles
             Positioned(
-              top: -40, right: -40,
+              top: -40,
+              right: -40,
               child: Container(
-                width: 160, height: 160,
+                width: 160,
+                height: 160,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.07),
+                  color: Colors.white.withValues(alpha: 0.07),
                 ),
               ),
             ),
             Positioned(
-              bottom: -30, left: -30,
+              bottom: -30,
+              left: -30,
               child: Container(
-                width: 110, height: 110,
+                width: 110,
+                height: 110,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                 ),
               ),
             ),
@@ -634,7 +699,7 @@ class _IllustrationCard extends StatelessWidget {
             // Ripple burst
             AnimatedBuilder(
               animation: rippleRadius,
-              builder: (_, __) => Positioned.fill(
+              builder: (_, _) => Positioned.fill(
                 child: CustomPaint(
                   painter: _RipplePainter(
                     progress: rippleRadius.value,
@@ -653,49 +718,66 @@ class _IllustrationCard extends StatelessWidget {
                   child: Transform.scale(scale: iconScale.value, child: child),
                 ),
                 child: Container(
-                  width: 100, height: 100,
+                  width: 100,
+                  height: 100,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.12),
+                    color: Colors.white.withValues(alpha: 0.12),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.20),
+                      color: Colors.white.withValues(alpha: 0.20),
                       width: 1.2,
                     ),
                   ),
-                  child: Icon(data.icon, size: 52,
-                      color: Colors.white.withOpacity(0.95)),
+                  child: Icon(
+                    data.icon,
+                    size: 52,
+                    color: Colors.white.withValues(alpha: 0.95),
+                  ),
                 ),
               ),
             ),
 
             // Tag
             Positioned(
-              bottom: 16, left: 20,
+              bottom: 16,
+              left: 20,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.14),
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(color: Colors.white.withOpacity(0.22)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
                 ),
-                child: Text(data.tag,
-                    style: GoogleFonts.alexandria(
-                      fontSize: 10, fontWeight: FontWeight.w700,
-                      color: Colors.white.withOpacity(0.85),
-                      letterSpacing: 1.8,
-                    )),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: Text(
+                  data.tag,
+                  style: GoogleFonts.alexandria(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white.withValues(alpha: 0.85),
+                    letterSpacing: 1.8,
+                  ),
+                ),
               ),
             ),
 
             // Wordmark
             Positioned(
-              bottom: 18, right: 20,
-              child: Text('EzeeWash',
-                  style: GoogleFonts.alexandria(
-                    fontSize: 12, fontWeight: FontWeight.w600,
-                    color: Colors.white.withOpacity(0.28),
-                    letterSpacing: 1.0,
-                  )),
+              bottom: 18,
+              right: 20,
+              child: Text(
+                'EzeeWash',
+                style: GoogleFonts.alexandria(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white.withValues(alpha: 0.28),
+                  letterSpacing: 1.0,
+                ),
+              ),
             ),
           ],
         ),
@@ -717,14 +799,14 @@ class _RipplePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (progress <= 0 || opacity <= 0) return;
     final center = Offset(size.width / 2, size.height / 2);
-    final maxR = math.sqrt(
-        size.width * size.width + size.height * size.height) / 2;
+    final maxR =
+        math.sqrt(size.width * size.width + size.height * size.height) / 2;
 
     for (int i = 0; i < 3; i++) {
       final phase = (progress - i * 0.18).clamp(0.0, 1.0);
       if (phase <= 0) continue;
       final paint = Paint()
-        ..color = Colors.white.withOpacity(opacity * (1 - phase) * 0.6)
+        ..color = Colors.white.withValues(alpha: opacity * (1 - phase) * 0.6)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5;
       canvas.drawCircle(center, maxR * phase, paint);
@@ -743,7 +825,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.04)
+      ..color = Colors.white.withValues(alpha: 0.04)
       ..strokeWidth = 0.8;
     const spacing = 36.0;
     for (double x = 0; x < size.width; x += spacing) {
@@ -781,15 +863,21 @@ class _BottomControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-    final subtextColor = isDark ? AppColors.darkSubtext : AppColors.lightSubtext;
+    final subtextColor = isDark
+        ? AppColors.darkSubtext
+        : AppColors.lightSubtext;
 
     return Container(
       decoration: BoxDecoration(
-        color: surfaceColor.withOpacity(isDark ? 0.85 : 0.92),
+        color: surfaceColor.withValues(alpha: isDark ? 0.85 : 0.92),
         border: Border(top: BorderSide(color: borderColor, width: 0.8)),
       ),
       padding: EdgeInsets.fromLTRB(
-          28, 20, 28, MediaQuery.of(context).padding.bottom + 28),
+        28,
+        20,
+        28,
+        MediaQuery.of(context).padding.bottom + 28,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -808,9 +896,10 @@ class _BottomControls extends StatelessWidget {
                   color: active
                       ? AppColors.primary
                       : passed
-                      ? AppColors.primary.withOpacity(0.40)
-                      : AppColors.primary
-                      .withOpacity(isDark ? 0.18 : 0.14),
+                      ? AppColors.primary.withValues(alpha: 0.40)
+                      : AppColors.primary.withValues(
+                          alpha: isDark ? 0.18 : 0.14,
+                        ),
                   borderRadius: BorderRadius.circular(99),
                 ),
               );
@@ -823,17 +912,21 @@ class _BottomControls extends StatelessWidget {
                 child: isLast
                     ? const SizedBox.shrink()
                     : TextButton(
-                  key: const ValueKey('skip'),
-                  onPressed: onSkip,
-                  style: TextButton.styleFrom(
-                    foregroundColor: subtextColor,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                    textStyle: GoogleFonts.alexandria(
-                        fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                  child: const Text('Skip'),
-                ),
+                        key: const ValueKey('skip'),
+                        onPressed: onSkip,
+                        style: TextButton.styleFrom(
+                          foregroundColor: subtextColor,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          textStyle: GoogleFonts.alexandria(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        child: const Text('Skip'),
+                      ),
               ),
               const SizedBox(width: 6),
               ElevatedButton(
@@ -849,9 +942,11 @@ class _BottomControls extends StatelessWidget {
                     borderRadius: BorderRadius.circular(99),
                   ),
                   elevation: isDark ? 0 : 2,
-                  shadowColor: AppColors.primary.withOpacity(0.35),
+                  shadowColor: AppColors.primary.withValues(alpha: 0.35),
                   textStyle: GoogleFonts.alexandria(
-                      fontSize: 14, fontWeight: FontWeight.w700),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),

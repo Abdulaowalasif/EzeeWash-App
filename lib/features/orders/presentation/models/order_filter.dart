@@ -64,8 +64,9 @@ class OrderFilter {
       customStart: customStart ?? this.customStart,
       customEnd: customEnd ?? this.customEnd,
       storeId: storeId == _sentinel ? this.storeId : storeId as String?,
-      serviceName:
-          serviceName == _sentinel ? this.serviceName : serviceName as String?,
+      serviceName: serviceName == _sentinel
+          ? this.serviceName
+          : serviceName as String?,
       status: status == _sentinel ? this.status : status as String?,
       sortBy: sortBy ?? this.sortBy,
     );
@@ -105,8 +106,7 @@ class OrderFilter {
       }
       if (storeId != null && o.storeId != storeId) return false;
       if (serviceName != null && o.serviceName != serviceName) return false;
-      if (status != null &&
-          OrderStatus.getDisplayStatus(o.status) != status) {
+      if (status != null && OrderStatus.getDisplayStatus(o.status) != status) {
         return false;
       }
       return true;

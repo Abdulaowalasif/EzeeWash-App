@@ -49,7 +49,7 @@ class _HomeSearchBoxState extends State<HomeSearchBox> {
             ? []
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -62,10 +62,7 @@ class _HomeSearchBoxState extends State<HomeSearchBox> {
         decoration: InputDecoration(
           hintText: 'Search services...',
           hintStyle: AppTextStyles.hint(widget.isDark),
-          prefixIcon: Icon(
-            Iconsax.search_normal,
-            color: Colors.grey[400],
-          ),
+          prefixIcon: Icon(Iconsax.search_normal, color: Colors.grey[400]),
           suffixIcon: ValueListenableBuilder<TextEditingValue>(
             valueListenable: _ctrl,
             builder: (_, value, _) => value.text.isEmpty

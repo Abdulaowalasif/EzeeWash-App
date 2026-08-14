@@ -61,8 +61,7 @@ class AppQuantitySelector extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               priceLabel!,
-              style: GoogleFonts.alexandria(
-                  fontSize: 12, color: Colors.grey),
+              style: GoogleFonts.alexandria(fontSize: 12, color: Colors.grey),
             ),
           ],
           const SizedBox(height: 16),
@@ -114,24 +113,22 @@ class _QtyBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: enabled ? onTap : null,
-        child: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            gradient: enabled ? AppColors.gradient : null,
-            color: enabled
-                ? null
-                : (isDark
-                    ? Colors.grey.shade800
-                    : Colors.grey.shade200),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(
-            icon,
-            color: enabled ? Colors.white : Colors.grey.shade400,
-            size: 22,
-          ),
-        ),
-      );
+    onTap: enabled ? onTap : null,
+    child: Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        gradient: enabled ? AppColors.gradient : null,
+        color: enabled
+            ? null
+            : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(
+        icon,
+        color: enabled ? Colors.white : Colors.grey.shade400,
+        size: 22,
+      ),
+    ),
+  );
 }

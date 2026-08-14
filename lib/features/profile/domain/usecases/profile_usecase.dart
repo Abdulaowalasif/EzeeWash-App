@@ -5,22 +5,31 @@ import 'package:equatable/equatable.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/usecase.dart';
 import '../entities/profile_entity.dart';
+import '../entities/address_entity.dart';
 import '../repositories/profile_repository.dart';
 
 // ─── Get Profile ──────────────────────────────────────────────────────────────
 
-class GetProfileUseCase implements UseCase<ProfileEntity, NoParams> {
+class GetProfileUseCase implements UseCase<ProfileEntity, GetProfileParams> {
   final ProfileRepository repository;
   GetProfileUseCase(this.repository);
 
   @override
-  Future<Either<Failure, ProfileEntity>> call(NoParams params) =>
-      repository.getProfile();
+  Future<Either<Failure, ProfileEntity>> call(GetProfileParams params) =>
+      repository.getProfile(forceRefresh: params.forceRefresh);
+}
+
+class GetProfileParams extends Equatable {
+  final bool forceRefresh;
+  const GetProfileParams({this.forceRefresh = false});
+  @override
+  List<Object> get props => [forceRefresh];
 }
 
 // ─── Update Profile ───────────────────────────────────────────────────────────
 
-class UpdateProfileUseCase implements UseCase<ProfileEntity, UpdateProfileParams> {
+class UpdateProfileUseCase
+    implements UseCase<ProfileEntity, UpdateProfileParams> {
   final ProfileRepository repository;
   UpdateProfileUseCase(this.repository);
 
@@ -37,7 +46,7 @@ class UpdateProfileUseCase implements UseCase<ProfileEntity, UpdateProfileParams
 class UpdateProfileParams extends Equatable {
   final String? fullName;
   final String? phone;
-  final String? address;
+  final AddressEntity? address;
   final String? city;
 
   const UpdateProfileParams({
@@ -53,7 +62,8 @@ class UpdateProfileParams extends Equatable {
 
 // ─── Update Avatar ────────────────────────────────────────────────────────────
 
-class UpdateAvatarUseCase implements UseCase<ProfileEntity, UpdateAvatarParams> {
+class UpdateAvatarUseCase
+    implements UseCase<ProfileEntity, UpdateAvatarParams> {
   final ProfileRepository repository;
   UpdateAvatarUseCase(this.repository);
 

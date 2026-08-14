@@ -29,7 +29,7 @@ class AppSummaryRow extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: highlight
-              ? AppColors.primary.withOpacity(0.12)
+              ? AppColors.primary.withValues(alpha: 0.12)
               : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
           borderRadius: BorderRadius.circular(10),
         ),
@@ -57,9 +57,11 @@ class AppSummaryRow extends StatelessWidget {
           fontSize: highlight ? 16 : 13,
           fontWeight: FontWeight.bold,
           // ── Apply the custom color if provided ──
-          color: valueColor ?? (highlight
-              ? AppColors.primary
-              : (isDark ? Colors.white : AppColors.lightText)),
+          color:
+              valueColor ??
+              (highlight
+                  ? AppColors.primary
+                  : (isDark ? Colors.white : AppColors.lightText)),
         ),
       ),
     ],

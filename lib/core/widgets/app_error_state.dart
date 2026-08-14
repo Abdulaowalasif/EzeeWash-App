@@ -45,9 +45,7 @@ class AppErrorState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: GoogleFonts.alexandria(
                 fontSize: 14,
-                color: isDark
-                    ? AppColors.darkSubtext
-                    : AppColors.lightSubtext,
+                color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
               ),
             ),
             if (onRetry != null) ...[
@@ -59,13 +57,17 @@ class AppErrorState extends StatelessWidget {
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 12),
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                label: Text(retryLabel,
-                    style: GoogleFonts.alexandria(
-                        fontWeight: FontWeight.w600)),
+                label: Text(
+                  retryLabel,
+                  style: GoogleFonts.alexandria(fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ],

@@ -44,9 +44,7 @@ class AppStepProgress extends StatelessWidget {
                 gradient: (done || active) ? AppColors.gradient : null,
                 color: (done || active)
                     ? null
-                    : (isDark
-                        ? Colors.grey.shade800
-                        : Colors.grey.shade100),
+                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -73,9 +71,7 @@ class AppStepProgress extends StatelessWidget {
                 gradient: done ? AppColors.gradient : null,
                 color: done
                     ? null
-                    : (isDark
-                        ? Colors.grey.shade800
-                        : Colors.grey.shade200),
+                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),

@@ -3,7 +3,7 @@ import 'package:iconsax/iconsax.dart';
 import '../../../../../core/constants/app_color.dart';
 import '../../../../../core/constants/order_status.dart';
 import '../../../../../core/theme/app_text_styles.dart';
-import '../../../../../core/widgets/common_widgets.dart';
+import '../../../../../core/widgets/widgets.dart';
 import '../../../domain/entities/order_entity.dart';
 import '../../models/order_filter.dart';
 
@@ -175,7 +175,7 @@ class _OrderFilterSheetState extends State<OrderFilterSheet> {
           color: selected
               ? null
               : (isDark
-                    ? Colors.white.withOpacity(0.05)
+                    ? Colors.white.withValues(alpha: 0.05)
                     : Colors.grey.shade100),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(

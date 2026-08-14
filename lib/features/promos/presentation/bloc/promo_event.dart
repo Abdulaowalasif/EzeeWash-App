@@ -1,7 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-import '../../domain/entities/promo_entity.dart';
-
 /// Base class for all promos events.
 abstract class PromoEvent extends Equatable {
   const PromoEvent();
@@ -11,9 +9,9 @@ abstract class PromoEvent extends Equatable {
 }
 
 // lib/features/promos/presentation/bloc/promo_event.dart
-class WatchPromosStarted extends PromoEvent {}
-
-class PromosUpdated extends PromoEvent {
-  final List<PromoEntity> promos;
-  const PromosUpdated(this.promos);
+class WatchPromosStarted extends PromoEvent {
+  final bool forceRefresh;
+  const WatchPromosStarted({this.forceRefresh = false});
+  @override
+  List<Object?> get props => [forceRefresh];
 }

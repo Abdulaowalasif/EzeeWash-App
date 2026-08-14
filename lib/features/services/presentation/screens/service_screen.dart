@@ -1,10 +1,8 @@
 // lib/features/services/presentation/screens/service_screen.dart
-
 import 'package:ezzewash/core/widgets/app_error_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -35,6 +33,16 @@ class _ServiceScreenState extends State<ServiceScreen> {
   };
 
   @override
+  void initState() {
+    super.initState();
+    // FIX: Ensure services are fetched when screen loads if not already loaded
+    final bloc = context.read<ServicesBloc>();
+    if (bloc.state is ServicesInitial) {
+      bloc.add(const ServicesLoadRequested());
+    }
+  }
+
+  @override
   void dispose() {
     final bloc = context.read<ServicesBloc>();
     if (bloc.state is ServicesLoaded) {
@@ -48,48 +56,73 @@ class _ServiceScreenState extends State<ServiceScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-      isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       appBar: const GradientAppBar(title: 'Our Services', backEnabled: false),
-      body: BlocBuilder<ServicesBloc, ServicesState>(
-        builder: (context, state) {
-          if (state is ServicesLoading) {
-            return SingleChildScrollView(
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.symmetric(
-                horizontal: Responsive.horizontalPadding(context),
-                vertical: 20,
-              ),
-              child: AppShimmer.serviceList(
-                isDark: isDark,
-                itemCount: 3,
-              ),
-            );
-          }
-          if (state is ServicesError) {
-            return AppErrorState(
-              message: "Couldn't load services",
-              isDark: isDark,
-              onRetry: () => context.read<ServicesBloc>().add(
-                const ServicesLoadRequested(),
-              ),
-            );
-          }
-          if (state is ServicesLoaded) {
-            return _ServiceLoadedBody(
-              state: state,
-              isDark: isDark,
-              categoryIcons: _categoryIcons,
-            );
-          }
-          return const SizedBox.shrink();
+      body: RefreshIndicator(
+        onRefresh: () async {
+          context.read<ServicesBloc>().add(
+            const ServicesLoadRequested(forceRefresh: true),
+          );
+          // Wait a tiny bit for UX
+          await Future.delayed(const Duration(milliseconds: 500));
         },
+        child: BlocBuilder<ServicesBloc, ServicesState>(
+          buildWhen: (prev, curr) {
+            if (prev is ServicesLoaded && curr is ServicesLoaded) {
+              return prev.filtered != curr.filtered ||
+                  prev.services != curr.services;
+            }
+            return prev.runtimeType != curr.runtimeType;
+          },
+          builder: (context, state) {
+            // FIX: Treat Initial state the same as Loading so pull-to-refresh works
+            if (state is ServicesLoading || state is ServicesInitial) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.horizontalPadding(context),
+                  vertical: 20,
+                ),
+                child: AppShimmer.serviceList(isDark: isDark, itemCount: 3),
+              );
+            }
+
+            if (state is ServicesError) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: AppErrorState(
+                  message: state.message.isNotEmpty
+                      ? state.message
+                      : "Couldn't load services",
+                  isDark: isDark,
+                  onRetry: () => context.read<ServicesBloc>().add(
+                    const ServicesLoadRequested(
+                      forceRefresh: true,
+                    ), // Force refresh on retry
+                  ),
+                ),
+              );
+            }
+
+            if (state is ServicesLoaded) {
+              return _ServiceLoadedBody(
+                state: state,
+                isDark: isDark,
+                categoryIcons: _categoryIcons,
+              );
+            }
+
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }
 }
-// ─── Loaded body ──────────────────────────────────────────────────────────────
 
+// Loaded body
 class _ServiceLoadedBody extends StatelessWidget {
   final ServicesLoaded state;
   final bool isDark;
@@ -103,54 +136,77 @@ class _ServiceLoadedBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: EdgeInsets.fromLTRB(
-        Responsive.horizontalPadding(context),
-        16,
-        Responsive.horizontalPadding(context),
-        30,
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: Responsive.maxContentWidth(context),
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            Responsive.horizontalPadding(context),
+            16,
+            Responsive.horizontalPadding(context),
+            30,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ServiceSearchBar(isDark: isDark),
-              const SizedBox(height: 16),
-              ServiceCategoryChips(
-                state: state,
-                isDark: isDark,
-                categoryIcons: categoryIcons,
-              ),
-              const SizedBox(height: 20),
-              if (state.filtered.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    child: Text(
-                      'No services found',
-                      style: AppTextStyles.caption(isDark),
-                    ),
-                  ),
-                )
-              else
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: EdgeInsets.zero,
-                  itemCount: state.filtered.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 16),
-                  itemBuilder: (context, i) =>
-                      ServiceCard(service: state.filtered[i], isDark: isDark),
+          sliver: SliverToBoxAdapter(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: Responsive.maxContentWidth(context),
                 ),
-            ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ServiceSearchBar(isDark: isDark),
+                    const SizedBox(height: 16),
+                    ServiceCategoryChips(
+                      state: state,
+                      isDark: isDark,
+                      categoryIcons: categoryIcons,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
-      ),
+        if (state.filtered.isEmpty)
+          SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 40),
+                child: Text(
+                  'No services found',
+                  style: AppTextStyles.caption(isDark),
+                ),
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              Responsive.horizontalPadding(context),
+              0,
+              Responsive.horizontalPadding(context),
+              0,
+            ),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: Responsive.maxContentWidth(context),
+                      ),
+                      child: ServiceCard(service: state.filtered[i], isDark: isDark),
+                    ),
+                  ),
+                ),
+                childCount: state.filtered.length,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

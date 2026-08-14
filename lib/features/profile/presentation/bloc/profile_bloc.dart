@@ -2,7 +2,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:ezzewash/features/profile/presentation/bloc/profile_event.dart';
 import 'package:ezzewash/features/profile/presentation/bloc/profile_state.dart';
-import '../../../../core/utils/usecase.dart';
 import '../../domain/usecases/profile_usecase.dart';
 
 class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
@@ -23,49 +22,61 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
   Future<void> _onLoad(
-      ProfileLoadRequested event,
-      Emitter<ProfileState> emit,
-      ) async {
-    emit(const ProfileLoading());
-    final result = await getProfileUseCase(const NoParams());
+    ProfileLoadRequested event,
+    Emitter<ProfileState> emit,
+  ) async {
+    if (!event.forceRefresh && state is ProfileLoaded) {
+      // Handled by cache
+    } else {
+      emit(const ProfileLoading());
+    }
+    final result = await getProfileUseCase(
+      GetProfileParams(forceRefresh: event.forceRefresh),
+    );
     result.fold(
-          (failure) => emit(ProfileError(message: failure.message)),
-          (profile) => emit(ProfileLoaded(profile)),
+      (failure) => emit(ProfileError(message: failure.message)),
+      (profile) => emit(ProfileLoaded(profile)),
     );
   }
 
   Future<void> _onUpdate(
-      ProfileUpdateRequested event,
-      Emitter<ProfileState> emit,
-      ) async {
+    ProfileUpdateRequested event,
+    Emitter<ProfileState> emit,
+  ) async {
     if (state is! ProfileLoaded) return;
     final current = (state as ProfileLoaded).profile;
     emit(ProfileUpdating(current));
 
-    final result = await updateProfileUseCase(UpdateProfileParams(
-      fullName: event.fullName,
-      phone: event.phone,
-      address: event.address,
-      city: event.city,
-    ));
+    final result = await updateProfileUseCase(
+      UpdateProfileParams(
+        fullName: event.fullName,
+        phone: event.phone,
+        address: event.address,
+        city: event.city,
+      ),
+    );
     result.fold(
-          (failure) => emit(ProfileError(message: failure.message, profile: current)),
-          (profile) => emit(ProfileLoaded(profile)),
+      (failure) =>
+          emit(ProfileError(message: failure.message, profile: current)),
+      (profile) => emit(ProfileLoaded(profile)),
     );
   }
 
   Future<void> _onAvatarUpdate(
-      ProfileAvatarUpdateRequested event,
-      Emitter<ProfileState> emit,
-      ) async {
+    ProfileAvatarUpdateRequested event,
+    Emitter<ProfileState> emit,
+  ) async {
     if (state is! ProfileLoaded) return;
     final current = (state as ProfileLoaded).profile;
     emit(ProfileUpdating(current));
 
-    final result = await updateAvatarUseCase(UpdateAvatarParams(event.imageFile));
+    final result = await updateAvatarUseCase(
+      UpdateAvatarParams(event.imageFile),
+    );
     result.fold(
-          (failure) => emit(ProfileError(message: failure.message, profile: current)),
-          (profile) => emit(ProfileLoaded(profile)),
+      (failure) =>
+          emit(ProfileError(message: failure.message, profile: current)),
+      (profile) => emit(ProfileLoaded(profile)),
     );
   }
 }

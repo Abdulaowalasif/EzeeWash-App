@@ -11,10 +11,8 @@ import '../../../../../core/constants/app_color.dart';
 import '../../../../../core/constants/order_status.dart';
 import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/utils/responsive.dart';
-import '../../../../../core/widgets/app_card.dart';
 import '../../../../../core/widgets/app_shimmer.dart';
-import '../../../../../core/widgets/app_status_badge.dart';
-import '../../../../../core/widgets/common_widgets.dart';
+import '../../../../../core/widgets/widgets.dart';
 import '../../../../../routes/routes_name.dart';
 import '../../../domain/entities/order_entity.dart';
 
@@ -38,8 +36,7 @@ class OrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final displayStatus = OrderStatus.getDisplayStatus(order.status);
     final statusColor = OrderStatus.getColor(displayStatus);
-    final progress =
-    OrderStatus.getProgress(order.status).clamp(0.0, 1.0);
+    final progress = OrderStatus.getProgress(order.status).clamp(0.0, 1.0);
 
     return GestureDetector(
       onTap: onPress,
@@ -52,36 +49,25 @@ class OrderCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
               child: Row(
                 children: [
-                  Container(
+                  AppNetworkImage(
+                    url: order.serviceImageUrl,
                     width: 52,
                     height: 52,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.gradient,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: order.serviceImageUrl != null
-                        ? ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: CachedNetworkImage(
-                        imageUrl: order.serviceImageUrl!,
-                        fit: BoxFit.cover,
-                        errorWidget: (_, _, _) => const Icon(
-                            Iconsax.drop,
-                            color: Colors.white,
-                            size: 24),
-                      ),
-                    )
-                        : const Icon(Iconsax.drop,
-                        color: Colors.white, size: 24),
+                    radius: 14,
+                    isDark: isDark,
+                    fallbackIcon: Iconsax.drop,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(order.serviceName,
-                            style: AppTextStyles.cardTitle(isDark)
-                                .copyWith(fontSize: 15)),
+                        Text(
+                          order.serviceName,
+                          style: AppTextStyles.cardTitle(
+                            isDark,
+                          ).copyWith(fontSize: 15),
+                        ),
                         const SizedBox(height: 3),
                         Text(
                           '#${order.orderNumber} · ${order.storeName}',
@@ -103,11 +89,13 @@ class OrderCard extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Progress',
-                            style: AppTextStyles.caption(isDark)),
-                        Text('${(progress * 100).toInt()}%',
-                            style: AppTextStyles.captionMedium(isDark)
-                                .copyWith(color: statusColor)),
+                        Text('Progress', style: AppTextStyles.caption(isDark)),
+                        Text(
+                          '${(progress * 100).toInt()}%',
+                          style: AppTextStyles.captionMedium(
+                            isDark,
+                          ).copyWith(color: statusColor),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -115,7 +103,7 @@ class OrderCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: progress,
-                        backgroundColor: statusColor.withOpacity(0.15),
+                        backgroundColor: statusColor.withValues(alpha: 0.15),
                         color: statusColor,
                         minHeight: 6,
                       ),
@@ -128,7 +116,7 @@ class OrderCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
               decoration: BoxDecoration(
                 color: isDark
-                    ? Colors.white.withOpacity(0.03)
+                    ? Colors.white.withValues(alpha: 0.03)
                     : AppColors.lightBackground,
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(24),
@@ -179,23 +167,21 @@ class _FooterInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Icon(icon,
-          size: 14,
-          color: highlight
-              ? AppColors.primary
-              : (isDark
-              ? AppColors.darkSubtext
-              : AppColors.lightSubtext)),
+      Icon(
+        icon,
+        size: 14,
+        color: highlight
+            ? AppColors.primary
+            : (isDark ? AppColors.darkSubtext : AppColors.lightSubtext),
+      ),
       const SizedBox(width: 5),
-      Text(label,
-          style: AppTextStyles.caption(isDark).copyWith(
-            fontWeight: highlight
-                ? FontWeight.bold
-                : FontWeight.normal,
-            color: highlight
-                ? AppColors.primary
-                : null,
-          )),
+      Text(
+        label,
+        style: AppTextStyles.caption(isDark).copyWith(
+          fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
+          color: highlight ? AppColors.primary : null,
+        ),
+      ),
     ],
   );
 }
@@ -207,17 +193,14 @@ class _TrackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: () => context.push(RoutesName.trackOrdersNavigate,
-        extra: order.id),
+    onTap: () => context.push(RoutesName.trackOrdersNavigate, extra: order.id),
     child: Container(
-      padding:
-      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
         gradient: AppColors.gradient,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text('Track',
-          style: AppTextStyles.buttonSmall),
+      child: Text('Track', style: AppTextStyles.buttonSmall),
     ),
   );
 }
@@ -229,18 +212,18 @@ class _ReorderButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: () => context.push(RoutesName.placeOrdersNavigate,
-        extra: order),
+    onTap: () => context.push(RoutesName.placeOrdersNavigate, extra: order),
     child: Container(
-      padding:
-      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
+        color: AppColors.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: AppColors.primary.withOpacity(0.3)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
-      child: Text('Reorder', style: AppTextStyles.buttonOutline.copyWith(fontSize: 12)),
+      child: Text(
+        'Reorder',
+        style: AppTextStyles.buttonOutline.copyWith(fontSize: 12),
+      ),
     ),
   );
 }
@@ -272,12 +255,12 @@ class OrdersToggle extends StatelessWidget {
         boxShadow: isDark
             ? []
             : [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: Stack(
         children: [
@@ -288,7 +271,8 @@ class OrdersToggle extends StatelessWidget {
               double page = showActive ? 0.0 : 1.0;
 
               // Sync with PageView scroll progress
-              if (pageController.hasClients && pageController.position.haveDimensions) {
+              if (pageController.hasClients &&
+                  pageController.position.haveDimensions) {
                 page = pageController.page ?? page;
               }
 
@@ -304,7 +288,6 @@ class OrdersToggle extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: AppColors.gradient,
                       borderRadius: BorderRadius.circular(12),
-                      
                     ),
                   ),
                 ),
@@ -327,7 +310,9 @@ class OrdersToggle extends StatelessWidget {
                         fontSize: 13,
                         color: showActive
                             ? Colors.white
-                            : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
+                            : (isDark
+                                  ? AppColors.darkSubtext
+                                  : Colors.grey.shade600),
                       ),
                       child: const Text('Active Orders'),
                     ),
@@ -346,7 +331,9 @@ class OrdersToggle extends StatelessWidget {
                         fontSize: 13,
                         color: !showActive
                             ? Colors.white
-                            : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
+                            : (isDark
+                                  ? AppColors.darkSubtext
+                                  : Colors.grey.shade600),
                       ),
                       child: const Text('Order History'),
                     ),
@@ -380,37 +367,47 @@ class OrderActiveFilterBar extends StatelessWidget {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          ...chips.map((c) => Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(
-                horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: AppColors.primary.withOpacity(0.3)),
+          ...chips.map(
+            (c) => Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                c,
+                style: AppTextStyles.captionMedium(
+                  false,
+                ).copyWith(color: AppColors.primary),
+              ),
             ),
-            child: Text(c,
-                style: AppTextStyles.captionMedium(false)
-                    .copyWith(color: AppColors.primary)),
-          )),
+          ),
           GestureDetector(
             onTap: onClear,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.close_rounded,
-                      size: 12, color: AppColors.error),
+                  const Icon(
+                    Icons.close_rounded,
+                    size: 12,
+                    color: AppColors.error,
+                  ),
                   const SizedBox(width: 4),
-                  Text('Clear',
-                      style: AppTextStyles.captionMedium(false)
-                          .copyWith(color: AppColors.error)),
+                  Text(
+                    'Clear',
+                    style: AppTextStyles.captionMedium(
+                      false,
+                    ).copyWith(color: AppColors.error),
+                  ),
                 ],
               ),
             ),
@@ -437,7 +434,8 @@ class OrdersShimmer extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(
-              maxWidth: Responsive.maxContentWidth(context)),
+            maxWidth: Responsive.maxContentWidth(context),
+          ),
           child: Shimmer.fromColors(
             baseColor: AppShimmerColors.base(isDark),
             highlightColor: AppShimmerColors.highlight(isDark),
@@ -446,21 +444,22 @@ class OrdersShimmer extends StatelessWidget {
                 Container(
                   height: 48,
                   decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16)),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 const SizedBox(height: 20),
                 Expanded(
                   child: ListView.separated(
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: 4,
-                    separatorBuilder: (_, _) =>
-                    const SizedBox(height: 16),
+                    separatorBuilder: (_, _) => const SizedBox(height: 16),
                     itemBuilder: (_, _) => Container(
                       height: 160,
                       decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24)),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
                     ),
                   ),
                 ),
@@ -500,8 +499,8 @@ class OrderEmptyState extends StatelessWidget {
       subtitle: isFiltered
           ? 'Try adjusting or clearing your filters'
           : (showActive
-          ? 'Tap + to book your first laundry service'
-          : 'Completed orders will appear here'),
+                ? 'Tap + to book your first laundry service'
+                : 'Completed orders will appear here'),
       isDark: isDark,
     );
   }

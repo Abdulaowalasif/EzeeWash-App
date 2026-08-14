@@ -6,7 +6,6 @@
 
 import 'dart:io';
 import 'package:ezzewash/core/utils/url_launcher.dart';
-import 'package:ezzewash/core/widgets/gradient_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -18,10 +17,10 @@ import '../../../../core/constants/app_color.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/utils/theme_prefs.dart';
 import '../../../../core/widgets/app_shimmer.dart';
-import '../../../../core/widgets/app_snack_bar.dart';
-import '../../../../core/widgets/common_widgets.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../../routes/routes_name.dart';
 import '../../domain/entities/profile_entity.dart';
+import '../../domain/entities/address_entity.dart';
 import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
 import '../bloc/profile_state.dart';
@@ -62,7 +61,11 @@ class SettingsScreen extends StatelessWidget {
             );
           }
           if (state is ProfileError && (state).profile != null) {
-            return _SettingsBody(profile: (state).profile!, isDark: isDark, autoStartUpdate: autoStartUpdate);
+            return _SettingsBody(
+              profile: (state).profile!,
+              isDark: isDark,
+              autoStartUpdate: autoStartUpdate,
+            );
           }
           return Column(
             children: [
@@ -146,7 +149,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
     text: widget.profile.phone ?? '',
   );
   late final _addrCtrl = TextEditingController(
-    text: widget.profile.address ?? '',
+    text: widget.profile.address?.address ?? '',
   );
 
   @override
@@ -162,7 +165,9 @@ class _SettingsBodyState extends State<_SettingsBody> {
       ProfileUpdateRequested(
         fullName: _nameCtrl.text.trim().isEmpty ? null : _nameCtrl.text.trim(),
         phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
-        address: _addrCtrl.text.trim().isEmpty ? null : _addrCtrl.text.trim(),
+        address: _addrCtrl.text.trim().isEmpty
+            ? null
+            : AddressEntity(label: 'Home', address: _addrCtrl.text.trim()),
       ),
     );
     setState(() => _editing = false);
@@ -172,7 +177,9 @@ class _SettingsBodyState extends State<_SettingsBody> {
   Future<void> _pickAvatar() async {
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
-      imageQuality: 80,
+      imageQuality: 70,
+      maxWidth: 800,
+      maxHeight: 800,
     );
     if (picked == null || !mounted) return;
     context.read<ProfileBloc>().add(
@@ -220,7 +227,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
                 const SizedBox(height: 24),
                 SettingsSectionLabel(label: 'App Update', isDark: isDark),
                 const SizedBox(height: 10),
-                SettingsAppUpdateCard(isDark: isDark, autoStartUpdate: widget.autoStartUpdate),
+                SettingsAppUpdateCard(
+                  isDark: isDark,
+                  autoStartUpdate: widget.autoStartUpdate,
+                ),
                 const SizedBox(height: 24),
                 SettingsSectionLabel(label: 'Account', isDark: isDark),
                 const SizedBox(height: 10),

@@ -30,41 +30,43 @@ InputDecoration authLoginFieldDecoration({
   required String hint,
   required IconData prefixIcon,
   Widget? suffixIcon,
-}) =>
-    InputDecoration(
-      prefixIcon: Icon(prefixIcon,
-          size: 19, color: AppColors.primary.withOpacity(0.7)),
-      hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-      filled: true,
-      fillColor:
-          isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF7F8FC),
-      suffixIcon: suffixIcon,
-      contentPadding:
-          const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(
-            color: isDark ? AppColors.darkBorder : const Color(0xFFE8EAF0)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide:
-            const BorderSide(color: AppColors.primary, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.error),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide:
-            const BorderSide(color: AppColors.error, width: 1.5),
-      ),
-    );
+}) => InputDecoration(
+  prefixIcon: Icon(
+    prefixIcon,
+    size: 19,
+    color: AppColors.primary.withValues(alpha: 0.7),
+  ),
+  hintText: hint,
+  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+  filled: true,
+  fillColor: isDark
+      ? Colors.white.withValues(alpha: 0.04)
+      : const Color(0xFFF7F8FC),
+  suffixIcon: suffixIcon,
+  contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: BorderSide.none,
+  ),
+  enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: BorderSide(
+      color: isDark ? AppColors.darkBorder : const Color(0xFFE8EAF0),
+    ),
+  ),
+  focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+  ),
+  errorBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: const BorderSide(color: AppColors.error),
+  ),
+  focusedErrorBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+  ),
+);
 
 // ─── AuthField ────────────────────────────────────────────────────────────────
 
@@ -112,51 +114,53 @@ class _AuthFieldState extends State<AuthField> {
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 7),
-            child: Text(
-              widget.label,
-              style: GoogleFonts.alexandria(
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-                color: widget.isDark
-                    ? AppColors.darkSubtext
-                    : AppColors.lightSubtext,
-              ),
-            ),
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(left: 2, bottom: 7),
+        child: Text(
+          widget.label,
+          style: GoogleFonts.alexandria(
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            color: widget.isDark
+                ? AppColors.darkSubtext
+                : AppColors.lightSubtext,
           ),
-          TextFormField(
-            controller: widget.ctrl,
-            obscureText: _obs,
-            keyboardType: widget.obscure
-                ? TextInputType.visiblePassword
-                : widget.type,
-            style: GoogleFonts.alexandria(fontSize: 14),
-            autovalidateMode: widget.autovalidate
-                ? AutovalidateMode.onUserInteraction
-                : AutovalidateMode.disabled,
-            validator: widget.validator ??
-                (v) => (v == null || v.isEmpty) ? 'Required' : null,
-            decoration: authLoginFieldDecoration(
-              isDark: widget.isDark,
-              hint: widget.hint,
-              prefixIcon: widget.icon,
-              suffixIcon: widget.obscure
-                  ? IconButton(
-                      icon: Icon(
-                          _obs ? Iconsax.eye_slash : Iconsax.eye,
-                          size: 17,
-                          color: Colors.grey),
-                      onPressed: () => setState(() => _obs = !_obs),
-                    )
-                  : null,
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-      );
+        ),
+      ),
+      TextFormField(
+        controller: widget.ctrl,
+        obscureText: _obs,
+        keyboardType: widget.obscure
+            ? TextInputType.visiblePassword
+            : widget.type,
+        style: GoogleFonts.alexandria(fontSize: 14),
+        autovalidateMode: widget.autovalidate
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
+        validator:
+            widget.validator ??
+            (v) => (v == null || v.isEmpty) ? 'Required' : null,
+        decoration: authLoginFieldDecoration(
+          isDark: widget.isDark,
+          hint: widget.hint,
+          prefixIcon: widget.icon,
+          suffixIcon: widget.obscure
+              ? IconButton(
+                  icon: Icon(
+                    _obs ? Iconsax.eye_slash : Iconsax.eye,
+                    size: 17,
+                    color: Colors.grey,
+                  ),
+                  onPressed: () => setState(() => _obs = !_obs),
+                )
+              : null,
+        ),
+      ),
+      const SizedBox(height: 16),
+    ],
+  );
 }
 
 // ─── AuthGradientButton ───────────────────────────────────────────────────────
@@ -175,40 +179,41 @@ class AuthGradientButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: AppColors.gradient,
-          borderRadius: BorderRadius.circular(16),
-          
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Center(
-                child: loading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2.5),
-                      )
-                    : Text(
-                        label,
-                        style: GoogleFonts.alexandria(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-              ),
-            ),
+    width: double.infinity,
+    decoration: BoxDecoration(
+      gradient: AppColors.gradient,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Center(
+            child: loading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : Text(
+                    label,
+                    style: GoogleFonts.alexandria(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 // ─── AuthOrDivider ────────────────────────────────────────────────────────────
@@ -219,27 +224,30 @@ class AuthOrDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        children: [
-          Expanded(
-              child: Divider(
-                  color: isDark
-                      ? Colors.white12
-                      : const Color(0xFFE8EAF0))),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Text('OR',
-                style: GoogleFonts.alexandria(
-                    fontSize: 11,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w700)),
+    children: [
+      Expanded(
+        child: Divider(
+          color: isDark ? Colors.white12 : const Color(0xFFE8EAF0),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Text(
+          'OR',
+          style: GoogleFonts.alexandria(
+            fontSize: 11,
+            color: Colors.grey,
+            fontWeight: FontWeight.w700,
           ),
-          Expanded(
-              child: Divider(
-                  color: isDark
-                      ? Colors.white12
-                      : const Color(0xFFE8EAF0))),
-        ],
-      );
+        ),
+      ),
+      Expanded(
+        child: Divider(
+          color: isDark ? Colors.white12 : const Color(0xFFE8EAF0),
+        ),
+      ),
+    ],
+  );
 }
 
 // ─── AuthGoogleButton ─────────────────────────────────────────────────────────
@@ -248,37 +256,42 @@ class AuthGoogleButton extends StatelessWidget {
   final bool isDark;
   final bool loading;
 
-  const AuthGoogleButton(
-      {super.key, required this.isDark, required this.loading});
+  const AuthGoogleButton({
+    super.key,
+    required this.isDark,
+    required this.loading,
+  });
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: loading
-              ? null
-              : () => context
-                  .read<AuthBloc>()
-                  .add(const AuthGoogleSignInRequested()),
-          icon: const Icon(Icons.g_mobiledata_rounded,
-              color: AppColors.primary, size: 28),
-          label: Text('Continue with Google',
-              style: GoogleFonts.alexandria(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: isDark ? Colors.white : Colors.black87,
-              )),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16)),
-            side: BorderSide(
-                color: isDark
-                    ? Colors.white10
-                    : const Color(0xFFE0E3ED)),
-          ),
+    width: double.infinity,
+    child: OutlinedButton.icon(
+      onPressed: loading
+          ? null
+          : () =>
+                context.read<AuthBloc>().add(const AuthGoogleSignInRequested()),
+      icon: const Icon(
+        Icons.g_mobiledata_rounded,
+        color: AppColors.primary,
+        size: 28,
+      ),
+      label: Text(
+        'Continue with Google',
+        style: GoogleFonts.alexandria(
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+          color: isDark ? Colors.white : Colors.black87,
         ),
-      );
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        side: BorderSide(
+          color: isDark ? Colors.white10 : const Color(0xFFE0E3ED),
+        ),
+      ),
+    ),
+  );
 }
 
 // ─── AuthTabToggle ────────────────────────────────────────────────────────────
@@ -303,16 +316,16 @@ class AuthTabToggle extends StatelessWidget {
       height: 54,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color:
-            isDark ? Colors.black26 : const Color(0xFFF1F5F9),
+        color: isDark ? Colors.black26 : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(16),
         boxShadow: isDark
             ? []
             : [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4))
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
               ],
       ),
       child: Stack(
@@ -320,16 +333,13 @@ class AuthTabToggle extends StatelessWidget {
           AnimatedAlign(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeOut,
-            alignment: isSignIn
-                ? Alignment.centerLeft
-                : Alignment.centerRight,
+            alignment: isSignIn ? Alignment.centerLeft : Alignment.centerRight,
             child: FractionallySizedBox(
               widthFactor: 0.5,
               child: Container(
                 decoration: BoxDecoration(
                   gradient: AppColors.gradient,
                   borderRadius: BorderRadius.circular(12),
-                  
                 ),
               ),
             ),
@@ -361,34 +371,33 @@ class _Tab extends StatelessWidget {
   final bool active, isDark;
   final VoidCallback onTap;
 
-  const _Tab(
-      {required this.label,
-      required this.active,
-      required this.isDark,
-      required this.onTap});
+  const _Tab({
+    required this.label,
+    required this.active,
+    required this.isDark,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => Expanded(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: Center(
-            child: AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 150),
-              style: GoogleFonts.alexandria(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-                color: active
-                    ? Colors.white
-                    : (isDark
-                        ? AppColors.darkSubtext
-                        : Colors.grey.shade600),
-              ),
-              child: Text(label),
-            ),
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Center(
+        child: AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 150),
+          style: GoogleFonts.alexandria(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: active
+                ? Colors.white
+                : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
           ),
+          child: Text(label),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 // ─── AuthSignInPanel ──────────────────────────────────────────────────────────
@@ -412,69 +421,68 @@ class AuthSignInPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Form(
-        key: formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AuthField(
-              key: const ValueKey('si_email'),
-              ctrl: emailCtrl,
-              label: 'Email',
-              hint: 'you@example.com',
-              icon: Iconsax.sms,
-              isDark: isDark,
-              type: TextInputType.emailAddress,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) {
-                  return 'Email is required';
-                }
-                if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.\w+')
-                    .hasMatch(v.trim())) {
-                  return 'Enter a valid email';
-                }
-                return null;
-              },
-            ),
-            AuthField(
-              key: const ValueKey('si_pass'),
-              ctrl: passCtrl,
-              label: 'Password',
-              hint: 'Enter your password',
-              icon: Iconsax.lock,
-              isDark: isDark,
-              obscure: true,
-              validator: (v) => (v == null || v.isEmpty)
-                  ? 'Password is required'
-                  : null,
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: GestureDetector(
-                onTap: onForgotPassword,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    'Forgot password?',
-                    style: GoogleFonts.alexandria(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
+    key: formKey,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AuthField(
+          key: const ValueKey('si_email'),
+          ctrl: emailCtrl,
+          label: 'Email',
+          hint: 'you@example.com',
+          icon: Iconsax.sms,
+          isDark: isDark,
+          type: TextInputType.emailAddress,
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) {
+              return 'Email is required';
+            }
+            if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.\w+').hasMatch(v.trim())) {
+              return 'Enter a valid email';
+            }
+            return null;
+          },
+        ),
+        AuthField(
+          key: const ValueKey('si_pass'),
+          ctrl: passCtrl,
+          label: 'Password',
+          hint: 'Enter your password',
+          icon: Iconsax.lock,
+          isDark: isDark,
+          obscure: true,
+          validator: (v) =>
+              (v == null || v.isEmpty) ? 'Password is required' : null,
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: GestureDetector(
+            onTap: onForgotPassword,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                'Forgot password?',
+                style: GoogleFonts.alexandria(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
                 ),
               ),
             ),
-            AuthGradientButton(
-                label: 'Sign In',
-                loading: loading,
-                onTap: loading ? null : onSubmit),
-            const SizedBox(height: 20),
-            AuthOrDivider(isDark: isDark),
-            const SizedBox(height: 18),
-            AuthGoogleButton(isDark: isDark, loading: loading),
-          ],
+          ),
         ),
-      );
+        AuthGradientButton(
+          label: 'Sign In',
+          loading: loading,
+          onTap: loading ? null : onSubmit,
+        ),
+        const SizedBox(height: 20),
+        AuthOrDivider(isDark: isDark),
+        const SizedBox(height: 18),
+        AuthGoogleButton(isDark: isDark, loading: loading),
+      ],
+    ),
+  );
 }
 
 // ─── AuthSignUpPanel ──────────────────────────────────────────────────────────
@@ -499,76 +507,75 @@ class AuthSignUpPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Form(
-        key: formKey,
-        child: Column(
-          children: [
-            AuthField(
-              key: const ValueKey('su_name'),
-              ctrl: nameCtrl,
-              label: 'Full Name',
-              hint: 'John Doe',
-              icon: Iconsax.user,
-              isDark: isDark,
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Name is required'
-                  : null,
-            ),
-            AuthField(
-              key: const ValueKey('su_email'),
-              ctrl: emailCtrl,
-              label: 'Email',
-              hint: 'you@example.com',
-              icon: Iconsax.sms,
-              isDark: isDark,
-              type: TextInputType.emailAddress,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) {
-                  return 'Email is required';
-                }
-                if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.\w+')
-                    .hasMatch(v.trim())) {
-                  return 'Enter a valid email';
-                }
-                return null;
-              },
-            ),
-            // Strength-aware password field
-            AuthPasswordStrengthField(
-              key: const ValueKey('su_pass'),
-              ctrl: passCtrl,
-              isDark: isDark,
-              label: 'Password',
-              hint: 'Create a strong password',
-            ),
-            AuthField(
-              key: const ValueKey('su_confirm'),
-              ctrl: confirmCtrl,
-              label: 'Confirm Password',
-              hint: 'Re-enter your password',
-              icon: Iconsax.lock,
-              isDark: isDark,
-              obscure: true,
-              autovalidate: true,
-              validator: (v) {
-                if (v == null || v.isEmpty) {
-                  return 'Please confirm your password';
-                }
-                if (v != passCtrl.text) return 'Passwords do not match';
-                return null;
-              },
-            ),
-            const SizedBox(height: 4),
-            AuthGradientButton(
-                label: 'Create Account',
-                loading: loading,
-                onTap: loading ? null : onSubmit),
-            const SizedBox(height: 20),
-            AuthOrDivider(isDark: isDark),
-            const SizedBox(height: 18),
-            AuthGoogleButton(isDark: isDark, loading: loading),
-          ],
+    key: formKey,
+    child: Column(
+      children: [
+        AuthField(
+          key: const ValueKey('su_name'),
+          ctrl: nameCtrl,
+          label: 'Full Name',
+          hint: 'John Doe',
+          icon: Iconsax.user,
+          isDark: isDark,
+          validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'Name is required' : null,
         ),
-      );
+        AuthField(
+          key: const ValueKey('su_email'),
+          ctrl: emailCtrl,
+          label: 'Email',
+          hint: 'you@example.com',
+          icon: Iconsax.sms,
+          isDark: isDark,
+          type: TextInputType.emailAddress,
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) {
+              return 'Email is required';
+            }
+            if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.\w+').hasMatch(v.trim())) {
+              return 'Enter a valid email';
+            }
+            return null;
+          },
+        ),
+        // Strength-aware password field
+        AuthPasswordStrengthField(
+          key: const ValueKey('su_pass'),
+          ctrl: passCtrl,
+          isDark: isDark,
+          label: 'Password',
+          hint: 'Create a strong password',
+        ),
+        AuthField(
+          key: const ValueKey('su_confirm'),
+          ctrl: confirmCtrl,
+          label: 'Confirm Password',
+          hint: 'Re-enter your password',
+          icon: Iconsax.lock,
+          isDark: isDark,
+          obscure: true,
+          autovalidate: true,
+          validator: (v) {
+            if (v == null || v.isEmpty) {
+              return 'Please confirm your password';
+            }
+            if (v != passCtrl.text) return 'Passwords do not match';
+            return null;
+          },
+        ),
+        const SizedBox(height: 4),
+        AuthGradientButton(
+          label: 'Create Account',
+          loading: loading,
+          onTap: loading ? null : onSubmit,
+        ),
+        const SizedBox(height: 20),
+        AuthOrDivider(isDark: isDark),
+        const SizedBox(height: 18),
+        AuthGoogleButton(isDark: isDark, loading: loading),
+      ],
+    ),
+  );
 }
 
 // ─── AuthForgotPanel ──────────────────────────────────────────────────────────
@@ -591,88 +598,95 @@ class AuthForgotPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Form(
-        key: formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: onBack,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.arrow_back_ios_new_rounded,
-                      size: 14, color: AppColors.primary),
-                  const SizedBox(width: 6),
-                  Text('Back to Sign In',
-                      style: GoogleFonts.alexandria(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      )),
-                ],
+    key: formKey,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: onBack,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 14,
+                color: AppColors.primary,
               ),
-            ),
-            const SizedBox(height: 24),
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: AppColors.gradient,
-                  shape: BoxShape.circle,
-                  
-                ),
-                child: const Icon(Icons.lock_reset_rounded,
-                    color: Colors.white, size: 32),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Center(
-              child: Text('Reset Password',
-                  style: GoogleFonts.alexandria(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: isDark ? Colors.white : Colors.black87,
-                  )),
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                "Enter your email and we'll send you a link to reset your password.",
-                textAlign: TextAlign.center,
+              const SizedBox(width: 6),
+              Text(
+                'Back to Sign In',
                 style: GoogleFonts.alexandria(
-                  fontSize: 12,
-                  color: isDark
-                      ? AppColors.darkSubtext
-                      : AppColors.lightSubtext,
-                  height: 1.5,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
                 ),
               ),
-            ),
-            const SizedBox(height: 28),
-            AuthField(
-              key: const ValueKey('fp_email'),
-              ctrl: emailCtrl,
-              label: 'Email Address',
-              hint: 'you@example.com',
-              icon: Iconsax.sms,
-              isDark: isDark,
-              type: TextInputType.emailAddress,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) {
-                  return 'Email is required';
-                }
-                if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.\w+')
-                    .hasMatch(v.trim())) {
-                  return 'Enter a valid email';
-                }
-                return null;
-              },
-            ),
-            AuthGradientButton(
-                label: 'Send Reset Link',
-                loading: loading,
-                onTap: loading ? null : onSubmit),
-          ],
+            ],
+          ),
         ),
-      );
+        const SizedBox(height: 24),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: AppColors.gradient,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.lock_reset_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Center(
+          child: Text(
+            'Reset Password',
+            style: GoogleFonts.alexandria(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: Text(
+            "Enter your email and we'll send you a link to reset your password.",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.alexandria(
+              fontSize: 12,
+              color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+              height: 1.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 28),
+        AuthField(
+          key: const ValueKey('fp_email'),
+          ctrl: emailCtrl,
+          label: 'Email Address',
+          hint: 'you@example.com',
+          icon: Iconsax.sms,
+          isDark: isDark,
+          type: TextInputType.emailAddress,
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) {
+              return 'Email is required';
+            }
+            if (!RegExp(r'^[\w.+\-]+@[\w\-]+\.\w+').hasMatch(v.trim())) {
+              return 'Enter a valid email';
+            }
+            return null;
+          },
+        ),
+        AuthGradientButton(
+          label: 'Send Reset Link',
+          loading: loading,
+          onTap: loading ? null : onSubmit,
+        ),
+      ],
+    ),
+  );
 }

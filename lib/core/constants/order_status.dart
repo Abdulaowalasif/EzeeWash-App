@@ -4,22 +4,31 @@ import 'app_color.dart';
 
 class OrderStatus {
   // ─── Exact DB Statuses ─────────────────────────────────────────────────────
-  static const String pending = 'pending';                 // 0.0
-  static const String confirmed = 'confirmed';             // 0.2
-  static const String assignPickup = 'assign_pickup';      // 0.3
-  static const String pickedUp = 'picked_up';              // 0.4
-  static const String dropped = 'dropped';                 // 0.5
-  static const String received = 'received';               // 0.6
-  static const String inProcess = 'in_process';            // 0.7
-  static const String ready = 'ready';                     // 0.8
+  static const String pending = 'pending'; // 0.0
+  static const String confirmed = 'confirmed'; // 0.2
+  static const String assignPickup = 'assign_pickup'; // 0.3
+  static const String pickedUp = 'picked_up'; // 0.4
+  static const String dropped = 'dropped'; // 0.5
+  static const String received = 'received'; // 0.6
+  static const String inProcess = 'in_process'; // 0.7
+  static const String ready = 'ready'; // 0.8
   static const String outForDelivery = 'out_for_delivery'; // 0.9
-  static const String delivered = 'delivered';             // 1.0
+  static const String delivered = 'delivered'; // 1.0
   static const String cancelled = 'cancelled';
 
   // The definitive list of valid statuses for filtering
   static const List<String> validStatuses = [
-    pending, confirmed, assignPickup, pickedUp, dropped,
-    received, inProcess, ready, outForDelivery, delivered, cancelled
+    pending,
+    confirmed,
+    assignPickup,
+    pickedUp,
+    dropped,
+    received,
+    inProcess,
+    ready,
+    outForDelivery,
+    delivered,
+    cancelled,
   ];
 
   // ─── Core Logic ────────────────────────────────────────────────────────────
@@ -42,13 +51,20 @@ class OrderStatus {
 
     // Special formatting for specific statuses
     switch (s) {
-      case assignPickup: return 'Rider Assigned';
-      case dropped: return 'Dropped at Laundry';
-      case received: return 'Laundry Received';
-      case outForDelivery: return 'Out For Delivery';
-      case pickedUp: return 'Picked Up';
-      case inProcess: return 'In Process';
-      default: return s[0].toUpperCase() + s.substring(1);
+      case assignPickup:
+        return 'Rider Assigned';
+      case dropped:
+        return 'Dropped at Laundry';
+      case received:
+        return 'Laundry Received';
+      case outForDelivery:
+        return 'Out For Delivery';
+      case pickedUp:
+        return 'Picked Up';
+      case inProcess:
+        return 'In Process';
+      default:
+        return s[0].toUpperCase() + s.substring(1);
     }
   }
 
@@ -81,18 +97,30 @@ class OrderStatus {
   static double getProgress(String status) {
     final s = getDisplayStatus(status);
     switch (s) {
-      case pending: return 0.0;
-      case confirmed: return 0.2;
-      case assignPickup: return 0.3;
-      case pickedUp: return 0.4;
-      case dropped: return 0.5;
-      case received: return 0.6;
-      case inProcess: return 0.7;
-      case ready: return 0.8;
-      case outForDelivery: return 0.9;
-      case delivered: return 1.0;
-      case cancelled: return 0.0;
-      default: return 0.0;
+      case pending:
+        return 0.0;
+      case confirmed:
+        return 0.2;
+      case assignPickup:
+        return 0.3;
+      case pickedUp:
+        return 0.4;
+      case dropped:
+        return 0.5;
+      case received:
+        return 0.6;
+      case inProcess:
+        return 0.7;
+      case ready:
+        return 0.8;
+      case outForDelivery:
+        return 0.9;
+      case delivered:
+        return 1.0;
+      case cancelled:
+        return 0.0;
+      default:
+        return 0.0;
     }
   }
 
@@ -100,17 +128,28 @@ class OrderStatus {
   static int getStepCompletionOrder(String status) {
     final s = getDisplayStatus(status);
     switch (s) {
-      case pending: return 1;
-      case confirmed: return 2;
-      case assignPickup: return 3;
-      case pickedUp: return 4;
-      case dropped: return 5;
-      case received: return 6;
-      case inProcess: return 7;
-      case ready: return 8;
-      case outForDelivery: return 9;
-      case delivered: return 10;
-      default: return 0;
+      case pending:
+        return 1;
+      case confirmed:
+        return 2;
+      case assignPickup:
+        return 3;
+      case pickedUp:
+        return 4;
+      case dropped:
+        return 5;
+      case received:
+        return 6;
+      case inProcess:
+        return 7;
+      case ready:
+        return 8;
+      case outForDelivery:
+        return 9;
+      case delivered:
+        return 10;
+      default:
+        return 0;
     }
   }
 }

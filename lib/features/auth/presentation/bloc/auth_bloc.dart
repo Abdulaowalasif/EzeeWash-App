@@ -65,18 +65,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
   }
 
-  Future<void> _onChangePassword(
-    AuthChangePasswordRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(const AuthLoading());
-    final res = await changePasswordUseCase(event.newPassword);
-    res.fold(
-      (f) => emit(AuthError(f.message)),
-      (_) => emit(const AuthPasswordChanged()),
-    );
-  }
-
   Future<void> _onSignIn(
     AuthSignInRequested event,
     Emitter<AuthState> emit,

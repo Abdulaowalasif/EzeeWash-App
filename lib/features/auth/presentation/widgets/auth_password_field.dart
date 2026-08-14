@@ -21,19 +21,13 @@ class PasswordValidator {
   static const int minLength = 8;
 
   static bool hasMinLength(String pw) => pw.length >= minLength;
-  static bool hasUppercase(String pw) =>
-      pw.contains(RegExp(r'[A-Z]'));
-  static bool hasLowercase(String pw) =>
-      pw.contains(RegExp(r'[a-z]'));
+  static bool hasUppercase(String pw) => pw.contains(RegExp(r'[A-Z]'));
+  static bool hasLowercase(String pw) => pw.contains(RegExp(r'[a-z]'));
   static bool hasDigit(String pw) => pw.contains(RegExp(r'[0-9]'));
-  static bool hasSpecialChar(String pw) =>
-      pw.contains(RegExp(r'[^\w\s]'));
+  static bool hasSpecialChar(String pw) => pw.contains(RegExp(r'[^\w\s]'));
 
   static bool isValid(String pw) =>
-      hasMinLength(pw) &&
-      hasUppercase(pw) &&
-      hasLowercase(pw) &&
-      hasDigit(pw);
+      hasMinLength(pw) && hasUppercase(pw) && hasLowercase(pw) && hasDigit(pw);
 
   static int score(String pw) {
     if (pw.isEmpty) return 0;
@@ -121,8 +115,7 @@ class AuthPasswordStrengthField extends StatefulWidget {
       _AuthPasswordStrengthFieldState();
 }
 
-class _AuthPasswordStrengthFieldState
-    extends State<AuthPasswordStrengthField> {
+class _AuthPasswordStrengthFieldState extends State<AuthPasswordStrengthField> {
   bool _obscure = true;
 
   @override
@@ -140,15 +133,14 @@ class _AuthPasswordStrengthFieldState
     final show = pw.isNotEmpty;
 
     final rules = [
-      _PwRule(
-          'At least 8 characters', PasswordValidator.hasMinLength(pw)),
-      _PwRule('One uppercase letter (A–Z)',
-          PasswordValidator.hasUppercase(pw)),
-      _PwRule('One lowercase letter (a–z)',
-          PasswordValidator.hasLowercase(pw)),
+      _PwRule('At least 8 characters', PasswordValidator.hasMinLength(pw)),
+      _PwRule('One uppercase letter (A–Z)', PasswordValidator.hasUppercase(pw)),
+      _PwRule('One lowercase letter (a–z)', PasswordValidator.hasLowercase(pw)),
       _PwRule('One number (0–9)', PasswordValidator.hasDigit(pw)),
-      _PwRule('One special character (!@#\$…)',
-          PasswordValidator.hasSpecialChar(pw)),
+      _PwRule(
+        'One special character (!@#\$…)',
+        PasswordValidator.hasSpecialChar(pw),
+      ),
     ];
 
     return Column(
@@ -180,11 +172,11 @@ class _AuthPasswordStrengthFieldState
             prefixIcon: Iconsax.lock,
             suffixIcon: IconButton(
               icon: Icon(
-                  _obscure ? Iconsax.eye_slash : Iconsax.eye,
-                  size: 17,
-                  color: Colors.grey),
-              onPressed: () =>
-                  setState(() => _obscure = !_obscure),
+                _obscure ? Iconsax.eye_slash : Iconsax.eye,
+                size: 17,
+                color: Colors.grey,
+              ),
+              onPressed: () => setState(() => _obscure = !_obscure),
             ),
           ),
         ),
@@ -194,27 +186,21 @@ class _AuthPasswordStrengthFieldState
           curve: Curves.easeOut,
           child: show
               ? Padding(
-                  padding:
-                      const EdgeInsets.only(top: 10, bottom: 2),
+                  padding: const EdgeInsets.only(top: 10, bottom: 2),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: List.generate(4, (i) {
                           final filled = i < score;
-                          final c =
-                              PasswordValidator.strengthColor(score);
+                          final c = PasswordValidator.strengthColor(score);
                           return Expanded(
                             child: Container(
-                              margin: EdgeInsets.only(
-                                  right: i < 3 ? 5 : 0),
+                              margin: EdgeInsets.only(right: i < 3 ? 5 : 0),
                               height: 4,
                               decoration: BoxDecoration(
-                                color: filled
-                                    ? c
-                                    : c.withOpacity(0.15),
-                                borderRadius:
-                                    BorderRadius.circular(4),
+                                color: filled ? c : c.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
                               ),
                             ),
                           );
@@ -228,9 +214,7 @@ class _AuthPasswordStrengthFieldState
                                 ? Iconsax.tick_circle
                                 : Iconsax.info_circle,
                             size: 13,
-                            color:
-                                PasswordValidator.strengthColor(
-                                    score),
+                            color: PasswordValidator.strengthColor(score),
                           ),
                           const SizedBox(width: 5),
                           Text(
@@ -238,8 +222,7 @@ class _AuthPasswordStrengthFieldState
                             style: GoogleFonts.alexandria(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: PasswordValidator.strengthColor(
-                                  score),
+                              color: PasswordValidator.strengthColor(score),
                             ),
                           ),
                         ],
@@ -257,10 +240,12 @@ class _AuthPasswordStrengthFieldState
               ? Container(
                   margin: const EdgeInsets.only(top: 10),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: widget.isDark
-                        ? Colors.white.withOpacity(0.04)
+                        ? Colors.white.withValues(alpha: 0.04)
                         : const Color(0xFFF7F8FC),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
@@ -271,8 +256,7 @@ class _AuthPasswordStrengthFieldState
                   ),
                   child: Column(
                     children: rules
-                        .map((r) => _PwRuleRow(
-                            rule: r, isDark: widget.isDark))
+                        .map((r) => _PwRuleRow(rule: r, isDark: widget.isDark))
                         .toList(),
                   ),
                 )
@@ -293,9 +277,7 @@ class _PwRuleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = rule.met
         ? AppColors.success
-        : (isDark
-            ? AppColors.darkSubtext
-            : const Color(0xFF94A3B8));
+        : (isDark ? AppColors.darkSubtext : const Color(0xFF94A3B8));
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
@@ -303,9 +285,7 @@ class _PwRuleRow extends StatelessWidget {
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 200),
             child: Icon(
-              rule.met
-                  ? Iconsax.tick_circle
-                  : Iconsax.minus_cirlce,
+              rule.met ? Iconsax.tick_circle : Iconsax.minus_cirlce,
               key: ValueKey(rule.met),
               size: 14,
               color: color,
@@ -317,9 +297,7 @@ class _PwRuleRow extends StatelessWidget {
             style: GoogleFonts.alexandria(
               fontSize: 12,
               color: color,
-              fontWeight: rule.met
-                  ? FontWeight.w600
-                  : FontWeight.normal,
+              fontWeight: rule.met ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
         ],

@@ -22,11 +22,12 @@ class StoresLoaded extends StoresState {
 
   const StoresLoaded({required this.stores, this.selectedStoreId});
 
-  StoreEntity? get selectedStore =>
-      selectedStoreId != null
-          ? stores.firstWhere((s) => s.id == selectedStoreId,
-          orElse: () => stores.first)
-          : null;
+  StoreEntity? get selectedStore => selectedStoreId != null
+      ? stores.firstWhere(
+          (s) => s.id == selectedStoreId,
+          orElse: () => stores.first,
+        )
+      : null;
 
   StoresLoaded copyWith({List<StoreEntity>? stores, String? selectedStoreId}) =>
       StoresLoaded(

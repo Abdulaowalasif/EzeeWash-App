@@ -9,7 +9,10 @@ sealed class ServicesEvent extends Equatable {
 
 /// Initial load — fetch all active services from Supabase.
 final class ServicesLoadRequested extends ServicesEvent {
-  const ServicesLoadRequested();
+  final bool forceRefresh;
+  const ServicesLoadRequested({this.forceRefresh = false});
+  @override
+  List<Object?> get props => [forceRefresh];
 }
 
 /// Pull-to-refresh — reload from server, preserve current filter/search.

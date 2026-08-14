@@ -2,7 +2,7 @@
 
 import 'package:ezzewash/core/widgets/app_error_state.dart';
 import 'package:ezzewash/core/widgets/app_shimmer.dart';
-import 'package:ezzewash/core/widgets/common_widgets.dart';
+import 'package:ezzewash/core/widgets/widgets.dart';
 import 'package:ezzewash/features/services/presentation/bloc/service_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,8 +10,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/app_network_image.dart';
 import '../../../../routes/routes_name.dart';
 import '../../../services/presentation/bloc/service_bloc.dart';
 import '../../../services/presentation/bloc/service_state.dart';
@@ -65,17 +63,17 @@ class HomeServicesGrid extends StatelessWidget {
           final all = List.of(state.services)
             ..sort((a, b) => b.rating.compareTo(a.rating));
           final services =
-          (q.isEmpty
-              ? all
-              : all.where(
-                (s) =>
-            s.title.toLowerCase().contains(q) ||
-                (s.description?.toLowerCase().contains(q) ??
-                    false) ||
-                s.tags.any((t) => t.toLowerCase().contains(q)),
-          ))
-              .take(4)
-              .toList();
+              (q.isEmpty
+                      ? all
+                      : all.where(
+                          (s) =>
+                              s.title.toLowerCase().contains(q) ||
+                              (s.description?.toLowerCase().contains(q) ??
+                                  false) ||
+                              s.tags.any((t) => t.toLowerCase().contains(q)),
+                        ))
+                  .take(4)
+                  .toList();
 
           if (services.isEmpty && q.isNotEmpty) {
             return Padding(

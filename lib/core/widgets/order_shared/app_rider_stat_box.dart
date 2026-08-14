@@ -35,9 +35,9 @@ class AppRiderStatBox extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.12 : 0.07),
+        color: color.withValues(alpha: isDark ? 0.12 : 0.07),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [

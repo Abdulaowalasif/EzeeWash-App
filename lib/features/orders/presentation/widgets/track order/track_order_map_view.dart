@@ -10,16 +10,18 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../core/constants/app_color.dart';
-import '../../../../../core/constants/app_constants.dart';
 import '../../../domain/entities/order_entity.dart';
+import '../../bloc/rider_tracking_bloc.dart';
+import '../../bloc/rider_tracking_event.dart';
+import '../../bloc/rider_tracking_state.dart';
 import '../../screens/track_order_screen.dart' show OrderPhase;
 import 'track_order_rider_sheet.dart';
 
@@ -48,10 +50,7 @@ class _TrackOrderMapViewState extends State<TrackOrderMapView> {
   LatLng? _riderPos;
   bool _loading = true;
   bool _denied = false;
-  StreamSubscription? _sub;
   Map<String, dynamic>? _riderRow;
-
-  static const LatLng _dhaka = LatLng(23.8103, 90.4125);
 
   @override
   void initState() {
@@ -71,7 +70,6 @@ class _TrackOrderMapViewState extends State<TrackOrderMapView> {
 
   @override
   void dispose() {
-    _sub?.cancel();
     _mapCtrl?.dispose();
     super.dispose();
   }
@@ -100,7 +98,9 @@ class _TrackOrderMapViewState extends State<TrackOrderMapView> {
           if (perm != LocationPermission.denied &&
               perm != LocationPermission.deniedForever) {
             final pos = await Geolocator.getCurrentPosition(
-              desiredAccuracy: LocationAccuracy.high,
+              locationSettings: const LocationSettings(
+                accuracy: LocationAccuracy.high,
+              ),
             );
             _customerLoc = LatLng(pos.latitude, pos.longitude);
           }
@@ -120,52 +120,54 @@ class _TrackOrderMapViewState extends State<TrackOrderMapView> {
   }
 
   void _listenRider() {
-    _sub?.cancel();
     if (widget.activeRiderId == null) return;
-    _sub = Supabase.instance.client
-        .from('riders')
-        .stream(primaryKey: ['id'])
-        .eq('id', widget.activeRiderId!)
-        .listen((data) {
-      if (data.isNotEmpty && mounted) {
-        final row = data.first;
-        final lat = (row['current_lat'] as num?)?.toDouble();
-        final lng = (row['current_lng'] as num?)?.toDouble();
-        setState(() {
-          _riderRow = row;
-          if (lat != null && lng != null) {
-            _riderPos = LatLng(lat, lng);
-          }
-        });
-        _fit();
-      }
-    });
+    context.read<RiderTrackingBloc>().add(
+      RiderTrackingStarted(widget.activeRiderId!),
+    );
+  }
+
+  void _onRiderStateChanged(BuildContext context, RiderTrackingState state) {
+    if (state is RiderTrackingLoaded) {
+      final row = state.riderRow;
+      final lat = (row['current_lat'] as num?)?.toDouble();
+      final lng = (row['current_lng'] as num?)?.toDouble();
+      setState(() {
+        _riderRow = row;
+        if (lat != null && lng != null) {
+          _riderPos = LatLng(lat, lng);
+        }
+      });
+      _fit();
+    }
   }
 
   void _onRiderMarkerTap() {
     if (_riderRow == null) return;
     final distKm = (_customerLoc != null && _riderPos != null)
         ? Geolocator.distanceBetween(
-              _riderPos!.latitude,
-              _riderPos!.longitude,
-              _customerLoc!.latitude,
-              _customerLoc!.longitude,
-            ) /
-            1000
+                _riderPos!.latitude,
+                _riderPos!.longitude,
+                _customerLoc!.latitude,
+                _customerLoc!.longitude,
+              ) /
+              1000
         : null;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => TrackOrderRiderSheet(
-        order: widget.order,
-        isDark: widget.isDark,
-        phase: widget.phase,
-        initialRiderRow: _riderRow!,
-        initialRiderPos: _riderPos,
-        initialDistanceKm: distKm,
-        customerLoc: _customerLoc,
+      builder: (_) => BlocProvider.value(
+        value: context.read<RiderTrackingBloc>(),
+        child: TrackOrderRiderSheet(
+          order: widget.order,
+          isDark: widget.isDark,
+          phase: widget.phase,
+          initialRiderRow: _riderRow!,
+          initialRiderPos: _riderPos,
+          initialDistanceKm: distKm,
+          customerLoc: _customerLoc,
+        ),
       ),
     );
   }
@@ -189,39 +191,44 @@ class _TrackOrderMapViewState extends State<TrackOrderMapView> {
         ),
       );
     } else {
-      await ctrl
-          .animateCamera(CameraUpdate.newLatLngZoom(_customerLoc!, 15));
+      await ctrl.animateCamera(CameraUpdate.newLatLngZoom(_customerLoc!, 15));
     }
   }
 
   Set<Marker> get _markers {
     final m = <Marker>{};
     if (_customerLoc != null) {
-      m.add(Marker(
-        markerId: const MarkerId('customer'),
-        position: _customerLoc!,
-        infoWindow: InfoWindow(
-          title: widget.phase == OrderPhase.riderComingToDeliver
-              ? 'Your Address (Delivery)'
-              : 'Your Address (Pickup)',
+      m.add(
+        Marker(
+          markerId: const MarkerId('customer'),
+          position: _customerLoc!,
+          infoWindow: InfoWindow(
+            title: widget.phase == OrderPhase.riderComingToDeliver
+                ? 'Your Address (Delivery)'
+                : 'Your Address (Pickup)',
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueAzure,
+          ),
         ),
-        icon:
-            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-      ));
+      );
     }
     if (_riderPos != null) {
-      m.add(Marker(
-        markerId: const MarkerId('rider'),
-        position: _riderPos!,
-        infoWindow: InfoWindow(
-          title: widget.phase == OrderPhase.riderComingToDeliver
-              ? 'Rider • Delivering'
-              : 'Rider • Coming to Pickup',
+      m.add(
+        Marker(
+          markerId: const MarkerId('rider'),
+          position: _riderPos!,
+          infoWindow: InfoWindow(
+            title: widget.phase == OrderPhase.riderComingToDeliver
+                ? 'Rider • Delivering'
+                : 'Rider • Coming to Pickup',
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueOrange,
+          ),
+          onTap: _onRiderMarkerTap,
         ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueOrange),
-        onTap: _onRiderMarkerTap,
-      ));
+      );
     }
     return m;
   }
@@ -239,212 +246,129 @@ class _TrackOrderMapViewState extends State<TrackOrderMapView> {
     };
   }
 
-  Widget _buildMap() => GoogleMap(
-        initialCameraPosition: CameraPosition(
-          target: _customerLoc ?? _dhaka,
-          zoom: 14,
-        ),
-        onMapCreated: (ctrl) {
-          if (!_cc.isCompleted) _cc.complete(ctrl);
-          _mapCtrl = ctrl;
-          if (widget.isDark) ctrl.setMapStyle(AppConstants.darkMapStyle);
-          _fit();
-        },
-        markers: _markers,
-        polylines: _polylines,
-        myLocationEnabled: false,
-        myLocationButtonEnabled: false,
-        zoomControlsEnabled: false,
-        mapToolbarEnabled: false,
-        compassEnabled: false,
-        gestureRecognizers: {
-          Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer()),
-        },
-      );
-
-  Widget _loadingOverlay() => Stack(
-        children: [
-          GoogleMap(
-            initialCameraPosition:
-                const CameraPosition(target: _dhaka, zoom: 12),
-            onMapCreated: (ctrl) {
-              if (!_cc.isCompleted) _cc.complete(ctrl);
-              _mapCtrl = ctrl;
-              if (widget.isDark) {
-                ctrl.setMapStyle(AppConstants.darkMapStyle);
-              }
-            },
-            myLocationEnabled: false,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
-            compassEnabled: false,
-            gestureRecognizers: {
-              Factory<EagerGestureRecognizer>(
-                  () => EagerGestureRecognizer()),
-            },
-          ),
-          Positioned.fill(
-            child: Container(
-              color: widget.isDark
-                  ? Colors.black.withOpacity(0.55)
-                  : Colors.white.withOpacity(0.72),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 2.5,
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Locating address…',
-                      style: GoogleFonts.alexandria(
-                        fontSize: 13,
-                        color: widget.isDark
-                            ? Colors.white70
-                            : AppColors.lightSubtext,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-
-  Widget _deniedOverlay() => Stack(
-        children: [
-          GoogleMap(
-            initialCameraPosition:
-                const CameraPosition(target: _dhaka, zoom: 12),
-            onMapCreated: (ctrl) {
-              if (!_cc.isCompleted) _cc.complete(ctrl);
-              _mapCtrl = ctrl;
-              if (widget.isDark) {
-                ctrl.setMapStyle(AppConstants.darkMapStyle);
-              }
-            },
-            myLocationEnabled: false,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
-            compassEnabled: false,
-            gestureRecognizers: {
-              Factory<EagerGestureRecognizer>(
-                  () => EagerGestureRecognizer()),
-            },
-          ),
-          Positioned(
-            top: 12,
-            left: 12,
-            right: 12,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: widget.isDark
-                    ? const Color(0xCC1A2540)
-                    : Colors.white.withOpacity(0.92),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.location_searching_rounded,
-                    size: 16,
-                    color: widget.isDark
-                        ? Colors.white70
-                        : AppColors.lightSubtext,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Could not resolve delivery address',
-                      style: GoogleFonts.alexandria(
-                        fontSize: 12,
-                        color: widget.isDark
-                            ? Colors.white70
-                            : AppColors.lightSubtext,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      );
-
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 300,
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: widget.isDark
-                      ? AppColors.darkBorder
-                      : AppColors.lightBorder,
+    if (_loading) {
+      return Container(
+        height: 280,
+        decoration: BoxDecoration(
+          color: widget.isDark ? AppColors.darkSurface : Colors.white,
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+
+    if (_denied || _customerLoc == null) {
+      return Container(
+        height: 280,
+        decoration: BoxDecoration(
+          color: widget.isDark ? AppColors.darkSurface : Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: widget.isDark ? Colors.white12 : Colors.grey.shade200,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.location_off_rounded,
+              size: 48,
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Location Access Needed',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: widget.isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'We need your location to show the map.',
+              style: TextStyle(
+                fontSize: 14,
+                color: widget.isDark ? Colors.white54 : Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return BlocListener<RiderTrackingBloc, RiderTrackingState>(
+      listener: _onRiderStateChanged,
+      child: Container(
+        height: 380,
+        decoration: BoxDecoration(
+          color: widget.isDark ? AppColors.darkSurface : Colors.white,
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(32),
+          child: Stack(
+            children: [
+              GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: _customerLoc!,
+                  zoom: 15,
                 ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: widget.isDark
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
+                onMapCreated: (c) {
+                  _cc.complete(c);
+                  _mapCtrl = c;
+                  _fit();
+                },
+                markers: _markers,
+                polylines: _polylines,
+                myLocationEnabled: false,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                mapToolbarEnabled: false,
+                compassEnabled: false,
+                gestureRecognizers: {
+                  Factory<EagerGestureRecognizer>(
+                    () => EagerGestureRecognizer(),
+                  ),
+                },
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(22),
-                child: _loading
-                    ? _loadingOverlay()
-                    : _denied
-                        ? _deniedOverlay()
-                        : _buildMap(),
+              // Phase badge (top-left)
+              Positioned(
+                top: 14,
+                left: 14,
+                child: _MapBadge(
+                  icon: widget.phase == OrderPhase.riderComingToDeliver
+                      ? Iconsax.truck_fast
+                      : Iconsax.car,
+                  label: widget.phase == OrderPhase.riderComingToDeliver
+                      ? 'Rider delivering'
+                      : 'Rider picking up',
+                ),
               ),
-            ),
+              // Tap hint (top-right)
+              if (_riderPos != null)
+                const Positioned(
+                  top: 14,
+                  right: 14,
+                  child: _MapBadge(
+                    icon: Icons.touch_app_rounded,
+                    label: 'Tap rider',
+                  ),
+                ),
+            ],
           ),
-          // Phase badge (top-left)
-          Positioned(
-            top: 14,
-            left: 14,
-            child: _MapBadge(
-              icon: widget.phase == OrderPhase.riderComingToDeliver
-                  ? Iconsax.truck_fast
-                  : Iconsax.car,
-              label: widget.phase == OrderPhase.riderComingToDeliver
-                  ? 'Rider delivering'
-                  : 'Rider picking up',
-            ),
-          ),
-          // Tap hint (top-right)
-          if (_riderPos != null)
-            const Positioned(
-              top: 14,
-              right: 14,
-              child: _MapBadge(
-                icon: Icons.touch_app_rounded,
-                label: 'Tap rider',
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -458,26 +382,25 @@ class _MapBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.62),
-          borderRadius: BorderRadius.circular(20),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha: 0.62),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: Colors.white, size: 13),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: GoogleFonts.alexandria(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 13),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: GoogleFonts.alexandria(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      );
+      ],
+    ),
+  );
 }

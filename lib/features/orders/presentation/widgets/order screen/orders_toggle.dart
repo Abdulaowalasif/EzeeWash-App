@@ -27,12 +27,12 @@ class OrdersToggle extends StatelessWidget {
         boxShadow: isDark
             ? []
             : [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: Stack(
         children: [
@@ -43,7 +43,8 @@ class OrdersToggle extends StatelessWidget {
               // Default to state value if controller isn't ready
               double page = showActive ? 0.0 : 1.0;
 
-              if (pageController.hasClients && pageController.position.haveDimensions) {
+              if (pageController.hasClients &&
+                  pageController.position.haveDimensions) {
                 page = pageController.page ?? page;
               }
 
@@ -61,7 +62,6 @@ class OrdersToggle extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: AppColors.gradient,
                       borderRadius: BorderRadius.circular(12),
-                      
                     ),
                   ),
                 ),
@@ -84,7 +84,9 @@ class OrdersToggle extends StatelessWidget {
                         fontSize: 13,
                         color: showActive
                             ? Colors.white
-                            : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
+                            : (isDark
+                                  ? AppColors.darkSubtext
+                                  : Colors.grey.shade600),
                       ),
                       child: const Text('Active Orders'),
                     ),
@@ -103,7 +105,9 @@ class OrdersToggle extends StatelessWidget {
                         fontSize: 13,
                         color: !showActive
                             ? Colors.white
-                            : (isDark ? AppColors.darkSubtext : Colors.grey.shade600),
+                            : (isDark
+                                  ? AppColors.darkSubtext
+                                  : Colors.grey.shade600),
                       ),
                       child: const Text('Order History'),
                     ),

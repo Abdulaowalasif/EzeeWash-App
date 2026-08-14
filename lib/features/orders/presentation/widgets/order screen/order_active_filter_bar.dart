@@ -43,7 +43,9 @@ class OrderActiveFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chips = <String>[];
-    if (filter.dateRange != DateRange.all) chips.add(_dateLabel(filter.dateRange));
+    if (filter.dateRange != DateRange.all) {
+      chips.add(_dateLabel(filter.dateRange));
+    }
     if (filter.storeId != null) {
       final idx = allOrders.indexWhere((o) => o.storeId == filter.storeId);
       chips.add(idx != -1 ? allOrders[idx].storeName : filter.storeId!);
@@ -51,13 +53,15 @@ class OrderActiveFilterBar extends StatelessWidget {
     if (filter.serviceName != null) chips.add(filter.serviceName!);
     if (filter.status != null) chips.add(OrderStatus.format(filter.status!));
     if (filter.sortBy != 'newest') {
-      chips.add({
-            'oldest': 'Oldest first',
-            'price_asc': 'Price ↑',
-            'price_desc': 'Price ↓',
-          }[filter.sortBy] ??
-          filter.sortBy ??
-          '');
+      chips.add(
+        {
+              'oldest': 'Oldest first',
+              'price_asc': 'Price ↑',
+              'price_desc': 'Price ↓',
+            }[filter.sortBy] ??
+            filter.sortBy ??
+            '',
+      );
     }
 
     return SizedBox(
@@ -65,9 +69,7 @@ class OrderActiveFilterBar extends StatelessWidget {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          ...chips.map(
-            (c) => _FilterChip(label: c, isDark: isDark),
-          ),
+          ...chips.map((c) => _FilterChip(label: c, isDark: isDark)),
           _ClearChip(isDark: isDark, onClear: onClear),
         ],
       ),
@@ -87,14 +89,15 @@ class _FilterChip extends StatelessWidget {
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.12),
+        color: AppColors.primary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
       child: Text(
         label,
-        style: AppTextStyles.captionMedium(isDark)
-            .copyWith(color: AppColors.primary),
+        style: AppTextStyles.captionMedium(
+          isDark,
+        ).copyWith(color: AppColors.primary),
       ),
     );
   }
@@ -113,7 +116,7 @@ class _ClearChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.1),
+          color: AppColors.error.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -122,8 +125,9 @@ class _ClearChip extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               'Clear all',
-              style: AppTextStyles.captionMedium(isDark)
-                  .copyWith(color: AppColors.error),
+              style: AppTextStyles.captionMedium(
+                isDark,
+              ).copyWith(color: AppColors.error),
             ),
           ],
         ),

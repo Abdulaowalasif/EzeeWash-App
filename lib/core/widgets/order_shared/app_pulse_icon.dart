@@ -58,7 +58,7 @@ class _AppPulseIconState extends State<AppPulseIcon>
         padding: EdgeInsets.all(widget.containerSize),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: widget.color.withOpacity(0.15),
+          color: widget.color.withValues(alpha: 0.15),
         ),
         child: Icon(widget.icon, color: widget.color, size: widget.size),
       ),

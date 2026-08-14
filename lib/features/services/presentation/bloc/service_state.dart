@@ -47,16 +47,20 @@ final class ServicesLoaded extends ServicesState {
     List<ServiceEntity>? filtered,
     String? selectedCategory,
     String? searchQuery,
-  }) =>
-      ServicesLoaded(
-        services: services ?? this.services,
-        filtered: filtered ?? this.filtered,
-        selectedCategory: selectedCategory ?? this.selectedCategory,
-        searchQuery: searchQuery ?? this.searchQuery,
-      );
+  }) => ServicesLoaded(
+    services: services ?? this.services,
+    filtered: filtered ?? this.filtered,
+    selectedCategory: selectedCategory ?? this.selectedCategory,
+    searchQuery: searchQuery ?? this.searchQuery,
+  );
 
   @override
-  List<Object?> get props => [services, filtered, selectedCategory, searchQuery];
+  List<Object?> get props => [
+    services,
+    filtered,
+    selectedCategory,
+    searchQuery,
+  ];
 }
 
 /// The load failed. [message] is safe to show in the UI.

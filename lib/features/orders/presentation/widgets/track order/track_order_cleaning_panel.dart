@@ -75,8 +75,7 @@ class _TrackOrderCleaningPanelState extends State<TrackOrderCleaningPanel>
         animation: _bubbleCtrl,
         builder: (_, _) {
           final t = (_bubbleCtrl.value + phase) % 1.0;
-          final opacity =
-              math.sin(t * math.pi).clamp(0.0, 1.0) * 0.65;
+          final opacity = math.sin(t * math.pi).clamp(0.0, 1.0) * 0.65;
           final dy = -12.0 * math.sin(t * math.pi);
           return Transform.translate(
             offset: Offset(e.value.dx, e.value.dy + dy),
@@ -87,7 +86,7 @@ class _TrackOrderCleaningPanelState extends State<TrackOrderCleaningPanel>
                 height: 10 + (e.key % 3) * 4.0,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary.withOpacity(0.4),
+                  color: AppColors.primary.withValues(alpha: 0.4),
                 ),
               ),
             ),
@@ -113,7 +112,7 @@ class _TrackOrderCleaningPanelState extends State<TrackOrderCleaningPanel>
             border: Border.all(
               color: widget.isDark
                   ? AppColors.darkBorder
-                  : AppColors.primary.withOpacity(0.15),
+                  : AppColors.primary.withValues(alpha: 0.15),
             ),
           ),
           child: Stack(
@@ -129,7 +128,7 @@ class _TrackOrderCleaningPanelState extends State<TrackOrderCleaningPanel>
                     height: 160,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.primary.withOpacity(0.05),
+                      color: AppColors.primary.withValues(alpha: 0.05),
                     ),
                   ),
                 ),
@@ -138,15 +137,13 @@ class _TrackOrderCleaningPanelState extends State<TrackOrderCleaningPanel>
               AnimatedBuilder(
                 animation: _pulseCtrl,
                 builder: (_, _) => Transform.scale(
-                  scale: 1.0 +
-                      0.07 *
-                          math.sin(_pulseCtrl.value * math.pi),
+                  scale: 1.0 + 0.07 * math.sin(_pulseCtrl.value * math.pi),
                   child: Container(
                     width: 115,
                     height: 115,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.primary.withOpacity(0.09),
+                      color: AppColors.primary.withValues(alpha: 0.09),
                     ),
                   ),
                 ),
@@ -202,14 +199,15 @@ class _ArcPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..shader = const LinearGradient(
-        colors: [AppColors.primary, Colors.transparent],
-      ).createShader(
-        Rect.fromCircle(
-          center: Offset(size.width / 2, size.height / 2),
-          radius: size.width / 2,
-        ),
-      )
+      ..shader =
+          const LinearGradient(
+            colors: [AppColors.primary, Colors.transparent],
+          ).createShader(
+            Rect.fromCircle(
+              center: Offset(size.width / 2, size.height / 2),
+              radius: size.width / 2,
+            ),
+          )
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round;
@@ -320,15 +318,15 @@ class _CleaningSteps extends StatelessWidget {
                               color: s.done
                                   ? null
                                   : s.active
-                                  ? AppColors.primary.withOpacity(0.12)
+                                  ? AppColors.primary.withValues(alpha: 0.12)
                                   : (isDark
-                                  ? Colors.grey.shade800
-                                  : Colors.grey.shade100),
+                                        ? Colors.grey.shade800
+                                        : Colors.grey.shade100),
                               border: s.active && !s.done
                                   ? Border.all(
-                                color: AppColors.primary,
-                                width: 2,
-                              )
+                                      color: AppColors.primary,
+                                      width: 2,
+                                    )
                                   : null,
                             ),
                             child: Icon(
@@ -353,8 +351,8 @@ class _CleaningSteps extends StatelessWidget {
                                   ? AppColors.primary
                                   : s.active
                                   ? (isDark
-                                  ? Colors.white
-                                  : AppColors.lightText)
+                                        ? Colors.white
+                                        : AppColors.lightText)
                                   : Colors.grey.shade400,
                             ),
                             textAlign: TextAlign.center,
@@ -373,8 +371,8 @@ class _CleaningSteps extends StatelessWidget {
                             color: s.done
                                 ? null
                                 : (isDark
-                                ? Colors.grey.shade800
-                                : Colors.grey.shade200),
+                                      ? Colors.grey.shade800
+                                      : Colors.grey.shade200),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),

@@ -34,7 +34,11 @@ class PdfService {
             alignment: pw.Alignment.center,
             child: pw.Text(
               'Thank you for using EzeeWash Laundry Services!',
-              style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey600),
+              style: pw.TextStyle(
+                font: font,
+                fontSize: 10,
+                color: PdfColors.grey600,
+              ),
             ),
           ),
         ],
@@ -44,22 +48,38 @@ class PdfService {
     return pdf.save();
   }
 
-  static pw.Widget _buildHeader(OrderEntity order, pw.Font boldFont, PdfColor color) {
+  static pw.Widget _buildHeader(
+    OrderEntity order,
+    pw.Font boldFont,
+    PdfColor color,
+  ) {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text('RECEIPT', style: pw.TextStyle(font: boldFont, fontSize: 28, color: color)),
-            pw.Text('No: ${order.orderNumber}', style: const pw.TextStyle(fontSize: 12)),
+            pw.Text(
+              'RECEIPT',
+              style: pw.TextStyle(font: boldFont, fontSize: 28, color: color),
+            ),
+            pw.Text(
+              'No: ${order.orderNumber}',
+              style: const pw.TextStyle(fontSize: 12),
+            ),
           ],
         ),
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
-            pw.Text('EzeeWash', style: pw.TextStyle(font: boldFont, fontSize: 16)),
-            pw.Text('Official Order Invoice', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+            pw.Text(
+              'EzeeWash',
+              style: pw.TextStyle(font: boldFont, fontSize: 16),
+            ),
+            pw.Text(
+              'Official Order Invoice',
+              style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+            ),
             pw.Text('Date: ${order.createdAt.toString().split(' ')[0]}'),
           ],
         ),
@@ -67,7 +87,11 @@ class PdfService {
     );
   }
 
-  static pw.Widget _buildOrderInfo(OrderEntity order, pw.Font font, pw.Font boldFont) {
+  static pw.Widget _buildOrderInfo(
+    OrderEntity order,
+    pw.Font font,
+    pw.Font boldFont,
+  ) {
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -75,9 +99,15 @@ class PdfService {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Delivery Address:', style: pw.TextStyle(font: boldFont, fontSize: 12)),
+              pw.Text(
+                'Delivery Address:',
+                style: pw.TextStyle(font: boldFont, fontSize: 12),
+              ),
               pw.SizedBox(height: 4),
-              pw.Text(order.deliveryAddress ?? order.pickupAddress, style: pw.TextStyle(font: font, fontSize: 10)),
+              pw.Text(
+                order.deliveryAddress ?? order.pickupAddress,
+                style: pw.TextStyle(font: font, fontSize: 10),
+              ),
             ],
           ),
         ),
@@ -85,11 +115,23 @@ class PdfService {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
-              pw.Text('Status:', style: pw.TextStyle(font: boldFont, fontSize: 12)),
-              pw.Text(order.status.toUpperCase(), style: pw.TextStyle(font: boldFont, color: PdfColors.green)),
+              pw.Text(
+                'Status:',
+                style: pw.TextStyle(font: boldFont, fontSize: 12),
+              ),
+              pw.Text(
+                order.status.toUpperCase(),
+                style: pw.TextStyle(font: boldFont, color: PdfColors.green),
+              ),
               pw.SizedBox(height: 8),
-              pw.Text('Payment:', style: pw.TextStyle(font: boldFont, fontSize: 12)),
-              pw.Text(order.paymentMethod.replaceAll('_', ' ').toUpperCase(), style: pw.TextStyle(font: font, fontSize: 10)),
+              pw.Text(
+                'Payment:',
+                style: pw.TextStyle(font: boldFont, fontSize: 12),
+              ),
+              pw.Text(
+                order.paymentMethod.replaceAll('_', ' ').toUpperCase(),
+                style: pw.TextStyle(font: font, fontSize: 10),
+              ),
             ],
           ),
         ),
@@ -97,7 +139,12 @@ class PdfService {
     );
   }
 
-  static pw.Widget _buildItemsTable(OrderEntity order, pw.Font boldFont, pw.Font font, PdfColor color) {
+  static pw.Widget _buildItemsTable(
+    OrderEntity order,
+    pw.Font boldFont,
+    pw.Font font,
+    PdfColor color,
+  ) {
     return pw.TableHelper.fromTextArray(
       headers: ['Service Description', 'Qty', 'Unit Price', 'Subtotal'],
       data: [
@@ -105,11 +152,15 @@ class PdfService {
           order.serviceName,
           '${order.itemCount}',
           '৳${(order.totalPrice / order.itemCount).toStringAsFixed(2)}',
-          '৳${order.totalPrice.toStringAsFixed(2)}'
+          '৳${order.totalPrice.toStringAsFixed(2)}',
         ],
       ],
       border: null,
-      headerStyle: pw.TextStyle(font: boldFont, color: PdfColors.white, fontSize: 10),
+      headerStyle: pw.TextStyle(
+        font: boldFont,
+        color: PdfColors.white,
+        fontSize: 10,
+      ),
       headerDecoration: pw.BoxDecoration(color: color),
       cellHeight: 30,
       cellStyle: pw.TextStyle(font: font, fontSize: 10),
@@ -122,7 +173,11 @@ class PdfService {
     );
   }
 
-  static pw.Widget _buildPriceSummary(OrderEntity order, pw.Font boldFont, PdfColor color) {
+  static pw.Widget _buildPriceSummary(
+    OrderEntity order,
+    pw.Font boldFont,
+    PdfColor color,
+  ) {
     return pw.Container(
       alignment: pw.Alignment.centerRight,
       child: pw.SizedBox(
@@ -132,9 +187,14 @@ class PdfService {
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('Total Paid:', style: pw.TextStyle(font: boldFont, fontSize: 14)),
-              pw.Text('৳${order.totalPrice.toStringAsFixed(2)}',
-                  style: pw.TextStyle(font: boldFont, fontSize: 16, color: color)),
+              pw.Text(
+                'Total Paid:',
+                style: pw.TextStyle(font: boldFont, fontSize: 14),
+              ),
+              pw.Text(
+                '৳${order.totalPrice.toStringAsFixed(2)}',
+                style: pw.TextStyle(font: boldFont, fontSize: 16, color: color),
+              ),
             ],
           ),
         ),

@@ -34,11 +34,13 @@ class ConnectivityService {
   }
 
   bool _hasConnection(List<ConnectivityResult> results) {
-    return results.any((r) =>
-    r == ConnectivityResult.mobile ||
-        r == ConnectivityResult.wifi ||
-        r == ConnectivityResult.ethernet ||
-        r == ConnectivityResult.vpn);
+    return results.any(
+      (r) =>
+          r == ConnectivityResult.mobile ||
+          r == ConnectivityResult.wifi ||
+          r == ConnectivityResult.ethernet ||
+          r == ConnectivityResult.vpn,
+    );
   }
 
   void dispose() {

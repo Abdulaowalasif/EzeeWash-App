@@ -2,13 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../data/datasources/service_remote_datasource.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/widgets/app_network_image.dart';
-import '../../../../core/widgets/common_widgets.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/service_entity.dart';
 
 // ─── Data model ───────────────────────────────────────────────────────────────
@@ -37,7 +37,8 @@ class _Review {
     return _Review(
       id: j['id'] as String,
       userId: j['user_id'] as String,
-      userName: profile?['full_name'] as String? ??
+      userName:
+          profile?['full_name'] as String? ??
           profile?['email'] as String? ??
           'Anonymous',
       userAvatar: profile?['avatar_url'] as String?,
@@ -77,8 +78,6 @@ class _ReviewSheet extends StatefulWidget {
 }
 
 class _ReviewSheetState extends State<_ReviewSheet> {
-  final _client = Supabase.instance.client;
-
   List<_Review> _reviews = [];
   bool _loading = true;
   String? _error;
@@ -97,14 +96,10 @@ class _ReviewSheetState extends State<_ReviewSheet> {
       _error = null;
     });
     try {
-      final data = await _client
-          .from(AppConstants.reviewsTable)
-          .select('*, profiles(full_name, avatar_url, email)')
-          .eq('service_id', widget.service.id)
-          .order('created_at', ascending: false);
+      final data = await sl<ServicesRemoteDataSource>()
+          .getServiceReviews(widget.service.id);
 
-      final reviews =
-      (data as List).map((e) => _Review.fromJson(e)).toList();
+      final reviews = (data as List).map((e) => _Review.fromJson(e)).toList();
       final dist = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
       double sum = 0;
       for (final r in reviews) {
@@ -139,11 +134,10 @@ class _ReviewSheetState extends State<_ReviewSheet> {
       builder: (_, scrollCtrl) => Container(
         decoration: BoxDecoration(
           color: bg,
-          borderRadius:
-          const BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.18),
+              color: Colors.black.withValues(alpha: 0.18),
               blurRadius: 24,
               offset: const Offset(0, -4),
             ),
@@ -162,17 +156,17 @@ class _ReviewSheetState extends State<_ReviewSheet> {
                   ? const AppLoadingIndicator()
                   : _error != null
                   ? _ErrorState(
-                message: _error!,
-                onRetry: _load,
-                isDark: widget.isDark,
-              )
+                      message: _error!,
+                      onRetry: _load,
+                      isDark: widget.isDark,
+                    )
                   : _ReviewListView(
-                reviews: _reviews,
-                avg: _avg,
-                dist: _dist,
-                isDark: widget.isDark,
-                scrollCtrl: scrollCtrl,
-              ),
+                      reviews: _reviews,
+                      avg: _avg,
+                      dist: _dist,
+                      isDark: widget.isDark,
+                      scrollCtrl: scrollCtrl,
+                    ),
             ),
           ],
         ),
@@ -211,12 +205,16 @@ class _ReviewListView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _ReviewSummaryBar(
-                    avg: avg, count: reviews.length, dist: dist, isDark: isDark),
+                  avg: avg,
+                  count: reviews.length,
+                  dist: dist,
+                  isDark: isDark,
+                ),
                 const SizedBox(height: 20),
                 if (reviews.isNotEmpty) ...[
                   AppSectionLabel(
                     text:
-                    '${reviews.length} Review${reviews.length == 1 ? '' : 's'}',
+                        '${reviews.length} Review${reviews.length == 1 ? '' : 's'}',
                     isDark: isDark,
                   ),
                   const SizedBox(height: 10),
@@ -227,21 +225,24 @@ class _ReviewListView extends StatelessWidget {
         ),
         reviews.isEmpty
             ? SliverFillRemaining(
-            child: AppEmptyState(
-                message: 'No reviews yet.', isDark: isDark))
+                child: AppEmptyState(
+                  message: 'No reviews yet.',
+                  isDark: isDark,
+                ),
+              )
             : SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-                  (_, i) => _ReviewTile(
-                review: reviews[i],
-                isDark: isDark,
-                showDivider: i < reviews.length - 1,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (_, i) => _ReviewTile(
+                      review: reviews[i],
+                      isDark: isDark,
+                      showDivider: i < reviews.length - 1,
+                    ),
+                    childCount: reviews.length,
+                  ),
+                ),
               ),
-              childCount: reviews.length,
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -265,7 +266,7 @@ class _ReviewSummaryBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = isDark
-        ? AppColors.primary.withOpacity(0.08)
+        ? AppColors.primary.withValues(alpha: 0.08)
         : const Color(0xFFF0F5FF);
 
     if (count == 0) {
@@ -274,22 +275,29 @@ class _ReviewSummaryBar extends StatelessWidget {
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.primary.withOpacity(0.15)),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
         ),
-        child: Row(children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.12),
-              shape: BoxShape.circle,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.star_rounded,
+                color: AppColors.primary,
+                size: 18,
+              ),
             ),
-            child: const Icon(Icons.star_rounded,
-                color: AppColors.primary, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Text('No reviews yet for this service.',
-              style: AppTextStyles.caption(isDark)),
-        ]),
+            const SizedBox(width: 12),
+            Text(
+              'No reviews yet for this service.',
+              style: AppTextStyles.caption(isDark),
+            ),
+          ],
+        ),
       );
     }
 
@@ -298,74 +306,89 @@ class _ReviewSummaryBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primary.withOpacity(0.15)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
       ),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        // Big average score
-        Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          ShaderMask(
-            shaderCallback: (b) => AppColors.gradient.createShader(b),
-            child: Text(
-              avg.toStringAsFixed(1),
-              style: AppTextStyles.heading(isDark)
-                  .copyWith(fontSize: 38, color: Colors.white),
-            ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Big average score
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ShaderMask(
+                shaderCallback: (b) => AppColors.gradient.createShader(b),
+                child: Text(
+                  avg.toStringAsFixed(1),
+                  style: AppTextStyles.heading(
+                    isDark,
+                  ).copyWith(fontSize: 38, color: Colors.white),
+                ),
+              ),
+              AppRatingStars(rating: avg, size: 14),
+              const SizedBox(height: 2),
+              Text(
+                '$count review${count == 1 ? '' : 's'}',
+                style: AppTextStyles.tiny(isDark),
+              ),
+            ],
           ),
-          AppRatingStars(rating: avg, size: 14),
-          const SizedBox(height: 2),
-          Text('$count review${count == 1 ? '' : 's'}',
-              style: AppTextStyles.tiny(isDark)),
-        ]),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          width: 1,
-          height: 60,
-          color: AppColors.primary.withOpacity(0.15),
-        ),
-        // Per-star distribution
-        Expanded(
-          child: Column(
-            children: [5, 4, 3, 2, 1].map((star) {
-              final n = dist[star] ?? 0;
-              final frac = count == 0 ? 0.0 : n / count;
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2.5),
-                child: Row(children: [
-                  Text('$star', style: AppTextStyles.captionMedium(isDark)),
-                  const SizedBox(width: 3),
-                  const Icon(Icons.star_rounded,
-                      size: 10, color: Color(0xFFFBBF24)),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0, end: frac),
-                        duration: const Duration(milliseconds: 600),
-                        curve: Curves.easeOut,
-                        builder: (_, v, _) => LinearProgressIndicator(
-                          value: v,
-                          minHeight: 5,
-                          backgroundColor: isDark
-                              ? Colors.white12
-                              : Colors.black.withOpacity(0.06),
-                          valueColor: const AlwaysStoppedAnimation(
-                              AppColors.primary),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            width: 1,
+            height: 60,
+            color: AppColors.primary.withValues(alpha: 0.15),
+          ),
+          // Per-star distribution
+          Expanded(
+            child: Column(
+              children: [5, 4, 3, 2, 1].map((star) {
+                final n = dist[star] ?? 0;
+                final frac = count == 0 ? 0.0 : n / count;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2.5),
+                  child: Row(
+                    children: [
+                      Text('$star', style: AppTextStyles.captionMedium(isDark)),
+                      const SizedBox(width: 3),
+                      const Icon(
+                        Icons.star_rounded,
+                        size: 10,
+                        color: Color(0xFFFBBF24),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0, end: frac),
+                            duration: const Duration(milliseconds: 600),
+                            curve: Curves.easeOut,
+                            builder: (_, v, _) => LinearProgressIndicator(
+                              value: v,
+                              minHeight: 5,
+                              backgroundColor: isDark
+                                  ? Colors.white12
+                                  : Colors.black.withValues(alpha: 0.06),
+                              valueColor: const AlwaysStoppedAnimation(
+                                AppColors.primary,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 5),
+                      SizedBox(
+                        width: 16,
+                        child: Text('$n', style: AppTextStyles.tiny(isDark)),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 5),
-                  SizedBox(
-                    width: 16,
-                    child: Text('$n', style: AppTextStyles.tiny(isDark)),
-                  ),
-                ]),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -395,8 +418,9 @@ class _ReviewTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials =
-    review.userName.isNotEmpty ? review.userName[0].toUpperCase() : '?';
+    final initials = review.userName.isNotEmpty
+        ? review.userName[0].toUpperCase()
+        : '?';
 
     return Column(
       children: [
@@ -410,24 +434,27 @@ class _ReviewTile extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: const BoxDecoration(
-                    shape: BoxShape.circle, gradient: AppColors.gradient),
+                  shape: BoxShape.circle,
+                  gradient: AppColors.gradient,
+                ),
                 child: review.userAvatar != null
                     ? ClipOval(
-                  child: AppNetworkImage(
-                    url: review.userAvatar,
-                    width: 38,
-                    height: 38,
-                    radius: 19,
-                    isDark: isDark,
-                  ),
-                )
+                        child: AppNetworkImage(
+                          url: review.userAvatar,
+                          width: 38,
+                          height: 38,
+                          radius: 19,
+                          isDark: isDark,
+                        ),
+                      )
                     : Center(
-                  child: Text(
-                    initials,
-                    style: AppTextStyles.onGradientTitle
-                        .copyWith(fontSize: 15),
-                  ),
-                ),
+                        child: Text(
+                          initials,
+                          style: AppTextStyles.onGradientTitle.copyWith(
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -437,23 +464,33 @@ class _ReviewTile extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(review.userName,
-                            style: AppTextStyles.gridTitle(isDark)),
-                        Text(_ago(review.createdAt),
-                            style: AppTextStyles.caption(isDark)),
+                        Text(
+                          review.userName,
+                          style: AppTextStyles.gridTitle(isDark),
+                        ),
+                        Text(
+                          _ago(review.createdAt),
+                          style: AppTextStyles.caption(isDark),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 3),
-                    Row(children: [
-                      AppRatingStars(rating: review.rating, size: 13),
-                      const SizedBox(width: 5),
-                      Text(review.rating.toStringAsFixed(1),
-                          style: AppTextStyles.rating),
-                    ]),
+                    Row(
+                      children: [
+                        AppRatingStars(rating: review.rating, size: 13),
+                        const SizedBox(width: 5),
+                        Text(
+                          review.rating.toStringAsFixed(1),
+                          style: AppTextStyles.rating,
+                        ),
+                      ],
+                    ),
                     if (review.comment.isNotEmpty) ...[
                       const SizedBox(height: 6),
-                      Text(review.comment,
-                          style: AppTextStyles.bodyLong(isDark)),
+                      Text(
+                        review.comment,
+                        style: AppTextStyles.bodyLong(isDark),
+                      ),
                     ],
                   ],
                 ),
@@ -478,45 +515,62 @@ class _SheetHeader extends StatelessWidget {
   final bool isDark;
   final VoidCallback onClose;
 
-  const _SheetHeader(
-      {required this.service, required this.isDark, required this.onClose});
+  const _SheetHeader({
+    required this.service,
+    required this.isDark,
+    required this.onClose,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 8, 12),
-        child: Row(children: [
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              gradient: AppColors.gradient,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Iconsax.star_1, color: Colors.white, size: 18),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 8, 12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  gradient: AppColors.gradient,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Iconsax.star_1,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(service.title, style: AppTextStyles.cardTitle(isDark)),
+                    Text(
+                      'Customer Reviews',
+                      style: AppTextStyles.caption(isDark),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.close_rounded,
+                  color: isDark ? Colors.white38 : Colors.black38,
+                  size: 22,
+                ),
+                onPressed: onClose,
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(service.title, style: AppTextStyles.cardTitle(isDark)),
-                Text('Customer Reviews',
-                    style: AppTextStyles.caption(isDark)),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.close_rounded,
-                color: isDark ? Colors.white38 : Colors.black38, size: 22),
-            onPressed: onClose,
-          ),
-        ]),
-      ),
-      Divider(
+        ),
+        Divider(
           height: 1,
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-    ]);
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
+      ],
+    );
   }
 }
 
@@ -527,8 +581,11 @@ class _ErrorState extends StatelessWidget {
   final VoidCallback onRetry;
   final bool isDark;
 
-  const _ErrorState(
-      {required this.message, required this.onRetry, required this.isDark});
+  const _ErrorState({
+    required this.message,
+    required this.onRetry,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) => Center(
@@ -537,20 +594,23 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline,
-              color: AppColors.error, size: 44),
+          const Icon(Icons.error_outline, color: AppColors.error, size: 44),
           const SizedBox(height: 12),
-          Text(message,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.caption(isDark)
-                  .copyWith(color: AppColors.error)),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.caption(
+              isDark,
+            ).copyWith(color: AppColors.error),
+          ),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: onRetry,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: Text('Retry', style: AppTextStyles.button),
           ),

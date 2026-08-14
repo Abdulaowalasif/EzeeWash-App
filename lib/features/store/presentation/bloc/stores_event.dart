@@ -9,7 +9,10 @@ abstract class StoresEvent extends Equatable {
 }
 
 class StoresLoadRequested extends StoresEvent {
-  const StoresLoadRequested();
+  final bool forceRefresh;
+  const StoresLoadRequested({this.forceRefresh = false});
+  @override
+  List<Object?> get props => [forceRefresh];
 }
 
 class StoreSelectedChanged extends StoresEvent {

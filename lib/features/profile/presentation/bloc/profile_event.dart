@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:equatable/equatable.dart';
 
+import '../../domain/entities/address_entity.dart';
+
 // lib/features/profile/bloc/profile_event.dart
 sealed class ProfileEvent extends Equatable {
   const ProfileEvent();
@@ -12,14 +14,17 @@ sealed class ProfileEvent extends Equatable {
 /// Fetch the current user's profile row from Supabase.
 /// Dispatched automatically after login (see _AuthReactiveLoader in main.dart).
 final class ProfileLoadRequested extends ProfileEvent {
-  const ProfileLoadRequested();
+  final bool forceRefresh;
+  const ProfileLoadRequested({this.forceRefresh = false});
+  @override
+  List<Object?> get props => [forceRefresh];
 }
 
 /// Save one or more profile fields. Only non-null fields are written.
 final class ProfileUpdateRequested extends ProfileEvent {
   final String? fullName;
   final String? phone;
-  final String? address;
+  final AddressEntity? address;
   final String? city;
 
   const ProfileUpdateRequested({

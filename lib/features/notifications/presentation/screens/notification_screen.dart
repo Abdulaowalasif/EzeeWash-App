@@ -10,7 +10,6 @@ import 'package:iconsax/iconsax.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
-import '../../../../core/widgets/common_widgets.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../../routes/routes_name.dart';
 import '../../domain/entities/notification_entity.dart';
@@ -18,7 +17,9 @@ import '../bloc/notifications_bloc.dart';
 import '../widgets/notification_widgets.dart';
 
 class NotificationScreen extends StatefulWidget {
-  const NotificationScreen({super.key});
+  final String? initialTab;
+
+  const NotificationScreen({super.key, this.initialTab});
 
   @override
   State<NotificationScreen> createState() => _NotificationScreenState();
@@ -32,7 +33,19 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _showActive = widget.initialTab != 'promo';
+    _pageController = PageController(initialPage: _showActive ? 0 : 1);
+  }
+
+  @override
+  void didUpdateWidget(covariant NotificationScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != oldWidget.initialTab) {
+      final wantActive = widget.initialTab != 'promo';
+      if (_showActive != wantActive) {
+        _onToggleChanged(wantActive);
+      }
+    }
   }
 
   @override
@@ -89,7 +102,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       Responsive.horizontalPadding(context),
                       16,
                       Responsive.horizontalPadding(context),
-                      30,
+                      16,
                     ),
                     child: AppShimmer.notificationList(
                       isDark: isDark,
@@ -180,7 +193,7 @@ class _NotificationsList extends StatelessWidget {
         NotificationMarkReadRequested(notif.id),
       );
     }
-    if (notif.type == 'order_update' && notif.orderId != null) {
+    if (notif.orderId != null && notif.orderId!.isNotEmpty) {
       context.push(RoutesName.trackOrdersNavigate, extra: notif.orderId);
     }
   }
@@ -193,7 +206,7 @@ class _NotificationsList extends StatelessWidget {
         Responsive.horizontalPadding(context),
         16,
         Responsive.horizontalPadding(context),
-        30,
+        16,
       ),
       itemCount: notifications.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
@@ -242,7 +255,7 @@ class NotificationToggle extends StatelessWidget {
             ? []
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -272,7 +285,6 @@ class NotificationToggle extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: AppColors.gradient,
                       borderRadius: BorderRadius.circular(12),
-                      
                     ),
                   ),
                 ),

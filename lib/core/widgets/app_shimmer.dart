@@ -158,16 +158,15 @@ class AppShimmer extends StatelessWidget {
        childAspectRatio = 1,
        child = null;
 
-
   const AppShimmer.promoBanner({
     super.key,
     required this.isDark,
     this.padding = const EdgeInsets.symmetric(vertical: 8),
-  })  : _kind = _ShimmerKind.promoBanner,
-        itemCount = 1,
-        crossAxisCount = 1,
-        childAspectRatio = 1,
-        child = null;
+  }) : _kind = _ShimmerKind.promoBanner,
+       itemCount = 1,
+       crossAxisCount = 1,
+       childAspectRatio = 1,
+       child = null;
 
   // ── profileGlassCard ────────────────────────────────────────────────────────
   // Matches _GlassCardShimmer — white-on-glass palette (no isDark needed)
@@ -206,7 +205,7 @@ class AppShimmer extends StatelessWidget {
         child: Container(
           height: 80,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(18),
           ),
         ),
@@ -317,7 +316,7 @@ class _ServiceGridBody extends StatelessWidget {
         childAspectRatio: childAspectRatio,
       ),
       itemCount: itemCount,
-      itemBuilder: (_, __) => Container(
+      itemBuilder: (context, index) => Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -354,8 +353,8 @@ class _RecentOrderListBody extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       itemCount: itemCount,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, __) => Container(
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -410,8 +409,8 @@ class _OrderListBody extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
           itemCount: itemCount,
-          separatorBuilder: (_, __) => const SizedBox(height: 14),
-          itemBuilder: (_, __) => Container(
+          separatorBuilder: (context, index) => const SizedBox(height: 14),
+          itemBuilder: (context, index) => Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -483,8 +482,8 @@ class _NotificationListBody extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       itemCount: itemCount,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, __) => Container(
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      itemBuilder: (context, index) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -545,8 +544,8 @@ class _ServiceListBody extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       itemCount: itemCount,
-      separatorBuilder: (_, __) => const SizedBox(height: 16),
-      itemBuilder: (_, __) => Container(
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
+      itemBuilder: (context, index) => Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
@@ -602,83 +601,6 @@ class _ServiceListBody extends StatelessWidget {
 }
 
 // ─── Settings page ─────────────────────────────────────────────────────────────
-
-class _SettingsPageBody extends StatelessWidget {
-  const _SettingsPageBody();
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      child: Column(
-        children: [
-          // Profile card: avatar circle + name + phone + edit button
-          Container(
-            height: 110,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Row(
-              children: [
-                const AppShimmerCircle(size: 70),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const AppShimmerLine(height: 17),
-                      const SizedBox(height: 8),
-                      AppShimmerLine(width: 140, height: 13),
-                      const SizedBox(height: 7),
-                      AppShimmerLine(width: 100, height: 12),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                AppShimmerBox(height: 36, width: 36, radius: 12),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Info section card
-          AppShimmerBox(height: 160, radius: 24),
-          const SizedBox(height: 20),
-          // Menu section card — 5 rows (icon + label + chevron)
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Column(
-              children: List.generate(
-                5,
-                (i) => Padding(
-                  padding: EdgeInsets.only(bottom: i < 4 ? 18 : 0),
-                  child: Row(
-                    children: [
-                      AppShimmerBox(height: 36, width: 36, radius: 10),
-                      const SizedBox(width: 14),
-                      Expanded(child: AppShimmerLine(height: 14)),
-                      const SizedBox(width: 12),
-                      AppShimmerBox(height: 20, width: 20, radius: 6),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Actions / danger zone card
-          AppShimmerBox(height: 130, radius: 24),
-        ],
-      ),
-    );
-  }
-}
 
 // ─── Enum ──────────────────────────────────────────────────────────────────────
 

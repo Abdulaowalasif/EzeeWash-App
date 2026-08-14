@@ -64,20 +64,19 @@ class _PoAddressStepState extends State<PoAddressStep> {
       final pos = await Geolocator.getCurrentPosition();
       final target = LatLng(pos.latitude, pos.longitude);
       _mapCtrl?.animateCamera(
-          CameraUpdate.newLatLngZoom(target, 16),
-          duration: const Duration(seconds: 1));
+        CameraUpdate.newLatLngZoom(target, 16),
+        duration: const Duration(seconds: 1),
+      );
       _reverseGeocode(target);
     } catch (_) {}
   }
 
   Future<void> _reverseGeocode(LatLng pos) async {
     try {
-      final marks =
-          await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      final marks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
       if (marks.isNotEmpty && mounted) {
         final p = marks[0];
-        widget.addrCtrl.text =
-            '${p.street}, ${p.subLocality}, ${p.locality}';
+        widget.addrCtrl.text = '${p.street}, ${p.subLocality}, ${p.locality}';
         widget.onChanged();
       }
     } catch (_) {}
@@ -105,17 +104,19 @@ class _PoAddressStepState extends State<PoAddressStep> {
                 GoogleMap(
                   gestureRecognizers: {
                     Factory<EagerGestureRecognizer>(
-                        () => EagerGestureRecognizer()),
+                      () => EagerGestureRecognizer(),
+                    ),
                   },
-                  initialCameraPosition:
-                      CameraPosition(target: _center, zoom: 14),
+                  initialCameraPosition: CameraPosition(
+                    target: _center,
+                    zoom: 14,
+                  ),
                   myLocationEnabled: _permGranted == true,
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
                   style: widget.isDark ? AppConstants.darkMapStyle : null,
                   onMapCreated: (c) => _mapCtrl = c,
-                  onCameraMoveStarted: () =>
-                      setState(() => _isMoving = true),
+                  onCameraMoveStarted: () => setState(() => _isMoving = true),
                   onCameraMove: (p) => _center = p.target,
                   onCameraIdle: () {
                     setState(() => _isMoving = false);
@@ -125,18 +126,22 @@ class _PoAddressStepState extends State<PoAddressStep> {
                 // Permission denied banner
                 if (_permGranted == false)
                   Positioned(
-                    top: 12, left: 12, right: 12,
+                    top: 12,
+                    left: 12,
+                    right: 12,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: widget.isDark
                             ? const Color(0xCC1A2540)
-                            : Colors.white.withOpacity(0.92),
+                            : Colors.white.withValues(alpha: 0.92),
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
+                            color: Colors.black.withValues(alpha: 0.12),
                             blurRadius: 8,
                             offset: const Offset(0, 3),
                           ),
@@ -144,11 +149,13 @@ class _PoAddressStepState extends State<PoAddressStep> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.location_off_rounded,
-                              size: 16,
-                              color: widget.isDark
-                                  ? Colors.white70
-                                  : AppColors.lightSubtext),
+                          Icon(
+                            Icons.location_off_rounded,
+                            size: 16,
+                            color: widget.isDark
+                                ? Colors.white70
+                                : AppColors.lightSubtext,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -172,22 +179,31 @@ class _PoAddressStepState extends State<PoAddressStep> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       transform: Matrix4.translationValues(
-                          0, _isMoving ? -10 : 0, 0),
-                      child: const Icon(Icons.location_on,
-                          size: 45, color: AppColors.primary),
+                        0,
+                        _isMoving ? -10 : 0,
+                        0,
+                      ),
+                      child: const Icon(
+                        Icons.location_on,
+                        size: 45,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ),
                 // My location FAB
                 Positioned(
-                  right: 16, bottom: 16,
+                  right: 16,
+                  bottom: 16,
                   child: FloatingActionButton.small(
                     backgroundColor: widget.isDark
                         ? AppColors.darkSurface
                         : Colors.white,
                     onPressed: _goToCurrentLocation,
-                    child: const Icon(Icons.my_location,
-                        color: AppColors.primary),
+                    child: const Icon(
+                      Icons.my_location,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
               ],

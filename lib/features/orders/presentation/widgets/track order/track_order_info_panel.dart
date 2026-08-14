@@ -41,12 +41,12 @@ class TrackOrderInfoPanel extends StatelessWidget {
           decoration: BoxDecoration(
             color: isDark
                 ? AppColors.darkSurface
-                : color.withOpacity(0.05),
+                : color.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: isDark
                   ? AppColors.darkBorder
-                  : color.withOpacity(0.15),
+                  : color.withValues(alpha: 0.15),
             ),
           ),
           child: Column(

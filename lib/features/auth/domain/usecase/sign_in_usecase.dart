@@ -14,9 +14,8 @@ class SignInUseCase implements UseCase<UserEntity, SignInParams> {
   SignInUseCase(this.repository);
 
   @override
-  Future<Either<Failure, UserEntity>> call(SignInParams params) =>
-      repository.signInWithEmail(
-          email: params.email, password: params.password);
+  Future<Either<Failure, UserEntity>> call(SignInParams params) => repository
+      .signInWithEmail(email: params.email, password: params.password);
 }
 
 class SignInParams extends Equatable {
@@ -27,6 +26,3 @@ class SignInParams extends Equatable {
   @override
   List<Object> get props => [email, password];
 }
-
-
-

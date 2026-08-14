@@ -126,7 +126,7 @@ class _FilterIconButton extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             shape: BoxShape.circle,
           ),
           child: const Icon(
@@ -234,7 +234,7 @@ class _OrdersBodyState extends State<_OrdersBody> {
     }
     return ListView.separated(
       physics: const BouncingScrollPhysics(),
-      padding: EdgeInsets.zero,
+      padding: const EdgeInsets.only(bottom: 16),
       itemCount: displayed.length,
       separatorBuilder: (_, _) => const SizedBox(height: 16),
       itemBuilder: (context, i) {
@@ -267,7 +267,7 @@ class _OrdersBodyState extends State<_OrdersBody> {
         Responsive.horizontalPadding(context),
         16,
         Responsive.horizontalPadding(context),
-        5,
+        0,
       ),
       child: Center(
         child: ConstrainedBox(

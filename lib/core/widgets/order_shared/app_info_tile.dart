@@ -42,7 +42,7 @@ class AppInfoTile extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 18),
@@ -56,7 +56,9 @@ class AppInfoTile extends StatelessWidget {
                 title,
                 style: GoogleFonts.alexandria(
                   fontSize: 11,
-                  color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+                  color: isDark
+                      ? AppColors.darkSubtext
+                      : AppColors.lightSubtext,
                 ),
               ),
               Text(

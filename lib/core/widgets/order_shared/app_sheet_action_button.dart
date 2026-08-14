@@ -42,12 +42,12 @@ class AppSheetActionButton extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
         color: enabled
-            ? color.withOpacity(isDark ? 0.18 : 0.1)
+            ? color.withValues(alpha: isDark ? 0.18 : 0.1)
             : (isDark ? Colors.white10 : Colors.grey.shade100),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: enabled
-              ? color.withOpacity(0.3)
+              ? color.withValues(alpha: 0.3)
               : (isDark ? Colors.white12 : Colors.grey.shade200),
         ),
       ),

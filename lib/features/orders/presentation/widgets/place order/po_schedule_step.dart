@@ -53,7 +53,7 @@ class PoScheduleStep extends StatelessWidget {
             : AppColors.lightBackground,
         labelStyle: GoogleFonts.alexandria(
           fontSize: 12,
-          color: accent.withOpacity(0.8),
+          color: accent.withValues(alpha: 0.8),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -106,8 +106,9 @@ class PoScheduleStep extends StatelessWidget {
           onDate: onDeliveryDate,
           onTime: onDeliveryTime,
           minDate: minDeliveryDate,
-          maxDate: BusinessLogicUtils.getMaxPickupDate()
-              .add(const Duration(days: 7)),
+          maxDate: BusinessLogicUtils.getMaxPickupDate().add(
+            const Duration(days: 7),
+          ),
           isClosedDay: isClosedDay,
           noSlotsMessage: BusinessLogicUtils.noSlotsReason(deliveryDate),
         ),
@@ -197,15 +198,18 @@ class _PoSchCard extends StatelessWidget {
             style: GoogleFonts.alexandria(fontSize: 14),
             decoration: deco('Date', accent, isDark).copyWith(
               suffixIcon: IconButton(
-                icon: Icon(Icons.calendar_today_rounded,
-                    color: accent, size: 20),
+                icon: Icon(
+                  Icons.calendar_today_rounded,
+                  color: accent,
+                  size: 20,
+                ),
                 onPressed: () async {
                   final firstDate =
                       minDate ?? BusinessLogicUtils.getMinPickupDate();
                   final lastDate =
                       maxDate ?? BusinessLogicUtils.getMaxPickupDate();
                   DateTime initial =
-                  (date != null && !date!.isBefore(firstDate))
+                      (date != null && !date!.isBefore(firstDate))
                       ? date!
                       : firstDate;
                   final picked = await showDatePicker(
@@ -231,19 +235,25 @@ class _PoSchCard extends StatelessWidget {
           // Users will now only see available slots in the dropdown.
           DropdownButtonFormField<String>(
             initialValue: currentDisplayTime,
-            hint: Text('Select time',
-                style: GoogleFonts.alexandria(
-                    fontSize: 14, color: Colors.grey)),
+            hint: Text(
+              'Select time',
+              style: GoogleFonts.alexandria(fontSize: 14, color: Colors.grey),
+            ),
             icon: Icon(Icons.keyboard_arrow_down_rounded, color: accent),
             decoration: deco('Time', accent, isDark),
             items: times
-                .map((t) => DropdownMenuItem(
-              value: t,
-              child: Text(t,
-                  style: GoogleFonts.alexandria(fontSize: 14)),
-            ))
+                .map(
+                  (t) => DropdownMenuItem(
+                    value: t,
+                    child: Text(t, style: GoogleFonts.alexandria(fontSize: 14)),
+                  ),
+                )
                 .toList(),
-            onChanged: hasSlots ? (v) { if (v != null) onTime(v); } : null,
+            onChanged: hasSlots
+                ? (v) {
+                    if (v != null) onTime(v);
+                  }
+                : null,
           ),
         ],
       ),

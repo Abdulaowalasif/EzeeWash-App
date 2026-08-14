@@ -24,8 +24,7 @@ class OrderSuccessAnimation extends StatefulWidget {
   });
 
   @override
-  State<OrderSuccessAnimation> createState() =>
-      _OrderSuccessAnimationState();
+  State<OrderSuccessAnimation> createState() => _OrderSuccessAnimationState();
 }
 
 class _OrderSuccessAnimationState extends State<OrderSuccessAnimation>
@@ -41,8 +40,7 @@ class _OrderSuccessAnimationState extends State<OrderSuccessAnimation>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _scale =
-        CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
+    _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
     _ctrl.forward();
   }
@@ -67,7 +65,6 @@ class _OrderSuccessAnimationState extends State<OrderSuccessAnimation>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: AppColors.gradient,
-                
               ),
               child: const Icon(
                 Icons.check_rounded,
@@ -87,9 +84,7 @@ class _OrderSuccessAnimationState extends State<OrderSuccessAnimation>
                 style: GoogleFonts.alexandria(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: widget.isDark
-                      ? Colors.white
-                      : AppColors.lightText,
+                  color: widget.isDark ? Colors.white : AppColors.lightText,
                 ),
               ),
               const SizedBox(height: 8),
@@ -137,7 +132,7 @@ class BookingConfirmedInfoRow extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 18),
@@ -161,8 +156,7 @@ class BookingConfirmedInfoRow extends StatelessWidget {
                 style: GoogleFonts.alexandria(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color:
-                      isDark ? Colors.white : AppColors.lightText,
+                  color: isDark ? Colors.white : AppColors.lightText,
                 ),
               ),
             ],

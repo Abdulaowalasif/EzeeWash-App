@@ -42,3 +42,41 @@ final class OrdersFilterToggled extends OrdersEvent {
 final class OrdersRealtimeTick extends OrdersEvent {
   const OrdersRealtimeTick();
 }
+
+/// Submit a service review.
+final class OrderSubmitServiceReview extends OrdersEvent {
+  final String orderId;
+  final String serviceId;
+  final double rating;
+  final String? comment;
+
+  const OrderSubmitServiceReview({
+    required this.orderId,
+    required this.serviceId,
+    required this.rating,
+    this.comment,
+  });
+
+  @override
+  List<Object?> get props => [orderId, serviceId, rating, comment];
+}
+
+/// Submit a rider rating.
+final class OrderSubmitRiderRating extends OrdersEvent {
+  final String orderId;
+  final String riderId;
+  final String ratingType;
+  final double stars;
+  final String? comment;
+
+  const OrderSubmitRiderRating({
+    required this.orderId,
+    required this.riderId,
+    required this.ratingType,
+    required this.stars,
+    this.comment,
+  });
+
+  @override
+  List<Object?> get props => [orderId, riderId, ratingType, stars, comment];
+}

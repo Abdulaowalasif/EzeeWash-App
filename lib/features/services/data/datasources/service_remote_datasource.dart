@@ -13,10 +13,14 @@ abstract class ServicesRemoteDataSource {
 
   /// Returns the single service with [id].
   Future<ServiceModel> getServiceById(String id);
+
+  /// Returns reviews for a service.
+  Future<List<Map<String, dynamic>>> getServiceReviews(String serviceId);
 }
 
 class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
   final SupabaseClient _client;
+
   ServicesRemoteDataSourceImpl(this._client);
 
   @override
@@ -24,9 +28,13 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
     try {
       final data = await _client
           .from(AppConstants.servicesTable)
-          .select()
+          // Removed 'rating' from the select statement to prevent Postgres exception
+          .select(
+            'id, category, title, description, price, duration, image_url, tags, is_active',
+          )
           .eq('is_active', true)
           .order('category');
+
       return (data as List).map((e) => ServiceModel.fromJson(e)).toList();
     } catch (e) {
       throw ServerException(e.toString());
@@ -38,7 +46,10 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
     try {
       var query = _client
           .from(AppConstants.servicesTable)
-          .select()
+          // Removed 'rating' from the select statement to prevent Postgres exception
+          .select(
+            'id, category, title, description, price, duration, image_url, tags, is_active',
+          )
           .eq('is_active', true);
 
       if (category != 'All Services') {
@@ -57,10 +68,28 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
     try {
       final data = await _client
           .from(AppConstants.servicesTable)
-          .select()
+          // Removed 'rating' from the select statement to prevent Postgres exception
+          .select(
+            'id, category, title, description, price, duration, image_url, tags, is_active',
+          )
           .eq('id', id)
           .single();
+
       return ServiceModel.fromJson(data);
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getServiceReviews(String serviceId) async {
+    try {
+      final data = await _client
+          .from(AppConstants.reviewsTable)
+          .select('id, user_id, rating, comment, created_at, profiles(full_name, avatar_url, email)')
+          .eq('service_id', serviceId)
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(data);
     } catch (e) {
       throw ServerException(e.toString());
     }

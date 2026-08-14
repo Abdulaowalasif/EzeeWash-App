@@ -7,35 +7,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../../../../core/constants/app_color.dart';
 import '../../../../../core/widgets/form/app_selectable_card.dart';
-
-class PoServiceItem {
-  final String id, title, subtitle, duration, category;
-  final double price;
-  final String? imageUrl;
-
-  const PoServiceItem({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.price,
-    required this.duration,
-    required this.category,
-    this.imageUrl,
-  });
-
-  factory PoServiceItem.fromJson(Map<String, dynamic> j) => PoServiceItem(
-        id: j['id'] as String,
-        title: j['title'] as String,
-        subtitle: j['description'] as String? ?? '',
-        price: (j['price'] as num).toDouble(),
-        duration: j['duration'] as String? ?? '',
-        category: j['category'] as String? ?? '',
-        imageUrl: j['image_url'] as String?,
-      );
-}
+import '../../../../services/domain/entities/service_entity.dart';
 
 class PoServiceCard extends StatelessWidget {
-  final PoServiceItem service;
+  final ServiceEntity service;
   final bool selected;
   final bool isDark;
   final VoidCallback onTap;
@@ -75,9 +50,9 @@ class PoServiceCard extends StatelessWidget {
                     color: isDark ? Colors.white : AppColors.lightText,
                   ),
                 ),
-                if (service.subtitle.isNotEmpty)
+                if (service.description?.isNotEmpty ?? false)
                   Text(
-                    service.subtitle,
+                    service.description!,
                     style: GoogleFonts.alexandria(
                       fontSize: 12,
                       color: isDark

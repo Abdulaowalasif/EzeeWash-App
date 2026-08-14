@@ -22,12 +22,12 @@ class ServiceSearchBar extends StatelessWidget {
         boxShadow: isDark
             ? []
             : [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: TextField(
         onChanged: (val) =>
@@ -36,14 +36,19 @@ class ServiceSearchBar extends StatelessWidget {
         decoration: InputDecoration(
           hintText: 'Search services...',
           hintStyle: AppTextStyles.hint(isDark),
-          prefixIcon: Icon(Iconsax.search_normal,
-              color: Colors.grey[400], size: 20),
+          prefixIcon: Icon(
+            Iconsax.search_normal,
+            color: Colors.grey[400],
+            size: 20,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide.none,
           ),
           contentPadding: const EdgeInsets.symmetric(
-              vertical: 14, horizontal: 20),
+            vertical: 14,
+            horizontal: 20,
+          ),
         ),
       ),
     );

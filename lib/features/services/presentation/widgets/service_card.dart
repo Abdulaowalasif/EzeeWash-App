@@ -20,8 +20,7 @@ class ServiceCard extends StatelessWidget {
   final ServiceEntity service;
   final bool isDark;
 
-  const ServiceCard(
-      {super.key, required this.service, required this.isDark});
+  const ServiceCard({super.key, required this.service, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -69,14 +68,14 @@ class _ServiceHeroImage extends StatelessWidget {
         width: double.infinity,
         child: imageUrl != null
             ? AppNetworkImage(
-          url: imageUrl,
-          width: double.infinity,
-          height: 140,
-          radius: 0,
-          isDark: isDark,
-          fallbackIcon: Icons.local_laundry_service_rounded,
-          fallbackIconSize: 56,
-        )
+                url: imageUrl,
+                width: double.infinity,
+                height: 140,
+                radius: 0,
+                isDark: isDark,
+                fallbackIcon: Icons.local_laundry_service_rounded,
+                fallbackIconSize: 56,
+              )
             : _ImageFallback(isDark: isDark),
       ),
     );
@@ -90,13 +89,13 @@ class _ImageFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     color: isDark
-        ? AppColors.primary.withOpacity(0.15)
-        : AppColors.primary.withOpacity(0.08),
+        ? AppColors.primary.withValues(alpha: 0.15)
+        : AppColors.primary.withValues(alpha: 0.08),
     child: Center(
       child: Icon(
         Icons.local_laundry_service_rounded,
         size: 56,
-        color: AppColors.primary.withOpacity(0.4),
+        color: AppColors.primary.withValues(alpha: 0.4),
       ),
     ),
   );
@@ -108,8 +107,7 @@ class _ServiceHeaderRow extends StatelessWidget {
   final ServiceEntity service;
   final bool isDark;
 
-  const _ServiceHeaderRow(
-      {required this.service, required this.isDark});
+  const _ServiceHeaderRow({required this.service, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -122,8 +120,7 @@ class _ServiceHeaderRow extends StatelessWidget {
             children: [
               Text(
                 service.title,
-                style:
-                AppTextStyles.heading(isDark).copyWith(fontSize: 16),
+                style: AppTextStyles.heading(isDark).copyWith(fontSize: 16),
               ),
               const SizedBox(height: 4),
               Text(
@@ -144,8 +141,7 @@ class _ServiceHeaderRow extends StatelessWidget {
               style: AppTextStyles.priceLarge,
             ),
             if (service.duration != null)
-              Text(service.duration!,
-                  style: AppTextStyles.caption(isDark)),
+              Text(service.duration!, style: AppTextStyles.caption(isDark)),
           ],
         ),
       ],
@@ -167,9 +163,7 @@ class _ServiceTags extends StatelessWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 6,
-      children: tags
-          .map((t) => _TagChip(tag: t, isDark: isDark))
-          .toList(),
+      children: tags.map((t) => _TagChip(tag: t, isDark: isDark)).toList(),
     );
   }
 }
@@ -182,19 +176,17 @@ class _TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding:
-    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
       color: isDark
-          ? AppColors.primary.withOpacity(0.2)
-          : AppColors.primary.withOpacity(0.08),
+          ? AppColors.primary.withValues(alpha: 0.2)
+          : AppColors.primary.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(20),
     ),
     child: Text(
       tag,
       style: AppTextStyles.captionMedium(isDark).copyWith(
-        color:
-        isDark ? Colors.blue.shade300 : AppColors.primary,
+        color: isDark ? Colors.blue.shade300 : AppColors.primary,
         fontWeight: FontWeight.w600,
       ),
     ),
@@ -207,8 +199,7 @@ class _ServiceActions extends StatelessWidget {
   final ServiceEntity service;
   final bool isDark;
 
-  const _ServiceActions(
-      {required this.service, required this.isDark});
+  const _ServiceActions({required this.service, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -217,19 +208,16 @@ class _ServiceActions extends StatelessWidget {
         // ── Reviews (outline) ───────────────────────────────────
         Expanded(
           child: OutlinedButton.icon(
-            icon: const Icon(Iconsax.star,
-                size: 16, color: AppColors.primary),
-            onPressed: () =>
-                ServiceReviewSheet.show(context, service, isDark),
+            icon: const Icon(Iconsax.star, size: 16, color: AppColors.primary),
+            onPressed: () => ServiceReviewSheet.show(context, service, isDark),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(
-                  color: AppColors.primary, width: 1.5),
+              side: const BorderSide(color: AppColors.primary, width: 1.5),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            label:
-            Text('Reviews', style: AppTextStyles.buttonOutline),
+            label: Text('Reviews', style: AppTextStyles.buttonOutline),
           ),
         ),
         const SizedBox(width: 12),
@@ -240,24 +228,26 @@ class _ServiceActions extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: AppColors.gradient,
               borderRadius: BorderRadius.circular(12),
-              
             ),
             child: ElevatedButton.icon(
-              icon: const Icon(Iconsax.calendar_tick,
-                  color: Colors.white, size: 16),
+              icon: const Icon(
+                Iconsax.calendar_tick,
+                color: Colors.white,
+                size: 16,
+              ),
               onPressed: () => context.push(
-                  RoutesName.placeOrdersNavigate,
-                  extra: service.id),
+                RoutesName.placeOrdersNavigate,
+                extra: service.id,
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding:
-                const EdgeInsets.symmetric(vertical: 12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              label:
-              Text('Book Now', style: AppTextStyles.buttonSmall),
+              label: Text('Book Now', style: AppTextStyles.buttonSmall),
             ),
           ),
         ),

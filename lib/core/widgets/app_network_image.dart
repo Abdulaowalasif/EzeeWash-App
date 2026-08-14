@@ -36,20 +36,48 @@ class AppNetworkImage extends StatelessWidget {
     this.isDark = false,
   });
 
+  String _optimizeUrl(String original, BuildContext context) {
+    // Only optimize if it's a standard Supabase storage public object URL
+    if (!original.contains('/storage/v1/object/public/')) return original;
+
+    // Convert the object endpoint to the render endpoint for image transformations
+    var optimized = original.replaceAll(
+      '/storage/v1/object/public/', 
+      '/storage/v1/render/image/public/',
+    );
+
+    // Append resolution constraints based on requested UI dimensions
+    final pr = MediaQuery.devicePixelRatioOf(context);
+    final w = width != double.infinity ? (width * pr).toInt() : 800;
+    final h = height != double.infinity ? (height * pr).toInt() : 800;
+    
+    // Add query parameters for server-side resizing and optimization
+    final separator = optimized.contains('?') ? '&' : '?';
+    return '$optimized${separator}width=$w&height=$h&resize=cover&quality=80&format=webp';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final optimizedUrl = url != null && url!.isNotEmpty ? _optimizeUrl(url!, context) : null;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: SizedBox(
         width: width,
         height: height,
-        child: url != null && url!.isNotEmpty
+        child: optimizedUrl != null
             ? CachedNetworkImage(
-          imageUrl: url!,
-          fit: fit,
-          placeholder: (_, _) => _shimmer(),
-          errorWidget: (_, _, _) => _fallback(),
-        )
+                imageUrl: optimizedUrl,
+                fit: fit,
+                memCacheWidth: width != double.infinity
+                    ? (width * MediaQuery.devicePixelRatioOf(context)).toInt()
+                    : null,
+                memCacheHeight: height != double.infinity
+                    ? (height * MediaQuery.devicePixelRatioOf(context)).toInt()
+                    : null,
+                placeholder: (_, _) => _shimmer(),
+                errorWidget: (_, _, _) => _fallback(),
+              )
             : _fallback(),
       ),
     );

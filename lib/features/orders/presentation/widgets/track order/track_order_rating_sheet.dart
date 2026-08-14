@@ -4,12 +4,16 @@
 // Shows animated stars, an optional comment field, and a success state.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../core/constants/app_color.dart';
+import '../../../../../core/widgets/app_network_image.dart';
 import '../../../domain/entities/order_entity.dart';
+import '../../bloc/order_event.dart';
+import '../../bloc/orders_bloc.dart';
+import '../../bloc/orders_state.dart';
 import '../../screens/track_order_screen.dart' show RatingEvent;
 
 class TrackOrderRatingSheet extends StatefulWidget {
@@ -50,8 +54,7 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
       (i) => Tween<double>(begin: 1.0, end: 1.4).animate(
         CurvedAnimation(
           parent: _bounceCtrl,
-          curve: Interval(i * 0.1, i * 0.1 + 0.4,
-              curve: Curves.elasticOut),
+          curve: Interval(i * 0.1, i * 0.1 + 0.4, curve: Curves.elasticOut),
         ),
       ),
     );
@@ -68,10 +71,9 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
     _bounceCtrl.forward(from: 0);
   }
 
-  String? get _targetRiderId =>
-      widget.eventType == RatingEvent.pickup
-          ? (widget.order.pickupRiderId ?? widget.order.riderId)
-          : (widget.order.deliveryRiderId ?? widget.order.riderId);
+  String? get _targetRiderId => widget.eventType == RatingEvent.pickup
+      ? (widget.order.pickupRiderId ?? widget.order.riderId)
+      : (widget.order.deliveryRiderId ?? widget.order.riderId);
 
   Future<void> _markAsHandled() async {
     final prefs = await SharedPreferences.getInstance();
@@ -83,58 +85,65 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
 
   Future<void> _submit() async {
     if (_stars == 0) return;
-    final client = Supabase.instance.client;
     final riderId = _targetRiderId;
-    final userId = client.auth.currentUser?.id;
-    if (riderId == null || userId == null) return;
+    if (riderId == null) return;
 
     setState(() => _loading = true);
-    try {
-      await client.from('rider_ratings').upsert({
-        'order_id': widget.order.id,
-        'rider_id': riderId,
-        'user_id': userId,
-        'rating_type': widget.eventType == RatingEvent.pickup
+
+    context.read<OrdersBloc>().add(
+      OrderSubmitRiderRating(
+        orderId: widget.order.id,
+        riderId: riderId,
+        ratingType: widget.eventType == RatingEvent.pickup
             ? 'pickup'
             : 'delivery',
-        'stars': _stars.toDouble(),
-        'comment':
-            _comment.trim().isEmpty ? null : _comment.trim(),
-      }, onConflict: 'order_id,rating_type');
-      await _markAsHandled();
+        stars: _stars.toDouble(),
+        comment: _comment.trim().isEmpty ? null : _comment.trim(),
+      ),
+    );
+  }
 
+  void _onBlocStateChanged(BuildContext context, OrdersState state) async {
+    if (state is OrdersError) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${state.message}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } else if (_loading) {
+      await _markAsHandled();
       if (!mounted) return;
       setState(() {
         _submitted = true;
         _loading = false;
       });
       await Future.delayed(const Duration(milliseconds: 2000));
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: $e'),
-        backgroundColor: AppColors.error,
-      ));
+      if (context.mounted) Navigator.pop(context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: widget.isDark ? AppColors.darkSurface : Colors.white,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        24, 16, 24,
-        MediaQuery.of(context).viewInsets.bottom + 32,
-      ),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 400),
-        child: _submitted ? _buildSuccess() : _buildForm(),
+    return BlocListener<OrdersBloc, OrdersState>(
+      listener: _onBlocStateChanged,
+      child: Container(
+        decoration: BoxDecoration(
+          color: widget.isDark ? AppColors.darkSurface : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          16,
+          24,
+          MediaQuery.of(context).viewInsets.bottom + 32,
+        ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 400),
+          child: _submitted ? _buildSuccess() : _buildForm(),
+        ),
       ),
     );
   }
@@ -149,7 +158,8 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
       children: [
         // Handle
         Container(
-          width: 40, height: 4,
+          width: 40,
+          height: 4,
           decoration: BoxDecoration(
             color: widget.isDark ? Colors.white24 : Colors.grey.shade300,
             borderRadius: BorderRadius.circular(2),
@@ -158,19 +168,24 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
         const SizedBox(height: 20),
         // Avatar (simple, no online badge needed here)
         Container(
-          width: 72, height: 72,
+          width: 72,
+          height: 72,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: AppColors.primary.withOpacity(0.25), width: 2.5),
+              color: AppColors.primary.withValues(alpha: 0.25),
+              width: 2.5,
+            ),
           ),
-          child: ClipOval(
-            child: photo != null
-                ? Image.network(photo, fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        _fallback(name))
-                : _fallback(name),
-          ),
+          child: photo != null
+              ? AppNetworkImage(
+                  url: photo,
+                  width: 72,
+                  height: 72,
+                  radius: 36, // Circular
+                  fallbackIcon: Icons.motorcycle,
+                )
+              : _fallback(name),
         ),
         const SizedBox(height: 12),
         Text(
@@ -250,11 +265,13 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
-                child: Text('Skip',
-                    style: GoogleFonts.alexandria(
-                        fontWeight: FontWeight.bold)),
+                child: Text(
+                  'Skip',
+                  style: GoogleFonts.alexandria(fontWeight: FontWeight.bold),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -274,9 +291,12 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
                   ),
                   child: _loading
                       ? const SizedBox(
-                          width: 20, height: 20,
+                          width: 20,
+                          height: 20,
                           child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2),
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : Text(
                           'Submit Rating',
@@ -312,23 +332,27 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
                 builder: (_, v, child) => Transform.scale(
                   scale: v,
                   child: Container(
-                    width: 100, height: 100,
+                    width: 100,
+                    height: 100,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withValues(alpha: 0.1),
                     ),
                   ),
                 ),
               ),
               Container(
-                width: 72, height: 72,
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: AppColors.gradient,
-                  
                 ),
-                child: const Icon(Icons.check_rounded,
-                    color: Colors.white, size: 40),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 40,
+                ),
               ),
             ],
           ),
@@ -356,19 +380,22 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
           ),
           const SizedBox(height: 24),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                  color: AppColors.primary.withOpacity(0.2)),
+                color: AppColors.primary.withValues(alpha: 0.2),
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.star_rounded,
-                    color: AppColors.primary, size: 16),
+                const Icon(
+                  Icons.star_rounded,
+                  color: AppColors.primary,
+                  size: 16,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Community Contributor',
@@ -387,7 +414,7 @@ class _TrackOrderRatingSheetState extends State<TrackOrderRatingSheet>
   }
 
   Widget _fallback(String name) => Container(
-    color: AppColors.primary.withOpacity(0.12),
+    color: AppColors.primary.withValues(alpha: 0.12),
     alignment: Alignment.center,
     child: Text(
       name.isNotEmpty ? name[0].toUpperCase() : 'R',

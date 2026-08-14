@@ -5,8 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
-import '../../../../core/widgets/app_snack_bar.dart';
-import '../../../../core/widgets/common_widgets.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../bloc/auth_bloc.dart';
 import '../widgets/auth_panels.dart';
 
@@ -61,18 +60,22 @@ class _LoginScreenState extends State<LoginScreen>
     final inBegin = fromRight ? const Offset(1.0, 0) : const Offset(-1.0, 0);
     final outEnd = fromRight ? const Offset(-1.0, 0) : const Offset(1.0, 0);
 
-    _slideIn = Tween(begin: inBegin, end: Offset.zero)
-        .chain(CurveTween(curve: Curves.easeInOut))
-        .animate(_slideCtrl);
-    _slideOut = Tween(begin: Offset.zero, end: outEnd)
-        .chain(CurveTween(curve: Curves.easeInOut))
-        .animate(_slideCtrl);
-    _fadeIn = Tween(begin: 0.0, end: 1.0)
-        .chain(CurveTween(curve: const Interval(0.0, 0.5)))
-        .animate(_slideCtrl);
-    _fadeOut = Tween(begin: 1.0, end: 0.0)
-        .chain(CurveTween(curve: const Interval(0.0, 0.5)))
-        .animate(_slideCtrl);
+    _slideIn = Tween(
+      begin: inBegin,
+      end: Offset.zero,
+    ).chain(CurveTween(curve: Curves.easeInOut)).animate(_slideCtrl);
+    _slideOut = Tween(
+      begin: Offset.zero,
+      end: outEnd,
+    ).chain(CurveTween(curve: Curves.easeInOut)).animate(_slideCtrl);
+    _fadeIn = Tween(
+      begin: 0.0,
+      end: 1.0,
+    ).chain(CurveTween(curve: const Interval(0.0, 0.5))).animate(_slideCtrl);
+    _fadeOut = Tween(
+      begin: 1.0,
+      end: 0.0,
+    ).chain(CurveTween(curve: const Interval(0.0, 0.5))).animate(_slideCtrl);
   }
 
   void _switchTo(_AuthView next) {
@@ -80,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen>
     final order = {
       _AuthView.signIn: 0,
       _AuthView.signUp: 1,
-      _AuthView.forgotPassword: 2
+      _AuthView.forgotPassword: 2,
     };
     final fromRight = (order[next] ?? 0) > (order[_view] ?? 0);
     _outgoingView = _view;
@@ -113,19 +116,23 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _submitSignIn() {
     if (!_signInFormKey.currentState!.validate()) return;
-    context.read<AuthBloc>().add(AuthSignInRequested(
-      email: _signInEmailCtrl.text.trim(),
-      password: _signInPassCtrl.text,
-    ));
+    context.read<AuthBloc>().add(
+      AuthSignInRequested(
+        email: _signInEmailCtrl.text.trim(),
+        password: _signInPassCtrl.text,
+      ),
+    );
   }
 
   void _submitSignUp() {
     if (!_signUpFormKey.currentState!.validate()) return;
-    context.read<AuthBloc>().add(AuthSignUpRequested(
-      fullName: _nameCtrl.text.trim(),
-      email: _emailCtrl.text.trim(),
-      password: _passCtrl.text,
-    ));
+    context.read<AuthBloc>().add(
+      AuthSignUpRequested(
+        fullName: _nameCtrl.text.trim(),
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text,
+      ),
+    );
   }
 
   void _submitForgotPassword() {
@@ -150,14 +157,18 @@ class _LoginScreenState extends State<LoginScreen>
               decoration: BoxDecoration(
                 gradient: AppColors.gradient,
                 shape: BoxShape.circle,
-                
               ),
-              child: const Icon(Icons.mark_email_read_rounded,
-                  color: Colors.white, size: 36),
+              child: const Icon(
+                Icons.mark_email_read_rounded,
+                color: Colors.white,
+                size: 36,
+              ),
             ),
             const SizedBox(height: 20),
-            Text('Check Your Email',
-                style: AppTextStyles.heading(false).copyWith(fontSize: 18)),
+            Text(
+              'Check Your Email',
+              style: AppTextStyles.heading(false).copyWith(fontSize: 18),
+            ),
             const SizedBox(height: 12),
             Text(
               'We sent a confirmation link to\n$email\n\nPlease check your inbox and click the link to activate your account.',
@@ -186,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen>
 
     return BlocConsumer<AuthBloc, AuthState>(
       listenWhen: (_, curr) =>
-      curr is AuthError ||
+          curr is AuthError ||
           curr is AuthAuthenticated ||
           curr is AuthSignedUp ||
           curr is AuthPasswordResetSent ||
@@ -194,8 +205,10 @@ class _LoginScreenState extends State<LoginScreen>
       listener: (ctx, state) {
         if (state is AuthAuthenticated) {
           if (state.fromSignUp) {
-            AppSnackBar.show(ctx,
-                'Account created successfully! Welcome to EzeeWash 🎉');
+            AppSnackBar.show(
+              ctx,
+              'Account created successfully! Welcome to EzeeWash 🎉',
+            );
           }
           return;
         }
@@ -204,8 +217,7 @@ class _LoginScreenState extends State<LoginScreen>
           return;
         }
         if (state is AuthPasswordResetSent) {
-          AppSnackBar.show(
-              ctx, 'Password reset email sent! Check your inbox.');
+          AppSnackBar.show(ctx, 'Password reset email sent! Check your inbox.');
           _forgotEmailCtrl.clear();
           _switchTo(_AuthView.signIn);
           return;
@@ -218,8 +230,9 @@ class _LoginScreenState extends State<LoginScreen>
         final isLoading = state is AuthLoading;
 
         return Scaffold(
-          backgroundColor:
-          isDark ? AppColors.darkBackground : AppColors.lightBackground,
+          backgroundColor: isDark
+              ? AppColors.darkBackground
+              : AppColors.lightBackground,
           body: SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -309,8 +322,12 @@ class _HeaderSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Image.asset('assets/logo/logo.png',
-            height: 80, width: 80, fit: BoxFit.contain),
+        Image.asset(
+          'assets/logo/logo.png',
+          height: 80,
+          width: 80,
+          fit: BoxFit.contain,
+        ),
         const SizedBox(height: 20),
         Text(
           'Ezze Wash',
@@ -379,12 +396,12 @@ class _AuthCard extends StatelessWidget {
         boxShadow: isDark
             ? []
             : [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(
@@ -397,17 +414,17 @@ class _AuthCard extends StatelessWidget {
             child: view == _AuthView.forgotPassword
                 ? const SizedBox(width: double.infinity, height: 0)
                 : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AuthTabToggle(
-                  isDark: isDark,
-                  isSignIn: view == _AuthView.signIn,
-                  onSignIn: () => onSwitchTo(_AuthView.signIn),
-                  onSignUp: () => onSwitchTo(_AuthView.signUp),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AuthTabToggle(
+                        isDark: isDark,
+                        isSignIn: view == _AuthView.signIn,
+                        onSignIn: () => onSwitchTo(_AuthView.signIn),
+                        onSignUp: () => onSwitchTo(_AuthView.signUp),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
           ),
           _buildAnimatedContent(),
         ],

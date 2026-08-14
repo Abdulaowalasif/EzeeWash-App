@@ -1,3 +1,4 @@
+// lib/ezzewash_app.dart
 import 'package:ezzewash/features/promos/presentation/bloc/promo_bloc.dart';
 import 'package:ezzewash/routes/app_router.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +16,12 @@ import 'features/notifications/presentation/bloc/notifications_bloc.dart';
 import 'features/orders/presentation/bloc/orders_bloc.dart';
 import 'features/profile/presentation/bloc/profile_bloc.dart';
 import 'features/services/presentation/bloc/service_bloc.dart';
+import 'features/services/presentation/bloc/service_event.dart'; // ADDED
 import 'features/store/presentation/bloc/store_bloc.dart';
+import 'features/store/presentation/bloc/stores_event.dart'; // ADDED
+import 'features/promos/presentation/bloc/promo_event.dart'; // ADDED
+import 'features/orders/presentation/bloc/order_event.dart';
+import 'features/profile/presentation/bloc/profile_event.dart';
 
 class EzzeWashApp extends StatefulWidget {
   const EzzeWashApp({super.key});
@@ -52,20 +58,34 @@ class _EzzeWashAppState extends State<EzzeWashApp> {
     return MultiBlocProvider(
       providers: [
         BlocProvider.value(value: _authBloc),
-        BlocProvider(create: (_) => sl<ServicesBloc>()),
-        BlocProvider(create: (_) => sl<StoresBloc>()),
-        BlocProvider(create: (_) => sl<OrdersBloc>()),
-        BlocProvider(create: (_) => sl<NotificationsBloc>()),
-        BlocProvider(create: (_) => sl<ProfileBloc>()),
-        BlocProvider(create: (_) => sl<PromoBloc>()),
+        // FIX: Dispatch load events immediately on creation
+        BlocProvider(
+          create: (_) => sl<ServicesBloc>()..add(const ServicesLoadRequested()),
+        ),
+        BlocProvider(
+          create: (_) => sl<StoresBloc>()..add(const StoresLoadRequested()),
+        ),
+        BlocProvider(
+          create: (_) => sl<OrdersBloc>()..add(const OrdersLoadRequested()),
+        ),
+        BlocProvider(
+          create: (_) =>
+              sl<NotificationsBloc>()..add(const NotificationsLoadRequested()),
+        ),
+        BlocProvider(
+          create: (_) => sl<ProfileBloc>()..add(const ProfileLoadRequested()),
+        ),
+        BlocProvider(
+          create: (_) => sl<PromoBloc>()..add(const WatchPromosStarted()),
+        ),
       ],
       child: AuthReactiveLoader(
         onLogout: _recreateRouter,
         child: ValueListenableBuilder<ThemeMode>(
           valueListenable: ThemePrefs.notifier,
           builder: (context, currentMode, child) {
-            // Determine if dark mode is active for the connectivity overlay
-            final isDarkMode = currentMode == ThemeMode.dark ||
+            final isDarkMode =
+                currentMode == ThemeMode.dark ||
                 (currentMode == ThemeMode.system &&
                     View.of(context).platformDispatcher.platformBrightness ==
                         Brightness.dark);

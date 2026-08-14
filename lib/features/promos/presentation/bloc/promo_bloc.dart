@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/watch_promo_usecase.dart';
 import 'promo_event.dart';
@@ -8,34 +6,28 @@ import 'promo_state.dart';
 // lib/features/promos/presentation/bloc/promo_bloc.dart
 
 class PromoBloc extends Bloc<PromoEvent, PromoState> {
-  final WatchPromosUseCase watchPromosUseCase;
-  StreamSubscription? _promoSubscription; // To manage the stream lifecycle
+  final GetPromosUseCase getPromosUseCase;
 
-  PromoBloc({required this.watchPromosUseCase}) : super(const PromoInitial()) {
+  PromoBloc({required this.getPromosUseCase}) : super(const PromoInitial()) {
     on<WatchPromosStarted>(_onWatchPromosStarted);
-    on<PromosUpdated>(_onPromosUpdated); // New event for stream data
   }
 
-  Future<void> _onWatchPromosStarted(WatchPromosStarted event, Emitter<PromoState> emit) async {
-    emit(const PromoLoading());
+  Future<void> _onWatchPromosStarted(
+    WatchPromosStarted event,
+    Emitter<PromoState> emit,
+  ) async {
+    if (!event.forceRefresh && state is PromoLoaded) {
+      // Handled by repository cache
+    } else {
+      emit(const PromoLoading());
+    }
 
-    // Cancel any existing subscription
-    await _promoSubscription?.cancel();
-
-    // Start listening to the stream
-    _promoSubscription = watchPromosUseCase().listen(
-          (promos) => add(PromosUpdated(promos)),
-      onError: (error) => emit(PromoError(error.toString())),
+    final result = await getPromosUseCase(
+      GetPromosParams(forceRefresh: event.forceRefresh),
     );
-  }
-
-  void _onPromosUpdated(PromosUpdated event, Emitter<PromoState> emit) {
-    emit(PromoLoaded(event.promos));
-  }
-
-  @override
-  Future<void> close() {
-    _promoSubscription?.cancel(); // Always cancel streams to avoid memory leaks
-    return super.close();
+    result.fold(
+      (failure) => emit(PromoError(failure.message)),
+      (promos) => emit(PromoLoaded(promos)),
+    );
   }
 }

@@ -71,7 +71,18 @@ final class OrderCancelling extends OrdersState {
   List<Object?> get props => [orderId];
 }
 
-/// Order cancelled successfully.
+/// Emitted when an action like submitting a review succeeds.
+final class OrdersActionSuccess extends OrdersState {
+  final String message;
+  final int timestamp;
+  
+  OrdersActionSuccess(this.message) : timestamp = DateTime.now().millisecondsSinceEpoch;
+
+  @override
+  List<Object?> get props => [message, timestamp];
+}
+
+/// An order was successfully cancelled.
 final class OrderCancelled extends OrdersState {
   const OrderCancelled();
 }

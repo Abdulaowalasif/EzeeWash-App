@@ -15,19 +15,13 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/app_snack_bar.dart';
-import '../../../../core/widgets/common_widgets.dart';
-import '../../../../core/widgets/gradient_app_bar.dart';
-import '../../../../core/widgets/auth/app_password_strength_field.dart'
-    show PasswordValidator;
+import '../../../../core/widgets/widgets.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
 
   @override
-  State<ChangePasswordScreen> createState() =>
-      _ChangePasswordScreenState();
+  State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
 }
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
@@ -56,8 +50,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     final email = _client.auth.currentUser?.email;
     if (email == null) return false;
     try {
-      await _client.auth
-          .signInWithPassword(email: email, password: current);
+      await _client.auth.signInWithPassword(email: email, password: current);
       return true;
     } catch (_) {
       return false;
@@ -70,11 +63,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final valid =
-      await _verifyCurrentPassword(_currentCtrl.text);
+      final valid = await _verifyCurrentPassword(_currentCtrl.text);
       if (!valid) {
-        setState(() =>
-        _currentPasswordError = 'Current password is incorrect.');
+        setState(
+          () => _currentPasswordError = 'Current password is incorrect.',
+        );
         _formKey.currentState?.validate();
         return;
       }
@@ -86,13 +79,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       Navigator.of(context).pop();
     } on supa.AuthApiException catch (e) {
       if (mounted) {
-        AppSnackBar.show(context, _friendly(e.message),
-            type: SnackBarType.error);
+        AppSnackBar.show(
+          context,
+          _friendly(e.message),
+          type: SnackBarType.error,
+        );
       }
     } catch (e) {
       if (mounted) {
-        AppSnackBar.show(context, e.toString(),
-            type: SnackBarType.error);
+        AppSnackBar.show(context, e.toString(), type: SnackBarType.error);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -121,8 +116,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     return Scaffold(
       appBar: const GradientAppBar(title: 'Change Password'),
-      backgroundColor:
-      isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Form(
@@ -135,8 +131,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               const SizedBox(height: 28),
 
               // ── Current password ────────────────────────────────────
-              AppSectionLabel(
-                  text: 'Current Password', isDark: isDark),
+              AppSectionLabel(text: 'Current Password', isDark: isDark),
               const SizedBox(height: 10),
               _PasswordField(
                 controller: _currentCtrl,
@@ -146,8 +141,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 obscure: _obscureCurrent,
                 onToggle: () =>
                     setState(() => _obscureCurrent = !_obscureCurrent),
-                onChanged: (_) =>
-                    setState(() => _currentPasswordError = null),
+                onChanged: (_) => setState(() => _currentPasswordError = null),
                 validator: (v) {
                   if (v == null || v.isEmpty) {
                     return 'Current password is required';
@@ -171,8 +165,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 icon: Iconsax.lock_1,
                 isDark: isDark,
                 obscure: _obscureNew,
-                onToggle: () =>
-                    setState(() => _obscureNew = !_obscureNew),
+                onToggle: () => setState(() => _obscureNew = !_obscureNew),
                 onChanged: (_) => setState(() {}),
                 validator: (v) {
                   if (v == null || v.isEmpty) {
@@ -190,10 +183,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 curve: Curves.easeOut,
                 child: pw.isNotEmpty
                     ? _StrengthBar(
-                  score: score,
-                  color: PasswordValidator.strengthColor(score),
-                  label: PasswordValidator.strengthLabel(score),
-                )
+                        score: score,
+                        color: PasswordValidator.strengthColor(score),
+                        label: PasswordValidator.strengthLabel(score),
+                      )
                     : const SizedBox.shrink(),
               ),
               const SizedBox(height: 16),
@@ -222,9 +215,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 duration: const Duration(milliseconds: 220),
                 child: _confirmCtrl.text.isNotEmpty
                     ? _MatchIndicator(
-                  matches: _confirmCtrl.text == _newCtrl.text,
-                  isDark: isDark,
-                )
+                        matches: _confirmCtrl.text == _newCtrl.text,
+                        isDark: isDark,
+                      )
                     : const SizedBox.shrink(),
               ),
               const SizedBox(height: 28),
@@ -260,10 +253,11 @@ class _SecurityCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(isDark ? 0.12 : 0.06),
+        color: AppColors.primary.withValues(alpha: isDark ? 0.12 : 0.06),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: AppColors.primary.withOpacity(isDark ? 0.25 : 0.15)),
+          color: AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.15),
+        ),
       ),
       child: Row(
         children: [
@@ -278,13 +272,15 @@ class _SecurityCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Update Your Password',
-                    style: AppTextStyles.cardTitle(isDark)),
+                Text(
+                  'Update Your Password',
+                  style: AppTextStyles.cardTitle(isDark),
+                ),
                 const SizedBox(height: 3),
                 Text(
-                    "Choose a strong, unique password you haven't used before.",
-                    style: AppTextStyles.bodyLong(isDark)
-                        .copyWith(fontSize: 12)),
+                  "Choose a strong, unique password you haven't used before.",
+                  style: AppTextStyles.bodyLong(isDark).copyWith(fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -345,32 +341,33 @@ class _PasswordField extends StatelessWidget {
         ),
         filled: true,
         fillColor: isDark
-            ? Colors.white.withOpacity(0.05)
+            ? Colors.white.withValues(alpha: 0.05)
             : AppColors.lightBackground,
-        contentPadding:
-        const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 16,
+        ),
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(
-              color: isDark ? Colors.white10 : Colors.grey.shade200),
+            color: isDark ? Colors.white10 : Colors.grey.shade200,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide:
-          const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide:
-          const BorderSide(color: AppColors.error, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide:
-          const BorderSide(color: AppColors.error, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
       ),
     );
@@ -384,8 +381,11 @@ class _StrengthBar extends StatelessWidget {
   final Color color;
   final String label;
 
-  const _StrengthBar(
-      {required this.score, required this.color, required this.label});
+  const _StrengthBar({
+    required this.score,
+    required this.color,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -402,7 +402,7 @@ class _StrengthBar extends StatelessWidget {
                   margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
                   height: 5,
                   decoration: BoxDecoration(
-                    color: active ? color : color.withOpacity(0.15),
+                    color: active ? color : color.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -413,16 +413,17 @@ class _StrengthBar extends StatelessWidget {
           Row(
             children: [
               Icon(
-                score >= 3
-                    ? Iconsax.tick_circle
-                    : Iconsax.info_circle,
+                score >= 3 ? Iconsax.tick_circle : Iconsax.info_circle,
                 size: 13,
                 color: color,
               ),
               const SizedBox(width: 5),
-              Text('Password strength: $label',
-                  style: AppTextStyles.captionMedium(false)
-                      .copyWith(color: color, fontSize: 12)),
+              Text(
+                'Password strength: $label',
+                style: AppTextStyles.captionMedium(
+                  false,
+                ).copyWith(color: color, fontSize: 12),
+              ),
             ],
           ),
         ],
@@ -453,8 +454,7 @@ class _MatchIndicator extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             matches ? 'Passwords match' : 'Passwords do not match',
-            style: AppTextStyles.captionMedium(isDark)
-                .copyWith(color: color),
+            style: AppTextStyles.captionMedium(isDark).copyWith(color: color),
           ),
         ],
       ),
@@ -467,8 +467,7 @@ class _MatchIndicator extends StatelessWidget {
 class _RequirementsCard extends StatelessWidget {
   final String password;
   final bool isDark;
-  const _RequirementsCard(
-      {required this.password, required this.isDark});
+  const _RequirementsCard({required this.password, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -476,7 +475,10 @@ class _RequirementsCard extends StatelessWidget {
       _Rule('At least 8 characters', PasswordValidator.hasMinLength(password)),
       _Rule('One uppercase letter', PasswordValidator.hasUppercase(password)),
       _Rule('One number', PasswordValidator.hasDigit(password)),
-      _Rule('One special character', PasswordValidator.hasSpecialChar(password)),
+      _Rule(
+        'One special character',
+        PasswordValidator.hasSpecialChar(password),
+      ),
     ];
 
     return AppCard(
@@ -488,15 +490,18 @@ class _RequirementsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Iconsax.clipboard_text,
-                  size: 15,
-                  color: isDark
-                      ? AppColors.darkSubtext
-                      : AppColors.lightSubtext),
+              Icon(
+                Iconsax.clipboard_text,
+                size: 15,
+                color: isDark ? AppColors.darkSubtext : AppColors.lightSubtext,
+              ),
               const SizedBox(width: 7),
-              Text('Password Requirements',
-                  style: AppTextStyles.body(isDark).copyWith(
-                      fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(
+                'Password Requirements',
+                style: AppTextStyles.body(
+                  isDark,
+                ).copyWith(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -530,22 +535,21 @@ class _RuleRow extends StatelessWidget {
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 200),
             child: Icon(
-              rule.met
-                  ? Iconsax.tick_circle
-                  : Iconsax.minus_cirlce,
+              rule.met ? Iconsax.tick_circle : Iconsax.minus_cirlce,
               key: ValueKey(rule.met),
               size: 16,
               color: color,
             ),
           ),
           const SizedBox(width: 8),
-          Text(rule.label,
-              style: AppTextStyles.body(isDark).copyWith(
-                fontSize: 13,
-                color: color,
-                fontWeight:
-                rule.met ? FontWeight.w600 : FontWeight.normal,
-              )),
+          Text(
+            rule.label,
+            style: AppTextStyles.body(isDark).copyWith(
+              fontSize: 13,
+              color: color,
+              fontWeight: rule.met ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
         ],
       ),
     );
@@ -563,14 +567,12 @@ class _DashedDivider extends StatelessWidget {
     return Row(
       children: List.generate(
         40,
-            (i) => Expanded(
+        (i) => Expanded(
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 2),
             height: 1,
-            color: (isDark
-                ? AppColors.darkBorder
-                : AppColors.lightBorder)
-                .withOpacity(i.isEven ? 1 : 0),
+            color: (isDark ? AppColors.darkBorder : AppColors.lightBorder)
+                .withValues(alpha: i.isEven ? 1 : 0),
           ),
         ),
       ),

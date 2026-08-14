@@ -11,7 +11,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/widgets/common_widgets.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/notification_entity.dart';
 
 class NotificationCard extends StatelessWidget {
@@ -30,25 +30,32 @@ class NotificationCard extends StatelessWidget {
 
   IconData get _icon {
     switch (notification.type) {
-      case 'order_update': return Iconsax.truck_fast;
-      case 'promos':        return Iconsax.discount_circle;
-      case 'welcome':      return Iconsax.star;
-      default:             return Iconsax.notification;
+      case 'order_update':
+        return Iconsax.truck_fast;
+      case 'promos':
+        return Iconsax.discount_circle;
+      case 'welcome':
+        return Iconsax.star;
+      default:
+        return Iconsax.notification;
     }
   }
 
   Color get _iconColor {
     switch (notification.type) {
-      case 'order_update': return AppColors.primary;
-      case 'promos':        return const Color(0xFF8B5CF6);
-      case 'welcome':      return AppColors.success;
-      default:             return AppColors.primary;
+      case 'order_update':
+        return AppColors.primary;
+      case 'promos':
+        return const Color(0xFF8B5CF6);
+      case 'welcome':
+        return AppColors.success;
+      default:
+        return AppColors.primary;
     }
   }
 
   bool get _isNavigable =>
-      notification.type == 'order_update' &&
-          notification.orderId != null;
+      notification.type == 'order_update' && notification.orderId != null;
 
   @override
   Widget build(BuildContext context) {
@@ -106,9 +113,10 @@ class _CardBody extends StatelessWidget {
     String formatToMarkdown(String text) {
       return text.replaceAllMapped(
         RegExp(r'\*(.*?)\*'),
-            (match) => '**${match.group(1)}**',
+        (match) => '**${match.group(1)}**',
       );
     }
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -117,24 +125,24 @@ class _CardBody extends StatelessWidget {
         decoration: BoxDecoration(
           color: isUnread
               ? (isDark
-              ? AppColors.primary.withOpacity(0.12)
-              : AppColors.primary.withOpacity(0.05))
+                    ? AppColors.primary.withValues(alpha: 0.12)
+                    : AppColors.primary.withValues(alpha: 0.05))
               : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isUnread
-                ? AppColors.primary.withOpacity(0.3)
+                ? AppColors.primary.withValues(alpha: 0.3)
                 : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
           ),
           boxShadow: isDark
               ? []
               : [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,14 +178,13 @@ class _CardBody extends StatelessWidget {
                         color: isDark ? Colors.white : Colors.black,
                       ),
 
-                      em: AppTextStyles.subtitle(isDark).copyWith(
-                        height: 1.4,
-                        fontStyle: FontStyle.italic,
-                      ),
+                      em: AppTextStyles.subtitle(
+                        isDark,
+                      ).copyWith(height: 1.4, fontStyle: FontStyle.italic),
 
-                      del: AppTextStyles.subtitle(isDark).copyWith(
-                        decoration: TextDecoration.lineThrough,
-                      ),
+                      del: AppTextStyles.subtitle(
+                        isDark,
+                      ).copyWith(decoration: TextDecoration.lineThrough),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -214,11 +221,12 @@ class _TitleRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Text(notification.title,
-              style: AppTextStyles.rowTitle(isDark).copyWith(
-                fontWeight:
-                isUnread ? FontWeight.bold : FontWeight.w600,
-              )),
+          child: Text(
+            notification.title,
+            style: AppTextStyles.rowTitle(isDark).copyWith(
+              fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
+            ),
+          ),
         ),
         const SizedBox(width: 8),
         if (isUnread)
@@ -227,7 +235,9 @@ class _TitleRow extends StatelessWidget {
             height: 8,
             margin: const EdgeInsets.only(top: 4),
             decoration: const BoxDecoration(
-                color: AppColors.primary, shape: BoxShape.circle),
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
           ),
       ],
     );
@@ -259,47 +269,51 @@ class _MetaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Text(
-        _formatDate(notification.createdAt),
-        style: AppTextStyles.caption(isDark).copyWith(
-          color: (isDark ? AppColors.darkSubtext : AppColors.lightSubtext)
-              .withOpacity(0.7),
-        ),
-      ),
-      if (isNavigable && isUnread) ...[
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(6),
+    return Row(
+      children: [
+        Text(
+          _formatDate(notification.createdAt),
+          style: AppTextStyles.caption(isDark).copyWith(
+            color: (isDark ? AppColors.darkSubtext : AppColors.lightSubtext)
+                .withValues(alpha: 0.7),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Iconsax.location, size: 10, color: AppColors.primary),
-              const SizedBox(width: 3),
-              Text('Track order',
+        ),
+        if (isNavigable && isUnread) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Iconsax.location, size: 10, color: AppColors.primary),
+                const SizedBox(width: 3),
+                Text(
+                  'Track order',
                   style: AppTextStyles.tiny(isDark).copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
-                  )),
-            ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
+        if (isNavigable && !isUnread)
+          Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 10,
+              color: (isDark ? AppColors.darkSubtext : AppColors.lightSubtext)
+                  .withValues(alpha: 0.5),
+            ),
+          ),
       ],
-      if (isNavigable && !isUnread)
-        Padding(
-          padding: const EdgeInsets.only(left: 6),
-          child: Icon(
-            Icons.arrow_forward_ios_rounded,
-            size: 10,
-            color: (isDark ? AppColors.darkSubtext : AppColors.lightSubtext)
-                .withOpacity(0.5),
-          ),
-        ),
-    ]);
+    );
   }
 }
 
@@ -315,18 +329,21 @@ class _SwipeBackground extends StatelessWidget {
       alignment: Alignment.centerRight,
       padding: const EdgeInsets.only(right: 20),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(isDark ? 0.25 : 0.1),
+        color: AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.1),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Iconsax.tick_circle, color: AppColors.primary, size: 22),
           const SizedBox(height: 4),
-          Text('Mark read',
-              style: AppTextStyles.captionMedium(isDark)
-                  .copyWith(color: AppColors.primary)),
+          Text(
+            'Mark read',
+            style: AppTextStyles.captionMedium(
+              isDark,
+            ).copyWith(color: AppColors.primary),
+          ),
         ],
       ),
     );

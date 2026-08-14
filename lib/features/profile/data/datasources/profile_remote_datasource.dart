@@ -28,7 +28,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     try {
       final data = await _client
           .from(AppConstants.profilesTable)
-          .select()
+          .select('id, full_name, email, phone, avatar_url, address, city')
           .eq('id', userId)
           .maybeSingle();
       return data != null ? ProfileModel.fromJson(data) : null;
@@ -62,7 +62,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
 
       final updated = await _client
           .from(AppConstants.profilesTable)
-          .select()
+          .select('id, full_name, email, phone, avatar_url, address, city')
           .eq('id', userId)
           .single();
       return ProfileModel.fromJson(updated);
@@ -80,33 +80,31 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       // (png, webp) aren't rejected by the storage bucket.
       final ext = imageFile.path.split('.').last.toLowerCase();
       final contentType = switch (ext) {
-        'png'  => 'image/png',
+        'png' => 'image/png',
         'webp' => 'image/webp',
-        'gif'  => 'image/gif',
-        _      => 'image/jpeg',
+        'gif' => 'image/gif',
+        _ => 'image/jpeg',
       };
       final safeExt = switch (ext) {
-        'png'  => 'png',
+        'png' => 'png',
         'webp' => 'webp',
-        _      => 'jpg',
+        _ => 'jpg',
       };
 
       // Path: {userId}/{timestamp}.{ext}
       // The storage RLS policy checks (storage.foldername(name))[1] = uid
       final filePath = '$userId/$timestamp.$safeExt';
 
-      await _client.storage.from('avatars').upload(
-        filePath,
-        imageFile,
-        fileOptions: FileOptions(
-          upsert: true,
-          contentType: contentType,
-        ),
-      );
+      await _client.storage
+          .from('avatars')
+          .upload(
+            filePath,
+            imageFile,
+            fileOptions: FileOptions(upsert: true, contentType: contentType),
+          );
 
       // Cache-bust so the UI picks up the new image immediately
-      final publicUrl =
-      _client.storage.from('avatars').getPublicUrl(filePath);
+      final publicUrl = _client.storage.from('avatars').getPublicUrl(filePath);
       return '$publicUrl?t=$timestamp';
     } catch (e) {
       throw ServerException(e.toString());

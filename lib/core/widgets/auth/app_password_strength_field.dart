@@ -30,8 +30,7 @@ class PasswordValidator {
   static bool hasUppercase(String pw) => pw.contains(RegExp(r'[A-Z]'));
   static bool hasLowercase(String pw) => pw.contains(RegExp(r'[a-z]'));
   static bool hasDigit(String pw) => pw.contains(RegExp(r'[0-9]'));
-  static bool hasSpecialChar(String pw) =>
-      pw.contains(RegExp(r'[^\w\s]'));
+  static bool hasSpecialChar(String pw) => pw.contains(RegExp(r'[^\w\s]'));
 
   static bool isValid(String pw) =>
       hasMinLength(pw) && hasUppercase(pw) && hasLowercase(pw) && hasDigit(pw);
@@ -48,21 +47,31 @@ class PasswordValidator {
 
   static String strengthLabel(int s) {
     switch (s) {
-      case 1: return 'Weak';
-      case 2: return 'Fair';
-      case 3: return 'Good';
-      case 4: return 'Strong';
-      default: return '';
+      case 1:
+        return 'Weak';
+      case 2:
+        return 'Fair';
+      case 3:
+        return 'Good';
+      case 4:
+        return 'Strong';
+      default:
+        return '';
     }
   }
 
   static Color strengthColor(int s) {
     switch (s) {
-      case 1: return AppColors.error;
-      case 2: return AppColors.warning;
-      case 3: return AppColors.info;
-      case 4: return AppColors.success;
-      default: return AppColors.error;
+      case 1:
+        return AppColors.error;
+      case 2:
+        return AppColors.warning;
+      case 3:
+        return AppColors.info;
+      case 4:
+        return AppColors.success;
+      default:
+        return AppColors.error;
     }
   }
 
@@ -130,7 +139,10 @@ class _AppPasswordStrengthFieldState extends State<AppPasswordStrengthField> {
       _PwRule('One uppercase letter (A–Z)', PasswordValidator.hasUppercase(pw)),
       _PwRule('One lowercase letter (a–z)', PasswordValidator.hasLowercase(pw)),
       _PwRule('One number (0–9)', PasswordValidator.hasDigit(pw)),
-      _PwRule('One special character (!@#\$…)', PasswordValidator.hasSpecialChar(pw)),
+      _PwRule(
+        'One special character (!@#\$…)',
+        PasswordValidator.hasSpecialChar(pw),
+      ),
     ];
 
     return Column(
@@ -161,8 +173,7 @@ class _AppPasswordStrengthFieldState extends State<AppPasswordStrengthField> {
               PasswordValidator.validate(v, isSignIn: widget.isSignIn),
           decoration: InputDecoration(
             hintText: widget.hint,
-            prefixIcon:
-                const Icon(Iconsax.lock, size: 17, color: Colors.grey),
+            prefixIcon: const Icon(Iconsax.lock, size: 17, color: Colors.grey),
             suffixIcon: IconButton(
               icon: Icon(
                 _obscure ? Iconsax.eye_slash : Iconsax.eye,
@@ -173,7 +184,7 @@ class _AppPasswordStrengthFieldState extends State<AppPasswordStrengthField> {
             ),
             filled: true,
             fillColor: widget.isDark
-                ? Colors.white.withOpacity(0.05)
+                ? Colors.white.withValues(alpha: 0.05)
                 : AppColors.lightBackground,
             contentPadding: const EdgeInsets.all(16),
             border: OutlineInputBorder(
@@ -188,13 +199,14 @@ class _AppPasswordStrengthFieldState extends State<AppPasswordStrengthField> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.5,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: AppColors.error, width: 1.5),
+              borderSide: const BorderSide(color: AppColors.error, width: 1.5),
             ),
           ),
         ),
@@ -217,8 +229,7 @@ class _AppPasswordStrengthFieldState extends State<AppPasswordStrengthField> {
                               margin: EdgeInsets.only(right: i < 3 ? 5 : 0),
                               height: 4,
                               decoration: BoxDecoration(
-                                color:
-                                    filled ? c : c.withOpacity(0.15),
+                                color: filled ? c : c.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                             ),
@@ -260,34 +271,36 @@ class _AppPasswordStrengthFieldState extends State<AppPasswordStrengthField> {
                   padding: const EdgeInsets.only(top: 10),
                   child: Column(
                     children: rules
-                        .map((r) => Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    r.met
-                                        ? Iconsax.tick_circle
-                                        : Icons.radio_button_unchecked,
-                                    size: 14,
+                        .map(
+                          (r) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  r.met
+                                      ? Iconsax.tick_circle
+                                      : Icons.radio_button_unchecked,
+                                  size: 14,
+                                  color: r.met
+                                      ? AppColors.success
+                                      : Colors.grey.shade400,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  r.label,
+                                  style: GoogleFonts.alexandria(
+                                    fontSize: 12,
                                     color: r.met
-                                        ? AppColors.success
-                                        : Colors.grey.shade400,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    r.label,
-                                    style: GoogleFonts.alexandria(
-                                      fontSize: 12,
-                                      color: r.met
-                                          ? (widget.isDark
+                                        ? (widget.isDark
                                               ? Colors.white70
                                               : AppColors.lightText)
-                                          : Colors.grey.shade400,
-                                    ),
+                                        : Colors.grey.shade400,
                                   ),
-                                ],
-                              ),
-                            ))
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                 )

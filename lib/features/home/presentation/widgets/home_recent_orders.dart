@@ -2,16 +2,12 @@
 
 import 'package:ezzewash/core/widgets/app_error_state.dart';
 import 'package:ezzewash/core/widgets/app_shimmer.dart';
-import 'package:ezzewash/core/widgets/common_widgets.dart';
+import 'package:ezzewash/core/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/app_network_image.dart';
-import '../../../../core/widgets/app_order_progress_bar.dart';
-import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../routes/routes_name.dart';
 import '../../../orders/presentation/bloc/order_event.dart';
 import '../../../orders/presentation/bloc/orders_bloc.dart';
@@ -43,18 +39,18 @@ class HomeRecentOrders extends StatelessWidget {
             children: recent
                 .map(
                   (order) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: RecentOrderCard(
-                  orderId: order.id,
-                  orderNumber: '#${order.orderNumber}',
-                  serviceName: order.serviceName,
-                  status: order.status,
-                  progress: order.progress,
-                  imageUrl: order.serviceImageUrl.toString(),
-                  isDark: isDark,
-                ),
-              ),
-            )
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: RecentOrderCard(
+                      orderId: order.id,
+                      orderNumber: '#${order.orderNumber}',
+                      serviceName: order.serviceName,
+                      status: order.status,
+                      progress: order.progress,
+                      imageUrl: order.serviceImageUrl.toString(),
+                      isDark: isDark,
+                    ),
+                  ),
+                )
                 .toList(),
           );
         }

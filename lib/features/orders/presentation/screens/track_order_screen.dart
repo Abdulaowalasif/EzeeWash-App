@@ -1,25 +1,21 @@
 // lib/features/orders/presentation/screens/track_order_screen.dart
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/constants/order_status.dart';
 import '../../../../core/utils/responsive.dart';
-import '../../../../core/widgets/common_widgets.dart';
-import '../../../../core/widgets/gradient_app_bar.dart';
-import '../../../../core/widgets/order_shared/app_phase_banner.dart';
-import '../../../../core/widgets/order_shared/app_status_result_view.dart';
-import '../../../../core/widgets/order_shared/app_summary_row.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/order_entity.dart';
 import '../bloc/orders_bloc.dart';
 import '../bloc/orders_state.dart';
+import '../bloc/rider_tracking_bloc.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../domain/usecases/orders_usecase.dart';
 import '../widgets/track order/track_order_cleaning_panel.dart';
 import '../widgets/track order/track_order_details_card.dart';
 import '../widgets/track order/track_order_hero_card.dart';
@@ -89,58 +85,52 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   final _ratingMem = _RatingMemory();
   bool _isSheetVisible = false;
 
-  StreamSubscription? _orderSub;
-  String? _trackingOrderId;
-  String? _liveStatus;
-  double? _liveProgress;
-  String? _livePickupRiderId;
-  String? _liveDeliveryRiderId;
+  OrderEntity? _specificOrder;
+  bool _isLoadingSpecificOrder = false;
+  bool _hasAttemptedFetch = false;
+
+  void _fetchSpecificOrder(String orderId) async {
+    if (_isLoadingSpecificOrder || _specificOrder != null || _hasAttemptedFetch) return;
+    if (!mounted) return;
+    setState(() {
+      _isLoadingSpecificOrder = true;
+      _hasAttemptedFetch = true;
+    });
+
+    final getOrder = sl<GetOrderByIdUseCase>();
+    final result = await getOrder(OrderIdParams(orderId));
+
+    if (mounted) {
+      setState(() {
+        _isLoadingSpecificOrder = false;
+        result.fold((failure) {}, (order) => _specificOrder = order);
+      });
+    }
+  }
 
   @override
   void dispose() {
-    _orderSub?.cancel();
     super.dispose();
   }
 
-  void _listenToOrderUpdates(String orderId) {
-    if (_trackingOrderId == orderId) return;
-    _trackingOrderId = orderId;
-    _orderSub?.cancel();
-
-    _orderSub = Supabase.instance.client
-        .from('orders')
-        .stream(primaryKey: ['id'])
-        .eq('id', orderId)
-        .listen((data) {
-      if (data.isNotEmpty && mounted) {
-        setState(() {
-          _liveStatus = data.first['status'];
-          _liveProgress = (data.first['progress'] as num?)?.toDouble();
-          _livePickupRiderId = data.first['pickup_rider_id'];
-          _liveDeliveryRiderId = data.first['delivery_rider_id'];
-        });
-      }
-    });
-  }
-
   Future<void> _checkRating(
-      BuildContext ctx,
-      OrderEntity order,
-      bool isDark,
-      ) async {
+    BuildContext ctx,
+    OrderEntity order,
+    bool isDark,
+  ) async {
     if (_isSheetVisible ||
         (_ratingMem.shownForPickup && _ratingMem.shownForDelivery)) {
       return;
     }
 
-    final effectiveStatus = _liveStatus ?? order.status;
+    final effectiveStatus = order.status;
     final phase = effectiveStatus.phase;
     final prefs = await SharedPreferences.getInstance();
 
-    final pickupId = _livePickupRiderId ?? order.pickupRiderId ?? order.riderId;
+    final pickupId = order.pickupRiderId ?? order.riderId;
     final isPickupDone =
         phase.index >= OrderPhase.riderHeadingToStore.index &&
-            phase != OrderPhase.cancelled;
+        phase != OrderPhase.cancelled;
 
     if (isPickupDone && !_ratingMem.shownForPickup && pickupId != null) {
       final handled = prefs.getBool('rated_pickup_${order.id}') ?? false;
@@ -150,7 +140,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
         if (ctx.mounted) {
           await _showRatingSheet(ctx, order, isDark, RatingEvent.pickup);
           _isSheetVisible = false;
-          if (mounted) _checkRating(ctx, order, isDark);
+          if (ctx.mounted) _checkRating(ctx, order, isDark);
           return;
         }
       } else {
@@ -158,8 +148,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
       }
     }
 
-    final deliveryId =
-        _liveDeliveryRiderId ?? order.deliveryRiderId ?? order.riderId;
+    final deliveryId = order.deliveryRiderId ?? order.riderId;
     if (phase == OrderPhase.delivered &&
         !_ratingMem.shownForDelivery &&
         deliveryId != null) {
@@ -178,11 +167,11 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   }
 
   Future<void> _showRatingSheet(
-      BuildContext ctx,
-      OrderEntity order,
-      bool isDark,
-      RatingEvent evt,
-      ) async {
+    BuildContext ctx,
+    OrderEntity order,
+    bool isDark,
+    RatingEvent evt,
+  ) async {
     if (!ctx.mounted) return;
 
     await showModalBottomSheet(
@@ -216,37 +205,59 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
       body: BlocBuilder<OrdersBloc, OrdersState>(
         builder: (context, state) {
           OrderEntity? order;
-          if (state is OrdersLoaded && widget.orderId != null) {
-            try {
-              order = state.orders.firstWhere((o) => o.id == widget.orderId);
-            } catch (_) {}
+
+          if (widget.orderId != null) {
+            // 1. Try to find it in the bloc's loaded list
+            if (state is OrdersLoaded) {
+              try {
+                order = state.orders.firstWhere((o) => o.id == widget.orderId);
+              } catch (_) {}
+            }
+
+            // 2. Try the local fetched copy
+            order ??= _specificOrder;
+
+            // 3. If still null, trigger a fetch if we haven't already
+            if (order == null) {
+              if (state is! OrdersLoading && !_isLoadingSpecificOrder && !_hasAttemptedFetch) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _fetchSpecificOrder(widget.orderId!);
+                });
+              }
+
+              if (_isLoadingSpecificOrder || state is OrdersLoading) {
+                return const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                );
+              }
+            }
+          } else {
+            // No specific order ID provided. Default to most recent active order.
+            if (state is OrdersLoading) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              );
+            }
+            if (state is OrdersLoaded && state.activeOrders.isNotEmpty) {
+              order = state.activeOrders.first;
+            }
           }
-          if (order == null &&
-              state is OrdersLoaded &&
-              state.activeOrders.isNotEmpty) {
-            order = state.activeOrders.first;
-          }
+
           if (order == null) {
             return AppEmptyState(
-              message: 'No active order found',
+              message: widget.orderId != null
+                  ? 'Order not found'
+                  : 'No active order found',
               isDark: isDark,
             );
           }
 
-          _listenToOrderUpdates(order.id);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             _checkRating(context, order!, isDark);
           });
 
-          return _TrackContent(
-            order: order,
-            isDark: isDark,
-            liveStatus: _liveStatus,
-            liveProgress: _liveProgress,
-            livePickupRiderId: _livePickupRiderId,
-            liveDeliveryRiderId: _liveDeliveryRiderId,
-          );
+          return _TrackContent(order: order, isDark: isDark);
         },
       ),
     );
@@ -256,23 +267,12 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
 class _TrackContent extends StatelessWidget {
   final OrderEntity order;
   final bool isDark;
-  final String? liveStatus;
-  final double? liveProgress;
-  final String? livePickupRiderId;
-  final String? liveDeliveryRiderId;
 
-  const _TrackContent({
-    required this.order,
-    required this.isDark,
-    required this.liveStatus,
-    required this.liveProgress,
-    required this.livePickupRiderId,
-    required this.liveDeliveryRiderId,
-  });
+  const _TrackContent({required this.order, required this.isDark});
 
-  String get _status => liveStatus ?? order.status;
+  String get _status => order.status;
 
-  double get _progress => liveProgress ?? OrderStatus.getProgress(_status);
+  double get _progress => OrderStatus.getProgress(_status);
 
   String get _statusLabel => OrderStatus.format(_status);
 
@@ -281,12 +281,12 @@ class _TrackContent extends StatelessWidget {
   String? get _activeRiderId {
     if (_phase == OrderPhase.riderComingToPickup ||
         _phase == OrderPhase.riderHeadingToStore) {
-      return livePickupRiderId ?? order.pickupRiderId ?? order.riderId;
+      return order.pickupRiderId ?? order.riderId;
     } else if (_phase == OrderPhase.riderComingToDeliver ||
         _phase == OrderPhase.delivered) {
-      return liveDeliveryRiderId ?? order.deliveryRiderId ?? order.riderId;
+      return order.deliveryRiderId ?? order.riderId;
     }
-    return livePickupRiderId ?? liveDeliveryRiderId ?? order.riderId;
+    return order.riderId;
   }
 
   @override
@@ -307,7 +307,7 @@ class _TrackContent extends StatelessWidget {
           color: AppColors.primary,
           title: 'Awaiting Rider',
           subtitle:
-          'Your order is confirmed. A rider will be assigned shortly.',
+              'Your order is confirmed. A rider will be assigned shortly.',
           order: order,
           isDark: isDark,
           phase: _phase,
@@ -320,7 +320,7 @@ class _TrackContent extends StatelessWidget {
           color: AppColors.warning,
           title: 'Heading to Store',
           subtitle:
-          'The rider has picked up your items and is taking them to the laundry facility.',
+              'The rider has picked up your items and is taking them to the laundry facility.',
           order: order,
           isDark: isDark,
           phase: _phase,
@@ -401,17 +401,20 @@ class _MapPanelWrapper extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      TrackOrderMapView(
-        order: order,
-        isDark: isDark,
-        phase: phase,
-        activeRiderId: activeRiderId,
-      ),
-      const SizedBox(height: 18),
-      TrackOrderDetailsCard(order: order, isDark: isDark, phase: phase),
-    ],
+  Widget build(BuildContext context) => BlocProvider(
+    create: (_) => sl<RiderTrackingBloc>(),
+    child: Column(
+      children: [
+        TrackOrderMapView(
+          order: order,
+          isDark: isDark,
+          phase: phase,
+          activeRiderId: activeRiderId,
+        ),
+        const SizedBox(height: 18),
+        TrackOrderDetailsCard(order: order, isDark: isDark, phase: phase),
+      ],
+    ),
   );
 }
 
@@ -577,7 +580,7 @@ class _CancelledView extends StatelessWidget {
     glowColor: AppColors.error,
     title: 'Order Cancelled',
     subtitle:
-    'This order has been cancelled and no charges were applied.\nWe hope to serve you again soon.',
+        'This order has been cancelled and no charges were applied.\nWe hope to serve you again soon.',
     borderColor: AppColors.error,
     summaryRows: [
       AppSummaryRow(

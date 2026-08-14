@@ -2,7 +2,6 @@ import 'package:equatable/equatable.dart';
 
 import '../../domain/entities/promo_entity.dart';
 
-
 /// Base class for all promos states.
 abstract class PromoState extends Equatable {
   const PromoState();

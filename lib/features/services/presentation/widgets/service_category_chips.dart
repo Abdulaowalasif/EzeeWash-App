@@ -41,9 +41,8 @@ class ServiceCategoryChips extends StatelessWidget {
               icon: categoryIcons[cat] ?? Icons.category_outlined,
               isSelected: isSelected,
               isDark: isDark,
-              onTap: () => context
-                  .read<ServicesBloc>()
-                  .add(ServicesFilterChanged(cat)),
+              onTap: () =>
+                  context.read<ServicesBloc>().add(ServicesFilterChanged(cat)),
             ),
           );
         }).toList(),
@@ -83,18 +82,17 @@ class _CategoryChip extends StatelessWidget {
           border: isSelected
               ? null
               : Border.all(
-            color:
-            isDark ? AppColors.darkBorder : AppColors.lightBorder,
-            width: 1.2,
-          ),
+                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                  width: 1.2,
+                ),
           boxShadow: isSelected
               ? [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.25),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ]
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
               : [],
         ),
         child: Row(
@@ -105,16 +103,13 @@ class _CategoryChip extends StatelessWidget {
               size: 16,
               color: isSelected
                   ? Colors.white
-                  : (isDark
-                  ? AppColors.darkSubtext
-                  : AppColors.lightSubtext),
+                  : (isDark ? AppColors.darkSubtext : AppColors.lightSubtext),
             ),
             const SizedBox(width: 6),
             Text(
               label,
               style: AppTextStyles.gridTitle(isDark).copyWith(
-                fontWeight:
-                isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected
                     ? Colors.white
                     : (isDark ? Colors.white70 : Colors.black87),

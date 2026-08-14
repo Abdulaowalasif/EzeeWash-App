@@ -24,7 +24,7 @@ class PromoModel extends PromoEntity {
   factory PromoModel.fromJson(Map<String, dynamic> json) {
     // Supabase join returns nested object: { "services": { "title": "..." } }
     final serviceTitle =
-    (json['services'] as Map<String, dynamic>?)?['title'] as String?;
+        (json['services'] as Map<String, dynamic>?)?['title'] as String?;
 
     return PromoModel(
       id: json['id'] as String,

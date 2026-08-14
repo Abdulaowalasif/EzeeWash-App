@@ -26,44 +26,44 @@ InputDecoration authFieldDecoration({
   required IconData prefixIcon,
   Widget? suffixIcon,
   String? labelText,
-}) =>
-    InputDecoration(
-      prefixIcon: Icon(prefixIcon,
-          size: 19, color: AppColors.primary.withOpacity(0.7)),
-      hintText: hint,
-      labelText: labelText,
-      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-      filled: true,
-      fillColor:
-          isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF7F8FC),
-      suffixIcon: suffixIcon,
-      contentPadding:
-          const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(
-          color: isDark ? AppColors.darkBorder : const Color(0xFFE8EAF0),
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide:
-            const BorderSide(color: AppColors.primary, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.error),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide:
-            const BorderSide(color: AppColors.error, width: 1.5),
-      ),
-    );
+}) => InputDecoration(
+  prefixIcon: Icon(
+    prefixIcon,
+    size: 19,
+    color: AppColors.primary.withValues(alpha: 0.7),
+  ),
+  hintText: hint,
+  labelText: labelText,
+  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+  filled: true,
+  fillColor: isDark
+      ? Colors.white.withValues(alpha: 0.04)
+      : const Color(0xFFF7F8FC),
+  suffixIcon: suffixIcon,
+  contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: BorderSide.none,
+  ),
+  enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: BorderSide(
+      color: isDark ? AppColors.darkBorder : const Color(0xFFE8EAF0),
+    ),
+  ),
+  focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+  ),
+  errorBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: const BorderSide(color: AppColors.error),
+  ),
+  focusedErrorBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+  ),
+);
 
 class AppAuthField extends StatelessWidget {
   final TextEditingController controller;
@@ -93,19 +93,19 @@ class AppAuthField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TextFormField(
-        controller: controller,
-        obscureText: obscureText,
-        keyboardType: keyboardType,
-        textInputAction: textInputAction,
-        autovalidateMode: AutovalidateMode.onUserInteraction,
-        style: GoogleFonts.alexandria(fontSize: 14),
-        validator: validator,
-        decoration: authFieldDecoration(
-          isDark: isDark,
-          hint: hint,
-          prefixIcon: prefixIcon,
-          suffixIcon: suffixIcon,
-          labelText: labelText,
-        ),
-      );
+    controller: controller,
+    obscureText: obscureText,
+    keyboardType: keyboardType,
+    textInputAction: textInputAction,
+    autovalidateMode: AutovalidateMode.onUserInteraction,
+    style: GoogleFonts.alexandria(fontSize: 14),
+    validator: validator,
+    decoration: authFieldDecoration(
+      isDark: isDark,
+      hint: hint,
+      prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+      labelText: labelText,
+    ),
+  );
 }

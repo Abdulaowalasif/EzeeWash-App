@@ -21,6 +21,8 @@ import '../../features/orders/data/repositories/orders_repository_impl.dart';
 import '../../features/orders/domain/repositories/orders_repository.dart';
 import '../../features/orders/domain/usecases/orders_usecase.dart';
 import '../../features/orders/presentation/bloc/orders_bloc.dart';
+import '../../features/orders/presentation/bloc/checkout_cubit.dart';
+import '../../features/orders/presentation/bloc/rider_tracking_bloc.dart';
 import '../../features/profile/data/datasources/profile_remote_datasource.dart';
 import '../../features/profile/data/repositories/profile_repository_impl.dart';
 import '../../features/profile/domain/repositories/profile_repository.dart';
@@ -113,20 +115,37 @@ Future<void> initDependencies() async {
     () => OrdersRepositoryImpl(remoteDataSource: sl(), client: sl()),
   );
   sl.registerLazySingleton(() => GetOrdersUseCase(sl()));
+  sl.registerLazySingleton(() => WatchOrdersUseCase(sl()));
   sl.registerLazySingleton(() => GetOrderByIdUseCase(sl()));
   sl.registerLazySingleton(() => PlaceOrderUseCase(sl()));
-  sl.registerLazySingleton(() => CancelOrderUseCase(sl())); // ← new
+  sl.registerLazySingleton(() => CancelOrderUseCase(sl()));
+  sl.registerLazySingleton(() => SubmitServiceReviewUseCase(sl()));
+  sl.registerLazySingleton(() => SubmitRiderRatingUseCase(sl()));
 
   sl.registerFactory(
     () => OrdersBloc(
       getOrdersUseCase: sl(),
+      watchOrdersUseCase: sl(),
       getOrderByIdUseCase: sl(),
       placeOrderUseCase: sl(),
       cancelOrderUseCase: sl(),
-      // ← new
+      submitServiceReviewUseCase: sl(),
+      submitRiderRatingUseCase: sl(),
       client: sl(),
     ),
   );
+
+  sl.registerLazySingleton(() => ValidateCouponUseCase(sl()));
+  sl.registerLazySingleton(() => CreatePaymentIntentUseCase(sl()));
+
+  sl.registerFactory(
+    () => CheckoutCubit(
+      validateCouponUseCase: sl(),
+      createPaymentIntentUseCase: sl(),
+    ),
+  );
+
+  sl.registerFactory(() => RiderTrackingBloc(repository: sl()));
 
   // ─── NOTIFICATIONS ────────────────────────────────────────────────────────
   sl.registerLazySingleton<NotificationsRemoteDataSource>(
@@ -138,12 +157,14 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => GetNotificationsUseCase(sl()));
   sl.registerLazySingleton(() => MarkNotificationReadUseCase(sl()));
   sl.registerLazySingleton(() => MarkAllNotificationsReadUseCase(sl()));
+  sl.registerLazySingleton(() => WatchNotificationsUseCase(sl()));
 
   sl.registerFactory(
     () => NotificationsBloc(
       getNotificationsUseCase: sl(),
       markReadUseCase: sl(),
       markAllReadUseCase: sl(),
+      watchNotificationsUseCase: sl(),
       client: sl<SupabaseClient>(),
     ),
   );
@@ -178,8 +199,8 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<PromoRepository>(() => PromoRepositoryImpl(sl()));
 
   // 3. Use Cases
-  sl.registerLazySingleton(() => WatchPromosUseCase(sl()));
+  sl.registerLazySingleton(() => GetPromosUseCase(sl()));
 
   // 4. BLoC (Using registerFactory because UI should usually get a fresh BLoC instance)
-  sl.registerFactory(() => PromoBloc(watchPromosUseCase: sl()));
+  sl.registerFactory(() => PromoBloc(getPromosUseCase: sl()));
 }

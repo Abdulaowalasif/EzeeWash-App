@@ -14,15 +14,16 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   final GetNotificationsUseCase getNotificationsUseCase;
   final MarkNotificationReadUseCase markReadUseCase;
   final MarkAllNotificationsReadUseCase markAllReadUseCase;
-  final SupabaseClient client;
+  final WatchNotificationsUseCase watchNotificationsUseCase;
+  final SupabaseClient client; // Kept for auth context
 
   StreamSubscription? _realtimeSub;
-  bool _subscribed = false; // ← guard: subscribe only once
 
   NotificationsBloc({
     required this.getNotificationsUseCase,
     required this.markReadUseCase,
     required this.markAllReadUseCase,
+    required this.watchNotificationsUseCase,
     required this.client,
   }) : super(const NotificationsInitial()) {
     on<NotificationsLoadRequested>(_onLoad);
@@ -34,20 +35,19 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
   Future<void> _onLoad(
-      NotificationsLoadRequested event,
-      Emitter<NotificationsState> emit,
-      ) async {
-    emit(const NotificationsLoading());
+    NotificationsLoadRequested event,
+    Emitter<NotificationsState> emit,
+  ) async {
+    if (state is! NotificationsLoaded) {
+      emit(const NotificationsLoading());
+    }
     final result = await getNotificationsUseCase(const NoParams());
     result.fold(
-          (_) => emit(const NotificationsLoaded(notifications: [])),
-          (list) {
+      (failure) => emit(NotificationsError(failure.message)),
+      (list) {
         emit(NotificationsLoaded(notifications: list));
         final userId = client.auth.currentUser?.id;
         if (userId != null) {
-          // Always cancel and re-subscribe — ensures the channel is for the
-          // currently authenticated user after logout → re-login.
-          _subscribed = true;
           _subscribeRealtime(userId);
         }
       },
@@ -55,57 +55,83 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   }
 
   Future<void> _onMarkRead(
-      NotificationMarkReadRequested event,
-      Emitter<NotificationsState> emit,
-      ) async {
+    NotificationMarkReadRequested event,
+    Emitter<NotificationsState> emit,
+  ) async {
     // Optimistic update — instant UI response
     if (state is NotificationsLoaded) {
       final cur = state as NotificationsLoaded;
-      emit(NotificationsLoaded(
-        notifications: cur.notifications
-            .map((n) => n.id == event.notificationId
-            ? n.copyWith(isRead: true)
-            : n)
-            .toList(),
-      ));
+      emit(
+        NotificationsLoaded(
+          notifications: cur.notifications
+              .map(
+                (n) =>
+                    n.id == event.notificationId ? n.copyWith(isRead: true) : n,
+              )
+              .toList(),
+        ),
+      );
     }
     // Fire-and-forget — realtime will reconcile if it fails
     await markReadUseCase(MarkReadParams(event.notificationId));
   }
 
   Future<void> _onMarkAllRead(
-      NotificationsMarkAllReadRequested event,
-      Emitter<NotificationsState> emit,
-      ) async {
+    NotificationsMarkAllReadRequested event,
+    Emitter<NotificationsState> emit,
+  ) async {
     // Optimistic update
     if (state is NotificationsLoaded) {
       final cur = state as NotificationsLoaded;
-      emit(NotificationsLoaded(
-        notifications:
-        cur.notifications.map((n) => n.copyWith(isRead: true)).toList(),
-      ));
+      emit(
+        NotificationsLoaded(
+          notifications: cur.notifications
+              .map((n) => n.copyWith(isRead: true))
+              .toList(),
+        ),
+      );
     }
     await markAllReadUseCase(const NoParams());
 
     // Re-fetch to reconcile global notification read status from SharedPreferences
     final result = await getNotificationsUseCase(const NoParams());
     result.fold(
-          (_) {},
-          (list) => emit(NotificationsLoaded(notifications: list)),
+      (_) {},
+      (list) => emit(NotificationsLoaded(notifications: list)),
     );
   }
+
+  bool _isFetchingRealtime = false;
+  bool _needsRealtimeRefetch = false;
 
   /// Silent background refresh — never emits NotificationsLoading so
   /// the list never flickers a spinner on realtime ticks.
   Future<void> _onRealtimeTick(
-      NotificationsRealtimeTick event,
-      Emitter<NotificationsState> emit,
-      ) async {
+    NotificationsRealtimeTick event,
+    Emitter<NotificationsState> emit,
+  ) async {
+    if (_isFetchingRealtime) {
+      _needsRealtimeRefetch = true;
+      return;
+    }
+
+    _isFetchingRealtime = true;
+
     final result = await getNotificationsUseCase(const NoParams());
     result.fold(
-          (_) {}, // silent fail — don't surface background errors
-          (list) => emit(NotificationsLoaded(notifications: list)),
+      (_) {}, // silent fail — don't surface background errors
+      (list) {
+        if (!isClosed) {
+          emit(NotificationsLoaded(notifications: list));
+        }
+      },
     );
+
+    _isFetchingRealtime = false;
+    if (_needsRealtimeRefetch) {
+      _needsRealtimeRefetch = false;
+      if (!isClosed) add(const NotificationsRealtimeTick());
+    }
   }
 
   // ─── Realtime ─────────────────────────────────────────────────────────────
@@ -113,22 +139,15 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   void _subscribeRealtime(String userId) {
     _realtimeSub?.cancel();
     bool firstEvent = true; // skip the immediate snapshot on subscribe
-    _realtimeSub = client
-        .from('notifications')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', userId)
-        .listen(
-          (_) {
-        // Supabase .stream() emits the current snapshot immediately on
-        // subscribe. Skip it to avoid a redundant reload.
-        if (firstEvent) {
-          firstEvent = false;
-          return;
-        }
-        if (!isClosed) add(const NotificationsRealtimeTick());
-      },
-      onError: (_) {},
-    );
+    _realtimeSub = watchNotificationsUseCase(userId).listen((_) {
+      // Supabase .stream() emits the current snapshot immediately on
+      // subscribe. Skip it to avoid a redundant reload.
+      if (firstEvent) {
+        firstEvent = false;
+        return;
+      }
+      if (!isClosed) add(const NotificationsRealtimeTick());
+    }, onError: (_) {});
   }
 
   /// Call when the authenticated user changes (logout → re-login) so the
@@ -137,7 +156,6 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   void resetSubscription() {
     _realtimeSub?.cancel();
     _realtimeSub = null;
-    _subscribed = false;
     // ignore: invalid_use_of_visible_for_testing_member
     emit(const NotificationsInitial());
   }

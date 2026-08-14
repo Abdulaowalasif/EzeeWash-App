@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 // lib/features/orders/presentation/widgets/order_screen/order_reorder_sheet.dart
 //
 // Bottom sheet for scheduling a re-order: pickup date/time + delivery date/time.
@@ -9,8 +10,7 @@ import 'package:intl/intl.dart';
 import '../../../../../core/constants/app_color.dart';
 import '../../../../../core/theme/app_text_styles.dart';
 import '../../../../../core/utils/business_utils_logic.dart';
-import '../../../../../core/widgets/app_snack_bar.dart';
-import '../../../../../core/widgets/common_widgets.dart';
+import '../../../../../core/widgets/widgets.dart';
 import '../../../domain/entities/order_entity.dart';
 
 class OrderReorderSheet extends StatefulWidget {
@@ -65,8 +65,9 @@ class _OrderReorderSheetState extends State<OrderReorderSheet> {
     }
     setState(() {
       _pickupTimeSlots = slots;
-      _pickupTime =
-          _pickupTimeSlots.isNotEmpty ? _pickupTimeSlots.first : 'Select time';
+      _pickupTime = _pickupTimeSlots.isNotEmpty
+          ? _pickupTimeSlots.first
+          : 'Select time';
       _isChecking = false;
     });
     await _syncDeliveryLogic();
@@ -105,15 +106,19 @@ class _OrderReorderSheetState extends State<OrderReorderSheet> {
     }
     setState(() {
       _deliveryTimeSlots = slots;
-      _deliveryTime =
-          _deliveryTimeSlots.isNotEmpty ? _deliveryTimeSlots.first : 'Select time';
+      _deliveryTime = _deliveryTimeSlots.isNotEmpty
+          ? _deliveryTimeSlots.first
+          : 'Select time';
     });
   }
 
   Future<void> _handleConfirm() async {
     if (_pickupTime == 'Select time' || _deliveryTime == 'Select time') {
-      AppSnackBar.show(context, 'Please select both dates and times',
-          type: SnackBarType.error);
+      AppSnackBar.show(
+        context,
+        'Please select both dates and times',
+        type: SnackBarType.error,
+      );
       return;
     }
     if (!BusinessLogicUtils.isSubmissionStillValid(_pickupDate, _pickupTime)) {
@@ -133,6 +138,8 @@ class _OrderReorderSheetState extends State<OrderReorderSheet> {
       orderItemCount: widget.order.itemCount,
     );
     setState(() => _isChecking = false);
+    if (!context.mounted) return;
+    if (!context.mounted) return;
     if (!isAvailable) {
       AppSnackBar.show(
         context,
@@ -152,11 +159,17 @@ class _OrderReorderSheetState extends State<OrderReorderSheet> {
   @override
   Widget build(BuildContext context) {
     final canProceed =
-        _pickupTime != 'Select time' && _deliveryTime != 'Select time' && !_isChecking;
+        _pickupTime != 'Select time' &&
+        _deliveryTime != 'Select time' &&
+        !_isChecking;
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-          24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+        24,
+        16,
+        24,
+        MediaQuery.of(context).viewInsets.bottom + 32,
+      ),
       decoration: BoxDecoration(
         color: widget.isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -167,125 +180,147 @@ class _OrderReorderSheetState extends State<OrderReorderSheet> {
         children: [
           Center(child: AppSheetHandle(isDark: widget.isDark)),
           const SizedBox(height: 20),
-          Text('Reschedule Reorder',
-              style:
-                  AppTextStyles.heading(widget.isDark).copyWith(fontSize: 20)),
+          Text(
+            'Reschedule Reorder',
+            style: AppTextStyles.heading(widget.isDark).copyWith(fontSize: 20),
+          ),
           const SizedBox(height: 4),
-          Text('Set your preferred pickup and delivery slots.',
-              style: AppTextStyles.subtitle(widget.isDark)),
+          Text(
+            'Set your preferred pickup and delivery slots.',
+            style: AppTextStyles.subtitle(widget.isDark),
+          ),
           const SizedBox(height: 24),
 
           // ── Pickup ─────────────────────────────────────────────────────
           _SectionTitle(title: 'Pickup Schedule', isDark: widget.isDark),
           const SizedBox(height: 10),
-          Row(children: [
-            Expanded(
-              child: _DateTile(
-                label: 'Pickup Date',
-                date: _pickupDate,
-                isDark: widget.isDark,
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _pickupDate,
-                    firstDate: BusinessLogicUtils.getMinPickupDate(),
-                    lastDate: BusinessLogicUtils.getMaxPickupDate(),
-                    selectableDayPredicate: (val) =>
-                        !BusinessLogicUtils.isClosedDay(val) &&
-                        BusinessLogicUtils.getAvailableSlots(val,
+          Row(
+            children: [
+              Expanded(
+                child: _DateTile(
+                  label: 'Pickup Date',
+                  date: _pickupDate,
+                  isDark: widget.isDark,
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _pickupDate,
+                      firstDate: BusinessLogicUtils.getMinPickupDate(),
+                      lastDate: BusinessLogicUtils.getMaxPickupDate(),
+                      selectableDayPredicate: (val) =>
+                          !BusinessLogicUtils.isClosedDay(val) &&
+                          BusinessLogicUtils.getAvailableSlots(
+                            val,
                             isPickup: true,
-                            categories: [widget.order.serviceName]).isNotEmpty,
-                    builder: (ctx, child) => Theme(
-                      data: Theme.of(ctx).copyWith(
-                          colorScheme:
-                              const ColorScheme.light(primary: AppColors.primary)),
-                      child: child!,
-                    ),
-                  );
-                  if (picked != null) {
-                    setState(() => _pickupDate =
-                        BusinessLogicUtils.clampToMinPickupDate(picked));
-                    await _refreshPickupLogic();
-                  }
-                },
+                            categories: [widget.order.serviceName],
+                          ).isNotEmpty,
+                      builder: (ctx, child) => Theme(
+                        data: Theme.of(ctx).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: AppColors.primary,
+                          ),
+                        ),
+                        child: child!,
+                      ),
+                    );
+                    if (picked != null) {
+                      setState(
+                        () => _pickupDate =
+                            BusinessLogicUtils.clampToMinPickupDate(picked),
+                      );
+                      await _refreshPickupLogic();
+                    }
+                  },
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _TimeDropdown(
-                value: _pickupTime,
-                items: _pickupTimeSlots,
-                isDark: widget.isDark,
-                onChanged: (val) async {
-                  if (val != null) {
-                    setState(() => _pickupTime = val);
-                    await _syncDeliveryLogic();
-                  }
-                },
+              const SizedBox(width: 12),
+              Expanded(
+                child: _TimeDropdown(
+                  value: _pickupTime,
+                  items: _pickupTimeSlots,
+                  isDark: widget.isDark,
+                  onChanged: (val) async {
+                    if (val != null) {
+                      setState(() => _pickupTime = val);
+                      await _syncDeliveryLogic();
+                    }
+                  },
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
           const SizedBox(height: 16),
 
           // ── Delivery ────────────────────────────────────────────────────
           _SectionTitle(title: 'Delivery Schedule', isDark: widget.isDark),
           const SizedBox(height: 10),
-          Row(children: [
-            Expanded(
-              child: _DateTile(
-                label: 'Delivery Date',
-                date: _deliveryDate,
-                isDark: widget.isDark,
-                onTap: () async {
-                  final minDate = BusinessLogicUtils.getMinDeliveryDate(
-                      _pickupDate, _pickupTime, widget.order.serviceName);
-                  final maxDate = BusinessLogicUtils.getMaxPickupDate().add(
-                    Duration(
-                        days: BusinessLogicUtils.kStandardHours ~/ 8 + 2),
-                  );
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _deliveryDate,
-                    firstDate: minDate,
-                    lastDate: maxDate,
-                    selectableDayPredicate: (val) =>
-                        !BusinessLogicUtils.isClosedDay(val) &&
-                        BusinessLogicUtils.getDeliverySlots(val,
+          Row(
+            children: [
+              Expanded(
+                child: _DateTile(
+                  label: 'Delivery Date',
+                  date: _deliveryDate,
+                  isDark: widget.isDark,
+                  onTap: () async {
+                    final minDate = BusinessLogicUtils.getMinDeliveryDate(
+                      _pickupDate,
+                      _pickupTime,
+                      widget.order.serviceName,
+                    );
+                    final maxDate = BusinessLogicUtils.getMaxPickupDate().add(
+                      Duration(
+                        days: BusinessLogicUtils.kStandardHours ~/ 8 + 2,
+                      ),
+                    );
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _deliveryDate,
+                      firstDate: minDate,
+                      lastDate: maxDate,
+                      selectableDayPredicate: (val) =>
+                          !BusinessLogicUtils.isClosedDay(val) &&
+                          BusinessLogicUtils.getDeliverySlots(
+                            val,
                             pickupDate: _pickupDate,
                             pickupTime: _pickupTime,
-                            serviceName: widget.order.serviceName).isNotEmpty,
-                    builder: (ctx, child) => Theme(
-                      data: Theme.of(ctx).copyWith(
-                          colorScheme:
-                              const ColorScheme.light(primary: AppColors.primary)),
-                      child: child!,
-                    ),
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      _deliveryDate = picked;
-                      while (BusinessLogicUtils.isClosedDay(_deliveryDate)) {
-                        _deliveryDate =
-                            _deliveryDate.add(const Duration(days: 1));
-                      }
-                    });
-                    await _syncDeliveryLogic();
-                  }
-                },
+                            serviceName: widget.order.serviceName,
+                          ).isNotEmpty,
+                      builder: (ctx, child) => Theme(
+                        data: Theme.of(ctx).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: AppColors.primary,
+                          ),
+                        ),
+                        child: child!,
+                      ),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _deliveryDate = picked;
+                        while (BusinessLogicUtils.isClosedDay(_deliveryDate)) {
+                          _deliveryDate = _deliveryDate.add(
+                            const Duration(days: 1),
+                          );
+                        }
+                      });
+                      await _syncDeliveryLogic();
+                    }
+                  },
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _TimeDropdown(
-                value: _deliveryTime,
-                items: _deliveryTimeSlots,
-                isDark: widget.isDark,
-                onChanged: (val) {
-                  if (val != null) setState(() => _deliveryTime = val);
-                },
+              const SizedBox(width: 12),
+              Expanded(
+                child: _TimeDropdown(
+                  value: _deliveryTime,
+                  items: _deliveryTimeSlots,
+                  isDark: widget.isDark,
+                  onChanged: (val) {
+                    if (val != null) setState(() => _deliveryTime = val);
+                  },
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
           const SizedBox(height: 32),
 
           AppGradientButton(
@@ -310,9 +345,9 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        title,
-        style: AppTextStyles.body(isDark).copyWith(fontWeight: FontWeight.w600),
-      );
+    title,
+    style: AppTextStyles.body(isDark).copyWith(fontWeight: FontWeight.w600),
+  );
 }
 
 // ─── Date tile ────────────────────────────────────────────────────────────────
@@ -341,14 +376,23 @@ class _DateTile extends StatelessWidget {
           color: isDark ? AppColors.darkBackground : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-              color: isDark ? AppColors.darkBorder : Colors.grey.shade300),
+            color: isDark ? AppColors.darkBorder : Colors.grey.shade300,
+          ),
         ),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(DateFormat('dd/MM/yyyy').format(date),
-              style: AppTextStyles.body(isDark).copyWith(fontSize: 13)),
-          const Icon(Icons.calendar_today_rounded,
-              size: 16, color: AppColors.primary),
-        ]),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              DateFormat('dd/MM/yyyy').format(date),
+              style: AppTextStyles.body(isDark).copyWith(fontSize: 13),
+            ),
+            const Icon(
+              Icons.calendar_today_rounded,
+              size: 16,
+              color: AppColors.primary,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -375,23 +419,30 @@ class _TimeDropdown extends StatelessWidget {
       initialValue: items.contains(value) ? value : null,
       hint: Text('Time', style: AppTextStyles.subtitle(isDark)),
       items: items
-          .map((t) => DropdownMenuItem(
-                value: t,
-                child: Text(t,
-                    style:
-                        AppTextStyles.body(isDark).copyWith(fontSize: 13)),
-              ))
+          .map(
+            (t) => DropdownMenuItem(
+              value: t,
+              child: Text(
+                t,
+                style: AppTextStyles.body(isDark).copyWith(fontSize: 13),
+              ),
+            ),
+          )
           .toList(),
       onChanged: onChanged,
       decoration: InputDecoration(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 14,
+        ),
         filled: true,
         fillColor: isDark ? AppColors.darkBackground : Colors.grey.shade50,
         enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-                color: isDark ? AppColors.darkBorder : Colors.grey.shade300)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: isDark ? AppColors.darkBorder : Colors.grey.shade300,
+          ),
+        ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );

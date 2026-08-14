@@ -44,6 +44,10 @@ class NotificationService {
   // init() — call from main() before runApp()
   // =========================================================================
   static Future<void> init(String appId) async {
+    if (appId.isEmpty) {
+      debugPrint('[NS] OneSignal App ID is missing. Skipping init.');
+      return;
+    }
     const androidSettings = AndroidInitializationSettings('@mipmap/logo');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: false,
@@ -69,7 +73,8 @@ class NotificationService {
 
     await _local
         .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(_channel);
 
     // OneSignal initialization
@@ -151,18 +156,21 @@ class NotificationService {
 
   static void _onTap([Map<String, dynamic>? data]) {
     String targetRoute = RoutesName.alertsNavigate;
-    
+
     if (data != null) {
-      final type = data['type'] as String? ?? data['notification_type'] as String?;
+      final type =
+          data['type'] as String? ?? data['notification_type'] as String?;
       if (type == 'promo') {
-        targetRoute = RoutesName.home;
+        targetRoute = '${RoutesName.alertsNavigate}?tab=promo';
       } else if (type == 'order_update') {
         final orderId = data['orderId'] ?? data['order_id'];
         if (orderId != null) {
           targetRoute = '${RoutesName.trackOrdersNavigate}?id=$orderId';
         } else {
-          targetRoute = RoutesName.trackOrdersNavigate;
+          targetRoute = '${RoutesName.alertsNavigate}?tab=orders';
         }
+      } else if (type == 'app_update' || type == 'system') {
+        targetRoute = RoutesName.settingsNavigate;
       }
     }
 
@@ -173,9 +181,15 @@ class NotificationService {
 
       if (!isPreAuth) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (targetRoute == RoutesName.home || targetRoute == RoutesName.alertsNavigate) {
+          // Shell branch routes (alerts, home) must use go() to switch tabs.
+          // Sub-routes (track-orders, settings) use push() for a back-navigable stack.
+          final isShellBranch =
+              targetRoute == RoutesName.home ||
+              targetRoute.startsWith(RoutesName.alertsNavigate);
+          if (isShellBranch) {
             router.go(targetRoute);
           } else {
+            router.go(RoutesName.home);
             router.push(targetRoute);
           }
         });
@@ -194,7 +208,7 @@ class NotificationService {
     String? payload,
   }) async {
     await _local.show(
-     id:  id,
+      id: id,
       title: title,
       body: body,
       payload: payload,
@@ -220,14 +234,35 @@ class NotificationService {
   // ─── UPDATED: Using OrderStatus constants ───
   static (String, String) _orderLabels(String orderNumber, String status) {
     return switch (status) {
-      OrderStatus.confirmed      => ('✅ Order Confirmed',     'Your order #$orderNumber has been confirmed.'),
-      OrderStatus.pickedUp       => ('🚗 Picked Up',           'Order #$orderNumber has been picked up.'),
-      OrderStatus.inProcess      => ('🫧 In Progress',          'Your laundry is being washed!'),
-      OrderStatus.ready          => ('📦 Ready for Delivery',  'Order #$orderNumber is ready!'),
-      OrderStatus.outForDelivery => ('🛵 Out for Delivery',    'Order #$orderNumber is on its way.'),
-      OrderStatus.delivered      => ('🎉 Delivered!',           'Order #$orderNumber has been delivered.'),
-      OrderStatus.cancelled      => ('❌ Order Cancelled',      'Order #$orderNumber was cancelled.'),
-      _                          => ('EzeeWash Update',         'Order #$orderNumber status: $status'),
+      OrderStatus.confirmed => (
+        '✅ Order Confirmed',
+        'Your order #$orderNumber has been confirmed.',
+      ),
+      OrderStatus.pickedUp => (
+        '🚗 Picked Up',
+        'Order #$orderNumber has been picked up.',
+      ),
+      OrderStatus.inProcess => (
+        '🫧 In Progress',
+        'Your laundry is being washed!',
+      ),
+      OrderStatus.ready => (
+        '📦 Ready for Delivery',
+        'Order #$orderNumber is ready!',
+      ),
+      OrderStatus.outForDelivery => (
+        '🛵 Out for Delivery',
+        'Order #$orderNumber is on its way.',
+      ),
+      OrderStatus.delivered => (
+        '🎉 Delivered!',
+        'Order #$orderNumber has been delivered.',
+      ),
+      OrderStatus.cancelled => (
+        '❌ Order Cancelled',
+        'Order #$orderNumber was cancelled.',
+      ),
+      _ => ('EzeeWash Update', 'Order #$orderNumber status: $status'),
     };
   }
 }

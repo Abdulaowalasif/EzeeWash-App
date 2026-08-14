@@ -1,5 +1,5 @@
-// lib/features/profile/data/models/profile_model.dart
 import '../../domain/entities/profile_entity.dart';
+import '../../domain/entities/address_entity.dart';
 
 class ProfileModel extends ProfileEntity {
   const ProfileModel({
@@ -18,7 +18,13 @@ class ProfileModel extends ProfileEntity {
     email: j['email'] as String?,
     phone: j['phone'] as String?,
     avatarUrl: j['avatar_url'] as String?,
-    address: j['address'] as String?,
+    address: j['address'] != null
+        ? AddressEntity(
+            label: 'Home',
+            address: j['address'] as String,
+            city: j['city'] as String?,
+          )
+        : null,
     city: j['city'] as String?,
   );
 
@@ -28,7 +34,7 @@ class ProfileModel extends ProfileEntity {
     'email': email,
     'phone': phone,
     'avatar_url': avatarUrl,
-    'address': address,
+    'address': address?.address,
     'city': city,
   };
 
@@ -38,16 +44,15 @@ class ProfileModel extends ProfileEntity {
     String? email,
     String? phone,
     String? avatarUrl,
-    String? address,
+    AddressEntity? address,
     String? city,
-  }) =>
-      ProfileModel(
-        id: id ?? this.id,
-        fullName: fullName ?? this.fullName,
-        email: email ?? this.email,
-        phone: phone ?? this.phone,
-        avatarUrl: avatarUrl ?? this.avatarUrl,
-        address: address ?? this.address,
-        city: city ?? this.city,
-      );
+  }) => ProfileModel(
+    id: id ?? this.id,
+    fullName: fullName ?? this.fullName,
+    email: email ?? this.email,
+    phone: phone ?? this.phone,
+    avatarUrl: avatarUrl ?? this.avatarUrl,
+    address: address ?? this.address,
+    city: city ?? this.city,
+  );
 }

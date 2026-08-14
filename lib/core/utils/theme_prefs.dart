@@ -18,8 +18,9 @@ class ThemePrefs {
   static const _key = 'theme_mode';
 
   /// Reactive notifier — rebuild any [ValueListenableBuilder] subscribed to this.
-  static final ValueNotifier<ThemeMode> notifier =
-  ValueNotifier(ThemeMode.system);
+  static final ValueNotifier<ThemeMode> notifier = ValueNotifier(
+    ThemeMode.system,
+  );
 
   /// Call once in [main] after [dotenv.load] to restore the saved theme.
   static Future<void> load() async {
@@ -27,7 +28,7 @@ class ThemePrefs {
     final saved = prefs.getString(_key);
     if (saved != null) {
       notifier.value = ThemeMode.values.firstWhere(
-            (e) => e.name == saved,
+        (e) => e.name == saved,
         orElse: () => ThemeMode.system,
       );
     }

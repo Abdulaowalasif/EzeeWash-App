@@ -2,7 +2,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:ezzewash/features/store/presentation/bloc/store_state.dart';
 import 'package:ezzewash/features/store/presentation/bloc/stores_event.dart';
-import '../../../../core/utils/usecase.dart';
+
 import '../../domain/usecases/stores_usecase.dart';
 
 class StoresBloc extends Bloc<StoresEvent, StoresState> {
@@ -17,12 +17,21 @@ class StoresBloc extends Bloc<StoresEvent, StoresState> {
     on<StoreSelectedChanged>(_onSelected);
   }
 
-  Future<void> _onLoad(StoresLoadRequested event, Emitter<StoresState> emit) async {
-    emit(const StoresLoading());
-    final result = await getAllStoresUseCase(const NoParams());
+  Future<void> _onLoad(
+    StoresLoadRequested event,
+    Emitter<StoresState> emit,
+  ) async {
+    if (!event.forceRefresh && state is StoresLoaded) {
+      // Data is already handled by repository cache deduplication, don't flash loading
+    } else {
+      emit(const StoresLoading());
+    }
+    final result = await getAllStoresUseCase(
+      GetAllStoresParams(forceRefresh: event.forceRefresh),
+    );
     result.fold(
-          (failure) => emit(StoresError(failure.message)),
-          (stores) => emit(StoresLoaded(stores: stores)),
+      (failure) => emit(StoresError(failure.message)),
+      (stores) => emit(StoresLoaded(stores: stores)),
     );
   }
 

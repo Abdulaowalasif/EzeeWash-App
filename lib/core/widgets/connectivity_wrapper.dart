@@ -17,7 +17,11 @@ import '../../features/profile/presentation/bloc/profile_event.dart';
 class ConnectivityWrapper extends StatefulWidget {
   final Widget child;
   final bool isDarkMode; // Add this line
-  const ConnectivityWrapper({super.key, required this.child, required this.isDarkMode}); // Update constructor
+  const ConnectivityWrapper({
+    super.key,
+    required this.child,
+    required this.isDarkMode,
+  }); // Update constructor
 
   @override
   State<ConnectivityWrapper> createState() => _ConnectivityWrapperState();
@@ -71,17 +75,22 @@ class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
               return FadeTransition(
                 opacity: animation,
                 child: ScaleTransition(
-                  scale: Tween<double>(begin: 1.05, end: 1.0).animate(animation),
+                  scale: Tween<double>(
+                    begin: 1.05,
+                    end: 1.0,
+                  ).animate(animation),
                   child: child,
                 ),
               );
             },
             child: !_isConnected
                 ? NoInternetScreen(
-              key: const ValueKey('no_internet_screen'),
-              isDarkMode: widget.isDarkMode, // Pass the mode here
-            )
-                : const SizedBox.shrink(key: ValueKey('empty_connectivity_space')),
+                    key: const ValueKey('no_internet_screen'),
+                    isDarkMode: widget.isDarkMode, // Pass the mode here
+                  )
+                : const SizedBox.shrink(
+                    key: ValueKey('empty_connectivity_space'),
+                  ),
           ),
         ],
       ),

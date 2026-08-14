@@ -73,23 +73,27 @@ class _ActionButton extends StatelessWidget {
           border: filled
               ? null
               : Border.all(
-              color: AppColors.primary.withOpacity(0.4), width: 1.5),
+                  color: AppColors.primary.withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
           boxShadow: filled
               ? [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ]
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
               : [],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon,
-                color: filled ? Colors.white : AppColors.primary,
-                size: 20),
+            Icon(
+              icon,
+              color: filled ? Colors.white : AppColors.primary,
+              size: 20,
+            ),
             const SizedBox(width: 8),
             Text(
               label,

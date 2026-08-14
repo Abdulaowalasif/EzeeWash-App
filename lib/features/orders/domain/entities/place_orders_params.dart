@@ -1,6 +1,8 @@
 // lib/features/orders/domain/entities/place_order_params.dart
 import 'package:equatable/equatable.dart';
 
+import '../../../profile/domain/entities/address_entity.dart';
+
 enum PaymentMethod { cashOnDelivery, stripe }
 
 extension PaymentMethodX on PaymentMethod {
@@ -16,8 +18,8 @@ class PlaceOrderParams extends Equatable {
   final String storeId;
   final int itemCount;
   final double totalPrice;
-  final String pickupAddress;
-  final String? deliveryAddress;
+  final AddressEntity pickupAddress;
+  final AddressEntity? deliveryAddress;
   final DateTime? pickupDate;
   final String? pickupTime;
   final DateTime? deliveryDate;
@@ -57,4 +59,34 @@ class PlaceOrderParams extends Equatable {
     couponCode,
     discountAmount,
   ];
+}
+
+class ValidateCouponParams extends Equatable {
+  final String code;
+  final List<String> serviceIds;
+  final Map<String, double> serviceSubtotals;
+  final double orderBeforeDiscount;
+
+  const ValidateCouponParams({
+    required this.code,
+    required this.serviceIds,
+    required this.serviceSubtotals,
+    required this.orderBeforeDiscount,
+  });
+
+  @override
+  List<Object?> get props => [code, serviceIds, serviceSubtotals, orderBeforeDiscount];
+}
+
+class CreatePaymentIntentParams extends Equatable {
+  final double amount;
+  final String serviceTitle;
+
+  const CreatePaymentIntentParams({
+    required this.amount,
+    required this.serviceTitle,
+  });
+
+  @override
+  List<Object?> get props => [amount, serviceTitle];
 }

@@ -98,7 +98,8 @@ class _PromoBannerSliderState extends State<PromoBannerSlider>
     return Column(
       children: [
         AspectRatio(
-          aspectRatio: 1.95, // Dynamically maintains the perfect ratio on all screens
+          aspectRatio:
+              1.95, // Dynamically maintains the perfect ratio on all screens
           child: PageView.builder(
             controller: _pageController,
             onPageChanged: (i) => setState(() => _currentPage = i),
@@ -128,8 +129,11 @@ class _DotsIndicator extends StatelessWidget {
   final int count, current;
   final bool isDark;
 
-  const _DotsIndicator(
-      {required this.count, required this.current, required this.isDark});
+  const _DotsIndicator({
+    required this.count,
+    required this.current,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -148,8 +152,8 @@ class _DotsIndicator extends StatelessWidget {
             color: active
                 ? AppColors.primary
                 : (isDark
-                ? Colors.white.withOpacity(0.18)
-                : Colors.black.withOpacity(0.12)),
+                      ? Colors.white.withValues(alpha: 0.18)
+                      : Colors.black.withValues(alpha: 0.12)),
           ),
         );
       }),
@@ -189,8 +193,10 @@ class _PromoCardState extends State<_PromoCard>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _fadeAnim =
-        CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
+    _fadeAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOut,
+    );
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.08),
       end: Offset.zero,
@@ -237,7 +243,7 @@ class _PromoCardState extends State<_PromoCard>
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.40 : 0.14),
+                color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.14),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
                 spreadRadius: -4,
@@ -282,12 +288,18 @@ class _PromoCardState extends State<_PromoCard>
                                   // Service chip
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 4),
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.15),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.15,
+                                      ),
                                       borderRadius: BorderRadius.circular(99),
                                       border: Border.all(
-                                        color: Colors.white.withOpacity(0.30),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.30,
+                                        ),
                                         width: 1,
                                       ),
                                     ),
@@ -309,7 +321,8 @@ class _PromoCardState extends State<_PromoCard>
                                     fit: BoxFit.scaleDown,
                                     alignment: Alignment.centerLeft,
                                     child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
                                       children: [
                                         Text(
                                           discountLabel,
@@ -321,7 +334,7 @@ class _PromoCardState extends State<_PromoCard>
                                             shadows: [
                                               Shadow(
                                                 color: AppColors.primary
-                                                    .withOpacity(0.5),
+                                                    .withValues(alpha: 0.5),
                                                 blurRadius: 20,
                                               ),
                                             ],
@@ -329,14 +342,17 @@ class _PromoCardState extends State<_PromoCard>
                                         ),
                                         const SizedBox(width: 4),
                                         Padding(
-                                          padding:
-                                          const EdgeInsets.only(bottom: 8),
+                                          padding: const EdgeInsets.only(
+                                            bottom: 8,
+                                          ),
                                           child: Text(
                                             'OFF',
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w800,
-                                              color: Colors.white.withOpacity(0.85),
+                                              color: Colors.white.withValues(
+                                                alpha: 0.85,
+                                              ),
                                               letterSpacing: 1.2,
                                             ),
                                           ),
@@ -353,7 +369,9 @@ class _PromoCardState extends State<_PromoCard>
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
-                                      color: Colors.white.withOpacity(0.72),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.72,
+                                      ),
                                       height: 1.4,
                                     ),
                                     maxLines: 2,
@@ -368,14 +386,18 @@ class _PromoCardState extends State<_PromoCard>
                                         Icon(
                                           Icons.info_outline_rounded,
                                           size: 11,
-                                          color: Colors.white.withOpacity(0.45),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.45,
+                                          ),
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
                                           'Min. order ৳${promo.minOrderAmount!.toInt()}',
                                           style: TextStyle(
                                             fontSize: 10,
-                                            color: Colors.white.withOpacity(0.45),
+                                            color: Colors.white.withValues(
+                                              alpha: 0.45,
+                                            ),
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -408,7 +430,9 @@ class _PromoCardState extends State<_PromoCard>
                     top: 14,
                     right: 14,
                     child: _ValidityBadge(
-                        validUntil: promo.validUntil!, isDark: isDark),
+                      validUntil: promo.validUntil!,
+                      isDark: isDark,
+                    ),
                   ),
               ],
             ),
@@ -427,8 +451,11 @@ class _Background extends StatelessWidget {
   final String? bannerUrl;
   final bool isDark;
 
-  const _Background(
-      {required this.hasImage, required this.bannerUrl, required this.isDark});
+  const _Background({
+    required this.hasImage,
+    required this.bannerUrl,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -445,7 +472,7 @@ class _Background extends StatelessWidget {
               height: double.infinity,
             )
           else
-          // Fallback gradient when no image provided
+            // Fallback gradient when no image provided
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -453,15 +480,15 @@ class _Background extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: isDark
                       ? [
-                    const Color(0xFF0D1B6B),
-                    const Color(0xFF1D4BC7),
-                    const Color(0xFF162E8A),
-                  ]
+                          const Color(0xFF0D1B6B),
+                          const Color(0xFF1D4BC7),
+                          const Color(0xFF162E8A),
+                        ]
                       : [
-                    const Color(0xFF1A3FA8),
-                    const Color(0xFF1D4BC7),
-                    const Color(0xFF2F2E98),
-                  ],
+                          const Color(0xFF1A3FA8),
+                          const Color(0xFF1D4BC7),
+                          const Color(0xFF2F2E98),
+                        ],
                   stops: const [0.0, 0.55, 1.0],
                 ),
               ),
@@ -475,9 +502,9 @@ class _Background extends StatelessWidget {
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                   colors: [
-                    Colors.black.withOpacity(0.72),
-                    Colors.black.withOpacity(0.45),
-                    Colors.black.withOpacity(0.10),
+                    Colors.black.withValues(alpha: 0.72),
+                    Colors.black.withValues(alpha: 0.45),
+                    Colors.black.withValues(alpha: 0.10),
                   ],
                   stops: const [0.0, 0.55, 1.0],
                 ),
@@ -494,7 +521,7 @@ class _Background extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withOpacity(0.28),
+                    Colors.black.withValues(alpha: 0.28),
                   ],
                 ),
               ),
@@ -516,9 +543,7 @@ class _GeometricAccents extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: CustomPaint(painter: _CirclesPainter()),
-    );
+    return Positioned.fill(child: CustomPaint(painter: _CirclesPainter()));
   }
 }
 
@@ -526,7 +551,7 @@ class _CirclesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.06)
+      ..color = Colors.white.withValues(alpha: 0.06)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
 
@@ -541,12 +566,12 @@ class _CirclesPainter extends CustomPainter {
     canvas.drawCircle(
       Offset(size.width * 0.85, size.height * 0.9),
       size.height * 0.55,
-      paint..color = Colors.white.withOpacity(0.04),
+      paint..color = Colors.white.withValues(alpha: 0.04),
     );
 
     // Small arc (bottom-left)
     final fillPaint = Paint()
-      ..color = Colors.white.withOpacity(0.04)
+      ..color = Colors.white.withValues(alpha: 0.04)
       ..style = PaintingStyle.fill;
 
     final path = Path()
@@ -580,7 +605,7 @@ class _ShimmerSweep extends StatelessWidget {
     return Positioned.fill(
       child: AnimatedBuilder(
         animation: controller,
-        builder: (_, __) {
+        builder: (context, child) {
           final t = controller.value;
           return ShaderMask(
             blendMode: BlendMode.srcIn,
@@ -589,7 +614,7 @@ class _ShimmerSweep extends StatelessWidget {
               end: Alignment(-0.5 + t * 3.5, 0),
               colors: [
                 Colors.transparent,
-                Colors.white.withOpacity(0.06),
+                Colors.white.withValues(alpha: 0.06),
                 Colors.transparent,
               ],
             ).createShader(bounds),
@@ -626,13 +651,13 @@ class _CodePill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: copied
-              ? Colors.white.withOpacity(0.22)
-              : Colors.white.withOpacity(0.12),
+              ? Colors.white.withValues(alpha: 0.22)
+              : Colors.white.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: copied
-                ? Colors.white.withOpacity(0.6)
-                : Colors.white.withOpacity(0.25),
+                ? Colors.white.withValues(alpha: 0.6)
+                : Colors.white.withValues(alpha: 0.25),
             width: 1.2,
           ),
         ),
@@ -642,20 +667,24 @@ class _CodePill extends StatelessWidget {
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 250),
               child: copied
-                  ? const Icon(Icons.check_rounded,
-                  key: ValueKey('check'),
-                  color: Colors.white,
-                  size: 18)
-                  : const Icon(Icons.copy_rounded,
-                  key: ValueKey('copy'),
-                  color: Colors.white54,
-                  size: 14),
+                  ? const Icon(
+                      Icons.check_rounded,
+                      key: ValueKey('check'),
+                      color: Colors.white,
+                      size: 18,
+                    )
+                  : const Icon(
+                      Icons.copy_rounded,
+                      key: ValueKey('copy'),
+                      color: Colors.white54,
+                      size: 14,
+                    ),
             ),
             const SizedBox(height: 6),
             Text(
               copied ? 'COPIED' : 'USE CODE',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.55),
+                color: Colors.white.withValues(alpha: 0.55),
                 fontSize: 8,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
@@ -705,24 +734,26 @@ class _ValidityBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: isExpiringSoon
-            ? const Color(0xFFF59E0B).withOpacity(0.22)
-            : Colors.white.withOpacity(0.12),
+            ? const Color(0xFFF59E0B).withValues(alpha: 0.22)
+            : Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(99),
         border: Border.all(
           color: isExpiringSoon
-              ? const Color(0xFFF59E0B).withOpacity(0.55)
-              : Colors.white.withOpacity(0.2),
+              ? const Color(0xFFF59E0B).withValues(alpha: 0.55)
+              : Colors.white.withValues(alpha: 0.2),
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isExpiringSoon ? Icons.timer_outlined : Icons.calendar_today_rounded,
+            isExpiringSoon
+                ? Icons.timer_outlined
+                : Icons.calendar_today_rounded,
             size: 9,
             color: isExpiringSoon
                 ? const Color(0xFFF59E0B)
-                : Colors.white.withOpacity(0.65),
+                : Colors.white.withValues(alpha: 0.65),
           ),
           const SizedBox(width: 4),
           Text(
@@ -730,7 +761,7 @@ class _ValidityBadge extends StatelessWidget {
             style: TextStyle(
               color: isExpiringSoon
                   ? const Color(0xFFF59E0B)
-                  : Colors.white.withOpacity(0.65),
+                  : Colors.white.withValues(alpha: 0.65),
               fontSize: 9,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.3,

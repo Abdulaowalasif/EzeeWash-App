@@ -3,7 +3,19 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 Deno.serve(async (req) => {
+  // ─────────────────────────────
+  // 0. Handle CORS preflight
+  // ─────────────────────────────
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
     console.log("Bubble Bot triggered");
 
@@ -19,7 +31,7 @@ Deno.serve(async (req) => {
     if (!message && !imageBase64) {
       return new Response(
         JSON.stringify({ reply: "No message or image received", action: "none", service_id: null }),
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -46,41 +58,36 @@ Deno.serve(async (req) => {
     if (SUPABASE_URL && SUPABASE_ANON_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-      // Fetch all active services
-      const servicesResult = await supabase
-        .from('services')
-        .select('id, title, description, price, category, tags')
-        .eq('is_active', true);
-
-      servicesData = servicesResult.data || [];
-
-      // ─── USER-SPECIFIC PROMOS ───
-      // Priority: promos targeted to this specific user first,
-      // then fall back to global promos (target_user_id IS NULL).
-      let promosData: any[] = [];
-
       const now = new Date().toISOString();
 
-      if (userId) {
-        // 1. Try user-specific promos
-        const userPromosResult = await supabase
+      // Fire all Supabase queries in parallel to reduce network roundtrips
+      const [servicesResult, userPromosResult, globalPromosResult] = await Promise.all([
+        // Fetch all active services
+        supabase
+          .from('services')
+          .select('id, title, description, price, category, tags')
+          .eq('is_active', true),
+          
+        // Fetch user-specific promos (if logged in)
+        userId ? supabase
           .from('promos')
           .select('code, title, description, discount_type, discount_value, target_service_id')
           .eq('is_active', true)
           .eq('target_user_id', userId)
-          .or(`valid_until.gte.${now},valid_until.is.null`);
+          .or(`valid_until.gte.${now},valid_until.is.null`) 
+        : Promise.resolve({ data: [] }),
+        
+        // Always include global promos
+        supabase
+          .from('promos')
+          .select('code, title, description, discount_type, discount_value, target_service_id')
+          .eq('is_active', true)
+          .is('target_user_id', null)
+          .or(`valid_until.gte.${now},valid_until.is.null`)
+      ]);
 
-        promosData = userPromosResult.data || [];
-      }
-
-      // 2. Always include global promos (target_user_id IS NULL)
-      const globalPromosResult = await supabase
-        .from('promos')
-        .select('code, title, description, discount_type, discount_value, target_service_id')
-        .eq('is_active', true)
-        .is('target_user_id', null)
-        .or(`valid_until.gte.${now},valid_until.is.null`);
-
+      servicesData = servicesResult.data || [];
+      let promosData: any[] = userPromosResult.data || [];
       const globalPromos = globalPromosResult.data || [];
 
       // Merge: user-specific first, then global (deduplicate by code)
@@ -230,7 +237,7 @@ Available action codes:
           action: "none",
           service_id: null,
         }),
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -246,7 +253,7 @@ Available action codes:
           action: "none",
           service_id: null,
         }),
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -283,7 +290,7 @@ Available action codes:
     // 9. Success response
     // ─────────────────────────────
     return new Response(JSON.stringify(parsed), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (err) {
@@ -297,7 +304,7 @@ Available action codes:
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   }

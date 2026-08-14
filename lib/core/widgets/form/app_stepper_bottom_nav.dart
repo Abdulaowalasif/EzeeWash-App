@@ -26,8 +26,8 @@ class AppStepperBottomNav extends StatelessWidget {
   final bool isDark;
   final bool isLoading;
   final String? confirmLabel; // overrides default "Confirm"
-  final String? nextLabel;    // overrides default "Next"
-  final String? backLabel;    // overrides default "Back"/"Cancel"
+  final String? nextLabel; // overrides default "Next"
+  final String? backLabel; // overrides default "Back"/"Cancel"
   final VoidCallback onBack;
   final VoidCallback onNext;
 
@@ -46,9 +46,8 @@ class AppStepperBottomNav extends StatelessWidget {
   });
 
   String get _backText => backLabel ?? (step == 1 ? 'Cancel' : 'Back');
-  String get _nextText => step < totalSteps
-      ? (nextLabel ?? 'Next')
-      : (confirmLabel ?? 'Confirm');
+  String get _nextText =>
+      step < totalSteps ? (nextLabel ?? 'Next') : (confirmLabel ?? 'Confirm');
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +65,8 @@ class AppStepperBottomNav extends StatelessWidget {
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               child: Text(
                 _backText,
@@ -84,9 +84,7 @@ class AppStepperBottomNav extends StatelessWidget {
                 gradient: enabled ? AppColors.gradient : null,
                 color: enabled
                     ? null
-                    : (isDark
-                        ? Colors.grey.shade800
-                        : Colors.grey.shade300),
+                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: ElevatedButton(
@@ -96,14 +94,17 @@ class AppStepperBottomNav extends StatelessWidget {
                   shadowColor: Colors.transparent,
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 child: isLoading
                     ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2),
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       )
                     : Text(
                         _nextText,
@@ -111,8 +112,8 @@ class AppStepperBottomNav extends StatelessWidget {
                           color: enabled
                               ? Colors.white
                               : (isDark
-                                  ? Colors.grey.shade500
-                                  : Colors.grey.shade400),
+                                    ? Colors.grey.shade500
+                                    : Colors.grey.shade400),
                           fontWeight: FontWeight.bold,
                         ),
                       ),

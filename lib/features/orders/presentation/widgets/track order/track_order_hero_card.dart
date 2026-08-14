@@ -29,7 +29,6 @@ class TrackOrderHeroCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: AppColors.gradient,
         borderRadius: BorderRadius.circular(24),
-        
       ),
       child: Column(
         children: [
@@ -42,7 +41,9 @@ class TrackOrderHeroCard extends StatelessWidget {
                   Text(
                     'Order ID',
                     style: GoogleFonts.alexandria(
-                        color: Colors.white60, fontSize: 12),
+                      color: Colors.white60,
+                      fontSize: 12,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -58,11 +59,14 @@ class TrackOrderHeroCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Iconsax.truck_fast,
-                    color: Colors.white, size: 26),
+                child: const Icon(
+                  Iconsax.truck_fast,
+                  color: Colors.white,
+                  size: 26,
+                ),
               ),
             ],
           ),
@@ -73,9 +77,13 @@ class TrackOrderHeroCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Progress',
-                      style: GoogleFonts.alexandria(
-                          color: Colors.white60, fontSize: 12)),
+                  Text(
+                    'Progress',
+                    style: GoogleFonts.alexandria(
+                      color: Colors.white60,
+                      fontSize: 12,
+                    ),
+                  ),
                   Text(
                     '${(progress * 100).toInt()}%',
                     style: GoogleFonts.alexandria(
@@ -95,7 +103,7 @@ class TrackOrderHeroCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                   child: LinearProgressIndicator(
                     value: v,
-                    backgroundColor: Colors.white.withOpacity(0.2),
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
                     color: Colors.white,
                     minHeight: 8,
                   ),
@@ -128,15 +136,16 @@ class _HeaderChip extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style:
-                  GoogleFonts.alexandria(color: Colors.white60, fontSize: 11)),
+          Text(
+            label,
+            style: GoogleFonts.alexandria(color: Colors.white60, fontSize: 11),
+          ),
           const SizedBox(height: 4),
           Text(
             value,

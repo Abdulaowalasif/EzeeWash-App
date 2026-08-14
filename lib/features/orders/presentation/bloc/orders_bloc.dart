@@ -10,9 +10,12 @@ import 'orders_state.dart';
 
 class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   final GetOrdersUseCase getOrdersUseCase;
+  final WatchOrdersUseCase watchOrdersUseCase;
   final GetOrderByIdUseCase getOrderByIdUseCase;
   final PlaceOrderUseCase placeOrderUseCase;
   final CancelOrderUseCase cancelOrderUseCase;
+  final SubmitServiceReviewUseCase submitServiceReviewUseCase;
+  final SubmitRiderRatingUseCase submitRiderRatingUseCase;
   final SupabaseClient client;
 
   StreamSubscription? _realtimeSub;
@@ -20,9 +23,12 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
 
   OrdersBloc({
     required this.getOrdersUseCase,
+    required this.watchOrdersUseCase,
     required this.getOrderByIdUseCase,
     required this.placeOrderUseCase,
     required this.cancelOrderUseCase,
+    required this.submitServiceReviewUseCase,
+    required this.submitRiderRatingUseCase,
     required this.client,
   }) : super(const OrdersInitial()) {
     on<OrdersLoadRequested>(_onLoad);
@@ -30,6 +36,8 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     on<OrderCancelRequested>(_onCancel);
     on<OrdersFilterToggled>(_onFilter);
     on<OrdersRealtimeTick>(_onRealtimeTick);
+    on<OrderSubmitServiceReview>(_onSubmitServiceReview);
+    on<OrderSubmitRiderRating>(_onSubmitRiderRating);
   }
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
@@ -42,7 +50,9 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         ? (state as OrdersLoaded).showActive
         : true;
 
-    emit(const OrdersLoading());
+    if (state is! OrdersLoaded) {
+      emit(const OrdersLoading());
+    }
     final result = await getOrdersUseCase(const NoParams());
     result.fold((failure) => emit(OrdersError(failure.message)), (orders) {
       emit(OrdersLoaded(orders: orders, showActive: prevShowActive));
@@ -111,10 +121,12 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   /// Cancel an order: update status to 'cancelled' in Supabase,
   /// then reload the list so the UI reflects the change immediately.
   Future<void> _onCancel(
-      OrderCancelRequested event,
-      Emitter<OrdersState> emit,
-      ) async {
-    final prevShowActive = state is OrdersLoaded ? (state as OrdersLoaded).showActive : true;
+    OrderCancelRequested event,
+    Emitter<OrdersState> emit,
+  ) async {
+    final prevShowActive = state is OrdersLoaded
+        ? (state as OrdersLoaded).showActive
+        : true;
 
     // Use the ID-specific state we discussed to prevent global loading
     emit(OrderCancelling(event.orderId));
@@ -123,12 +135,12 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
 
     // Handle the result without nesting async closures inside fold if possible
     await result.fold(
-          (failure) async {
+      (failure) async {
         if (!emit.isDone) {
           emit(OrdersError(failure.message));
         }
       },
-          (_) async {
+      (_) async {
         if (!emit.isDone) {
           emit(const OrderCancelled());
         }
@@ -137,10 +149,10 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         final reloadResult = await getOrdersUseCase(const NoParams());
 
         reloadResult.fold(
-              (failure) {
+          (failure) {
             if (!emit.isDone) emit(OrdersError(failure.message));
           },
-              (orders) {
+          (orders) {
             if (!emit.isDone) {
               emit(OrdersLoaded(orders: orders, showActive: prevShowActive));
             }
@@ -155,6 +167,9 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     emit((state as OrdersLoaded).copyWith(showActive: event.showActive));
   }
 
+  bool _isFetchingRealtime = false;
+  bool _needsRealtimeRefetch = false;
+
   Future<void> _onRealtimeTick(
     OrdersRealtimeTick event,
     Emitter<OrdersState> emit,
@@ -165,16 +180,29 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       return;
     }
 
+    if (_isFetchingRealtime) {
+      _needsRealtimeRefetch = true;
+      return;
+    }
+
+    _isFetchingRealtime = true;
+
     final prevShowActive = state is OrdersLoaded
         ? (state as OrdersLoaded).showActive
         : true;
 
     final result = await getOrdersUseCase(const NoParams());
-    result.fold(
-      (_) {},
-      (orders) =>
-          emit(OrdersLoaded(orders: orders, showActive: prevShowActive)),
-    );
+    result.fold((_) {}, (orders) {
+      if (!isClosed) {
+        emit(OrdersLoaded(orders: orders, showActive: prevShowActive));
+      }
+    });
+
+    _isFetchingRealtime = false;
+    if (_needsRealtimeRefetch) {
+      _needsRealtimeRefetch = false;
+      if (!isClosed) add(const OrdersRealtimeTick());
+    }
   }
 
   // ─── Realtime ──────────────────────────────────────────────────────────────
@@ -183,29 +211,25 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     _realtimeSub?.cancel();
     bool firstEvent = true;
 
-    _realtimeSub = client
-        .from('orders')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', userId)
-        .listen(
-          (_) {
-            // Skip the initial snapshot that Supabase sends immediately on
-            // subscription — we already have fresh data from the load above.
-            if (firstEvent) {
-              firstEvent = false;
-              return;
-            }
-            if (!isClosed) add(const OrdersRealtimeTick());
-          },
-          onError: (error) {
-            // FIX: Automatically attempt to reconnect if the stream silently dies
-            Future.delayed(const Duration(seconds: 5), () {
-              if (!isClosed && _currentUserId != null) {
-                _subscribeRealtime(_currentUserId!);
-              }
-            });
-          },
-        );
+    _realtimeSub = watchOrdersUseCase(userId).listen(
+      (_) {
+        // Skip the initial snapshot that Supabase sends immediately on
+        // subscription — we already have fresh data from the load above.
+        if (firstEvent) {
+          firstEvent = false;
+          return;
+        }
+        if (!isClosed) add(const OrdersRealtimeTick());
+      },
+      onError: (error) {
+        // FIX: Automatically attempt to reconnect if the stream silently dies
+        Future.delayed(const Duration(seconds: 5), () {
+          if (!isClosed && _currentUserId != null) {
+            _subscribeRealtime(_currentUserId!);
+          }
+        });
+      },
+    );
   }
 
   // ─── Reset realtime subscription ───────────────────────────────────────────
@@ -216,6 +240,47 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     _realtimeSub?.cancel();
     _realtimeSub = null;
     _currentUserId = null;
+  }
+
+  void dispose() {
+    _realtimeSub?.cancel();
+  }
+
+  Future<void> _onSubmitServiceReview(
+    OrderSubmitServiceReview event,
+    Emitter<OrdersState> emit,
+  ) async {
+    final result = await submitServiceReviewUseCase(
+      SubmitServiceReviewParams(
+        orderId: event.orderId,
+        serviceId: event.serviceId,
+        rating: event.rating,
+        comment: event.comment,
+      ),
+    );
+    result.fold(
+      (failure) => emit(OrdersError(failure.message)),
+      (_) => emit(OrdersActionSuccess('Review submitted successfully')),
+    );
+  }
+
+  Future<void> _onSubmitRiderRating(
+    OrderSubmitRiderRating event,
+    Emitter<OrdersState> emit,
+  ) async {
+    final result = await submitRiderRatingUseCase(
+      SubmitRiderRatingParams(
+        orderId: event.orderId,
+        riderId: event.riderId,
+        ratingType: event.ratingType,
+        stars: event.stars,
+        comment: event.comment,
+      ),
+    );
+    result.fold(
+      (failure) => emit(OrdersError(failure.message)),
+      (_) => emit(OrdersActionSuccess('Rating submitted successfully')),
+    );
   }
 
   @override

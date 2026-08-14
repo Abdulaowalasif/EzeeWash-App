@@ -13,13 +13,15 @@ class StoresRemoteDataSourceImpl implements StoresRemoteDataSource {
   final SupabaseClient _client;
   StoresRemoteDataSourceImpl(this._client);
 
+  static const _selectList =
+      'id, name, address, city, phone, distance_km, latitude, longitude, is_active, logo_url, open_hour, close_hour, slot_capacity, slot_interval_hours, pickup_buffer_hours, advance_booking_days';
+
   @override
   Future<List<StoreModel>> getAllStores() async {
     try {
-      // Added *, store_slot_bookings(*) to fetch the joined nested booking data
       final data = await _client
           .from(AppConstants.storesTable)
-          .select('*, store_slot_bookings(*)')
+          .select(_selectList)
           .eq('is_active', true)
           .order('distance_km');
       return (data as List).map((e) => StoreModel.fromJson(e)).toList();
@@ -31,10 +33,9 @@ class StoresRemoteDataSourceImpl implements StoresRemoteDataSource {
   @override
   Future<StoreModel> getStoreById(String id) async {
     try {
-      // Added *, store_slot_bookings(*) to fetch the joined nested booking data
       final data = await _client
           .from(AppConstants.storesTable)
-          .select('*, store_slot_bookings(*)')
+          .select('$_selectList, store_slot_bookings(id, store_id, slot_date, slot_hour, slot_type, order_count, unit_count)')
           .eq('id', id)
           .single();
       return StoreModel.fromJson(data);
