@@ -34,7 +34,7 @@ class _PromoBannerSliderState extends State<PromoBannerSlider>
   void initState() {
     super.initState();
     _filterPromos();
-    _pageController = PageController(viewportFraction: 0.92);
+    _pageController = PageController(viewportFraction: 0.88);
     _shimmerController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -238,7 +238,7 @@ class _PromoCardState extends State<_PromoCard>
       child: SlideTransition(
         position: _slideAnim,
         child: Container(
-          margin: EdgeInsets.symmetric(horizontal: 5),
+          margin: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
             boxShadow: [

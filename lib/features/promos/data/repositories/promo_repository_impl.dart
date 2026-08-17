@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dartz/dartz.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
@@ -33,6 +34,16 @@ class PromoRepositoryImpl implements PromoRepository {
       return Left(ServerFailure(e.message));
     } catch (e) {
       return Left(UnexpectedFailure(e.toString()));
+    }
+  }
+  @override
+  Stream<Either<Failure, List<PromoEntity>>> watchPromos() async* {
+    // 1. Yield initial data from cache or remote (uses 60-min TTL)
+    yield await getPromos(forceRefresh: false);
+
+    // 2. Listen to real-time changes and force refresh when they occur
+    await for (final _ in remoteDataSource.watchPromosChanges()) {
+      yield await getPromos(forceRefresh: true);
     }
   }
 }

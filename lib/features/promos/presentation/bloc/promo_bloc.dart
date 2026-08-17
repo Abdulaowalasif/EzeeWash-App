@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/watch_promo_usecase.dart';
 import 'promo_event.dart';
@@ -6,9 +7,10 @@ import 'promo_state.dart';
 // lib/features/promos/presentation/bloc/promo_bloc.dart
 
 class PromoBloc extends Bloc<PromoEvent, PromoState> {
-  final GetPromosUseCase getPromosUseCase;
+  final WatchPromosUseCase watchPromosUseCase;
+  StreamSubscription? _sub;
 
-  PromoBloc({required this.getPromosUseCase}) : super(const PromoInitial()) {
+  PromoBloc({required this.watchPromosUseCase}) : super(const PromoInitial()) {
     on<WatchPromosStarted>(_onWatchPromosStarted);
   }
 
@@ -17,17 +19,27 @@ class PromoBloc extends Bloc<PromoEvent, PromoState> {
     Emitter<PromoState> emit,
   ) async {
     if (!event.forceRefresh && state is PromoLoaded) {
-      // Handled by repository cache
+      // Keep existing state, but we will still subscribe below
     } else {
       emit(const PromoLoading());
     }
 
-    final result = await getPromosUseCase(
-      GetPromosParams(forceRefresh: event.forceRefresh),
+    _sub?.cancel();
+    await emit.forEach(
+      watchPromosUseCase(),
+      onData: (result) {
+        return result.fold(
+          (failure) => PromoError(failure.message),
+          (promos) => PromoLoaded(promos),
+        );
+      },
+      onError: (e, s) => PromoError(e.toString()),
     );
-    result.fold(
-      (failure) => emit(PromoError(failure.message)),
-      (promos) => emit(PromoLoaded(promos)),
-    );
+  }
+
+  @override
+  Future<void> close() {
+    _sub?.cancel();
+    return super.close();
   }
 }

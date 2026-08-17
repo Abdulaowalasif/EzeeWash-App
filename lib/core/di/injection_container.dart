@@ -200,7 +200,8 @@ Future<void> initDependencies() async {
 
   // 3. Use Cases
   sl.registerLazySingleton(() => GetPromosUseCase(sl()));
+  sl.registerLazySingleton(() => WatchPromosUseCase(sl()));
 
   // 4. BLoC (Using registerFactory because UI should usually get a fresh BLoC instance)
-  sl.registerFactory(() => PromoBloc(getPromosUseCase: sl()));
+  sl.registerFactory(() => PromoBloc(watchPromosUseCase: sl()));
 }

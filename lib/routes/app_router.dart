@@ -27,17 +27,22 @@ import '../features/profile/presentation/presentation/settings_screen.dart';
 import '../features/profile/presentation/presentation/terms_policy_screen.dart';
 import '../features/services/presentation/screens/service_screen.dart';
 import '../main_screen.dart';
+import '../main_screen.dart';
 import 'routes_name.dart';
+import '../features/splash/splash_screen.dart';
 
 GoRouter createRouter(AuthBloc authBloc) {
   final router = GoRouter(
-    initialLocation: RoutesName.login,
+    initialLocation: RoutesName.splash,
     redirect: (context, state) async {
       final authState = authBloc.state;
       final location = state.matchedLocation;
 
+      final isSplash = location == RoutesName.splash;
       final isOnboarding = location == RoutesName.onboarding;
       final isLogin = location == RoutesName.login;
+
+      if (isSplash) return null;
 
       if (authState is AuthInitial || authState is AuthLoading) {
         return isLogin ? null : RoutesName.login;
@@ -61,6 +66,10 @@ GoRouter createRouter(AuthBloc authBloc) {
     refreshListenable: _AuthStateListenable(authBloc),
 
     routes: [
+      GoRoute(
+        path: RoutesName.splash,
+        pageBuilder: (c, s) => _fade(const SplashScreen(), s),
+      ),
       GoRoute(
         path: RoutesName.onboarding,
         pageBuilder: (c, s) => _fade(const OnboardingScreen(), s),

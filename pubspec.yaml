@@ -2,7 +2,7 @@ name: ezzewash
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.4.0+12
+version: 1.4.1+12
 
 environment:
   sdk: ^3.9.2
@@ -87,15 +87,12 @@ flutter:
 flutter_native_splash:
   # ─── Light Theme Config ──────────────────────────────────────────
   color: "#42a5f5"
-  image: "assets/logo/splash_logo.png"
 
   # ─── Android 12+ Specific Config ─────────────────────────────────
   android_12:
     color: "#42a5f5"
-    image: "assets/logo/splash_logo.png"
     # ─── Dark Theme Override (Android 12+) ─────────────────────────
-    color_dark: "#042a49"
-    image_dark: "assets/logo/splash_logo.png"
+    color_dark: "#042a49"   
 
   # ─── General Dark Theme (Older Android/iOS) ──────────────────────
   color_dark: "#042a49"

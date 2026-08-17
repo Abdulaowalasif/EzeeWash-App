@@ -21,3 +21,12 @@ class GetPromosParams extends Equatable {
   @override
   List<Object> get props => [forceRefresh];
 }
+
+class WatchPromosUseCase {
+  final PromoRepository repository;
+  WatchPromosUseCase(this.repository);
+
+  Stream<Either<Failure, List<PromoEntity>>> call() {
+    return repository.watchPromos();
+  }
+}

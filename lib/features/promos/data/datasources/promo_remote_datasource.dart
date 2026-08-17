@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/promo_model.dart';
 import '../../../../core/errors/exceptions.dart';
 
 abstract class PromoRemoteDataSource {
   Future<List<PromoModel>> getPromos();
+  Stream<void> watchPromosChanges();
 }
 
 class PromoRemoteDataSourceImpl implements PromoRemoteDataSource {
@@ -29,5 +31,32 @@ class PromoRemoteDataSourceImpl implements PromoRemoteDataSource {
     } catch (e) {
       throw ServerException(e.toString());
     }
+  }
+
+  @override
+  Stream<void> watchPromosChanges() {
+    late final StreamController<void> controller;
+    RealtimeChannel? channel;
+
+    controller = StreamController<void>.broadcast(
+      onListen: () {
+        channel = supabaseClient.channel('public:promos');
+        channel!.onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'promos',
+          callback: (_) {
+            controller.add(null);
+          },
+        ).subscribe();
+      },
+      onCancel: () {
+        if (channel != null) {
+          supabaseClient.removeChannel(channel!);
+        }
+      },
+    );
+
+    return controller.stream;
   }
 }

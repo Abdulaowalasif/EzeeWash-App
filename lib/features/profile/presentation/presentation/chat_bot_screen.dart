@@ -24,6 +24,7 @@ class _Message {
   final _Sender sender;
   final DateTime time;
   final File? imageFile;
+  final String? base64Image;
   final String? serviceId; // Non-null when bot recommends a specific service
   final String? botAction; // Navigation action
 
@@ -32,6 +33,7 @@ class _Message {
     required this.sender,
     required this.time,
     this.imageFile,
+    this.base64Image,
     this.serviceId,
     this.botAction,
   });
@@ -47,6 +49,15 @@ class BotResponse {
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
+final List<_Message> _globalChatMessages = [
+  _Message(
+    text:
+        "Hi I am <blue>Bubble Bot</blue>💭. I can help you with orders, laundry tips, and more. What do you need?",
+    sender: _Sender.bot,
+    time: DateTime.now(),
+  ),
+];
+
 class ChatBotScreen extends StatefulWidget {
   const ChatBotScreen({super.key});
 
@@ -59,6 +70,7 @@ class _ChatBotScreenState extends State<ChatBotScreen>
   final _ctrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final ImagePicker _picker = ImagePicker();
+  File? _selectedImage;
 
   bool _botTyping = false;
   late final AnimationController _floatController;
@@ -81,14 +93,7 @@ class _ChatBotScreenState extends State<ChatBotScreen>
     )..repeat();
   }
 
-  final List<_Message> _messages = [
-    _Message(
-      text:
-          "Hi I am <blue>Bubble Bot</blue>💭. I can help you with orders, laundry tips, and more. What do you need?",
-      sender: _Sender.bot,
-      time: DateTime.now(),
-    ),
-  ];
+
 
   static const _chips = [
     '📦 Track order',
@@ -108,8 +113,9 @@ class _ChatBotScreenState extends State<ChatBotScreen>
         maxHeight: 800,
       );
       if (image != null) {
-        // Send the image with an optional caption if they typed something
-        _send(_ctrl.text, image: File(image.path));
+        setState(() {
+          _selectedImage = File(image.path);
+        });
       }
     } catch (e) {
       debugPrint("IMAGE PICK ERROR: $e");
@@ -119,18 +125,29 @@ class _ChatBotScreenState extends State<ChatBotScreen>
   // ─── SEND MESSAGE (ACTION SUPPORTED) ─────────────────────────────────────
 
   Future<void> _send(String text, {File? image}) async {
+    final imgToSend = image ?? _selectedImage;
     final t = text.trim();
-    if (t.isEmpty && image == null) return;
+    if (t.isEmpty && imgToSend == null) return;
 
     _ctrl.clear();
+    setState(() {
+      _selectedImage = null;
+    });
+
+    String? base64String;
+    if (imgToSend != null) {
+      final bytes = await imgToSend.readAsBytes();
+      base64String = base64Encode(bytes);
+    }
 
     setState(() {
-      _messages.add(
+      _globalChatMessages.add(
         _Message(
           text: t,
           sender: _Sender.user,
           time: DateTime.now(),
-          imageFile: image,
+          imageFile: imgToSend,
+          base64Image: base64String,
         ),
       );
       _botTyping = true;
@@ -140,16 +157,20 @@ class _ChatBotScreenState extends State<ChatBotScreen>
 
     try {
       // If user only sends an image, provide a default prompt for Gemini
-      final promptText = (t.isEmpty && image != null)
+      final promptText = (t.isEmpty && imgToSend != null)
           ? "Please analyze this fabric/item."
           : t;
 
       final List<Map<String, dynamic>> historyData = [];
-      for (final m in _messages.sublist(0, _messages.length - 1)) {
-        historyData.add({
+      for (final m in _globalChatMessages.sublist(0, _globalChatMessages.length - 1)) {
+        final map = <String, dynamic>{
           'role': m.sender == _Sender.user ? 'user' : 'model',
           'text': m.text,
-        });
+        };
+        if (m.base64Image != null) {
+          map['image'] = m.base64Image;
+        }
+        historyData.add(map);
       }
 
       final BotResponse botData = await ChatApi.sendMessage(
@@ -162,7 +183,7 @@ class _ChatBotScreenState extends State<ChatBotScreen>
 
       setState(() {
         _botTyping = false;
-        _messages.add(
+        _globalChatMessages.add(
           _Message(
             text: botData.reply,
             sender: _Sender.bot,
@@ -179,7 +200,7 @@ class _ChatBotScreenState extends State<ChatBotScreen>
 
       setState(() {
         _botTyping = false;
-        _messages.add(
+        _globalChatMessages.add(
           _Message(
             text: "ERROR: $e",
             sender: _Sender.bot,
@@ -249,13 +270,13 @@ class _ChatBotScreenState extends State<ChatBotScreen>
                     Responsive.horizontalPadding(context),
                     16,
                   ),
-                  itemCount: _messages.length + (_botTyping ? 1 : 0),
+                  itemCount: _globalChatMessages.length + (_botTyping ? 1 : 0),
                   itemBuilder: (ctx, i) {
-                    if (_botTyping && i == _messages.length) {
+                    if (_botTyping && i == _globalChatMessages.length) {
                       return _TypingRow(isDark: isDark);
                     }
 
-                    final msg = _messages[i];
+                    final msg = _globalChatMessages[i];
 
                     return _Bubble(
                       msg: msg,
@@ -299,6 +320,8 @@ class _ChatBotScreenState extends State<ChatBotScreen>
                 ctrl: _ctrl,
                 isDark: isDark,
                 bg: bg,
+                selectedImage: _selectedImage,
+                onClearImage: () => setState(() => _selectedImage = null),
                 onSend: (text) => _send(text),
                 onPickImage: _pickImage,
               ),
@@ -717,26 +740,75 @@ class _Bar extends StatelessWidget {
   final TextEditingController ctrl;
   final bool isDark;
   final Color bg;
+  final File? selectedImage;
+  final VoidCallback onClearImage;
   final ValueChanged<String> onSend;
-  final VoidCallback onPickImage; // Added Image Pick Callback
+  final VoidCallback onPickImage;
 
   const _Bar({
     required this.ctrl,
     required this.isDark,
     required this.bg,
+    this.selectedImage,
+    required this.onClearImage,
     required this.onSend,
     required this.onPickImage,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.fromLTRB(
-        Responsive.horizontalPadding(context),
-        0,
-        Responsive.horizontalPadding(context),
-        MediaQuery.of(context).padding.bottom + 16,
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (selectedImage != null)
+          Container(
+            margin: EdgeInsets.fromLTRB(
+              Responsive.horizontalPadding(context),
+              0,
+              Responsive.horizontalPadding(context),
+              8,
+            ),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : Colors.grey.withValues(alpha: 0.1),
+              ),
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    selectedImage!,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Image attached',
+                    style: AppTextStyles.body(isDark).copyWith(fontSize: 14),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  color: AppColors.primary,
+                  onPressed: onClearImage,
+                ),
+              ],
+            ),
+          ),
+        Container(
+          margin: EdgeInsets.fromLTRB(
+            Responsive.horizontalPadding(context),
+            0,
+            Responsive.horizontalPadding(context),
+            MediaQuery.of(context).padding.bottom + 16,
+          ),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : Colors.white,
@@ -825,6 +897,8 @@ class _Bar extends StatelessWidget {
           ),
         ],
       ),
+    ),
+      ],
     );
   }
 }
