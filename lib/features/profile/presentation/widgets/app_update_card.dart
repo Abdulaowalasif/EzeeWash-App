@@ -161,13 +161,13 @@ class _SettingsAppUpdateCardState extends State<SettingsAppUpdateCard> {
         } else {
           if (mounted) {
             setState(() {
-              _latestVersion = 'No releases yet';
+              _latestVersion = _currentVersion;
             });
           }
         }
       } else if (response.statusCode == 404) {
         debugPrint('GitHub: No releases found (404)');
-        if (mounted) setState(() => _latestVersion = 'No releases yet');
+        if (mounted) setState(() => _latestVersion = _currentVersion);
       } else {
         debugPrint(
           'GitHub API error: ${response.statusCode} — ${response.body}',

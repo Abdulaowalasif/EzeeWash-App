@@ -155,7 +155,7 @@ Available action codes:
     // ─────────────────────────────
     // 5. Construct Payload Parts
     // ─────────────────────────────
-    const contents: any[] = [];
+    const rawContents: any[] = [];
 
     if (history && Array.isArray(history)) {
       for (const msg of history) {
@@ -173,7 +173,7 @@ Available action codes:
           });
         }
         if (parts.length > 0) {
-          contents.push({
+          rawContents.push({
             role: msg.role === 'model' ? 'model' : 'user',
             parts: parts
           });
@@ -192,10 +192,25 @@ Available action codes:
       });
     }
 
-    contents.push({
+    rawContents.push({
       role: 'user',
       parts: currentParts
     });
+
+    // Gemini requires alternating roles starting with 'user'
+    const contents: any[] = [];
+    for (const msg of rawContents) {
+      if (contents.length === 0 && msg.role === 'model') {
+        continue; // Skip leading model messages
+      }
+      
+      const last = contents[contents.length - 1];
+      if (last && last.role === msg.role) {
+        last.parts.push(...msg.parts); // Combine consecutive messages of the same role
+      } else {
+        contents.push({ role: msg.role, parts: [...msg.parts] });
+      }
+    }
 
     // ─────────────────────────────
     // 6. Gemini API call

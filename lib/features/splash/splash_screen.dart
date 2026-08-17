@@ -14,7 +14,6 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  bool _isExiting = false;
   bool _showBranding = false;
 
   @override
@@ -32,13 +31,6 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(milliseconds: 2800));
 
     if (!mounted) return;
-
-    setState(() {
-      _isExiting = true;
-      _showBranding = false;
-    });
-
-    await Future.delayed(const Duration(milliseconds: 800));
 
     _navigateToNext();
   }
@@ -60,16 +52,12 @@ class _SplashScreenState extends State<SplashScreen> {
       body: Stack(
         children: [
           Center(
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 500),
-              opacity: _isExiting ? 0.0 : 1.0,
-              child: Transform.scale(
-                scale: 1.6, // Scales the image up by 60% to bypass internal padding
-                child: Image.asset(
-                  'assets/logo/Ezeewash Splash.gif',
-                  width: screenWidth * 0.9,
-                  fit: BoxFit.contain,
-                ),
+            child: Transform.scale(
+              scale: 1.6, // Scales the image up by 60% to bypass internal padding
+              child: Image.asset(
+                'assets/logo/Ezeewash Splash.gif',
+                width: screenWidth * 0.9,
+                fit: BoxFit.contain,
               ),
             ),
           ),

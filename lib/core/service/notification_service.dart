@@ -158,8 +158,12 @@ class NotificationService {
     String targetRoute = RoutesName.alertsNavigate;
 
     if (data != null) {
-      final type =
-          data['type'] as String? ?? data['notification_type'] as String?;
+      final rawType =
+          data['type'] as String? ?? 
+          data['notification_type'] as String? ?? 
+          data['action'] as String?;
+      final type = rawType?.toLowerCase().trim();
+      
       if (type == 'promo') {
         targetRoute = '${RoutesName.alertsNavigate}?tab=promo';
       } else if (type == 'order_update') {
@@ -169,7 +173,12 @@ class NotificationService {
         } else {
           targetRoute = '${RoutesName.alertsNavigate}?tab=orders';
         }
-      } else if (type == 'app_update' || type == 'system') {
+      } else if (type == 'app_update' || 
+                 type == 'update_apps' || 
+                 type == 'update_app' || 
+                 type == 'system' || 
+                 type == 'app update' || 
+                 type == 'update') {
         targetRoute = RoutesName.settingsNavigate;
       }
     }
@@ -181,17 +190,9 @@ class NotificationService {
 
       if (!isPreAuth) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          // Shell branch routes (alerts, home) must use go() to switch tabs.
-          // Sub-routes (track-orders, settings) use push() for a back-navigable stack.
-          final isShellBranch =
-              targetRoute == RoutesName.home ||
-              targetRoute.startsWith(RoutesName.alertsNavigate);
-          if (isShellBranch) {
-            router.go(targetRoute);
-          } else {
-            router.go(RoutesName.home);
-            router.push(targetRoute);
-          }
+          // GoRouter handles StatefulShellRoute branch switching and 
+          // sub-route stack building automatically when using go().
+          router.go(targetRoute);
         });
         return;
       }

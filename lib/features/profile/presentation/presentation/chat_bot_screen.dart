@@ -175,7 +175,7 @@ class _ChatBotScreenState extends State<ChatBotScreen>
 
       final BotResponse botData = await ChatApi.sendMessage(
         promptText,
-        imageFile: image,
+        imageFile: imgToSend,
         history: historyData,
       );
 
