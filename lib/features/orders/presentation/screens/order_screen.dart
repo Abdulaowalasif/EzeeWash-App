@@ -19,7 +19,7 @@ import '../bloc/order_event.dart';
 import '../bloc/orders_bloc.dart';
 import '../bloc/orders_state.dart';
 import '../models/order_filter.dart';
-import '../widgets/order screen/order_screen_widgets.dart';
+import '../widgets/order_screen/order_screen_widgets.dart';
 
 class OrderScreen extends StatefulWidget {
   const OrderScreen({super.key});

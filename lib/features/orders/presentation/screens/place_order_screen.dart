@@ -32,12 +32,12 @@ import '../bloc/order_event.dart';
 import '../bloc/orders_bloc.dart';
 import '../bloc/orders_state.dart';
 import '../models/reorder_params.dart';
-import '../widgets/place order/po_address_step.dart';
-import '../widgets/place order/po_confirmation_step.dart';
-import '../widgets/place order/po_payment_method_step.dart';
-import '../widgets/place order/po_schedule_step.dart';
-import '../widgets/place order/po_service_card.dart';
-import '../widgets/place order/po_store_card.dart';
+import '../widgets/place_order/po_address_step.dart';
+import '../widgets/place_order/po_confirmation_step.dart';
+import '../widgets/place_order/po_payment_method_step.dart';
+import '../widgets/place_order/po_schedule_step.dart';
+import '../widgets/place_order/po_service_card.dart';
+import '../widgets/place_order/po_store_card.dart';
 
 const double _kStripeMinAmount = 100.0;
 

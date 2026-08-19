@@ -17,12 +17,12 @@ import '../bloc/orders_state.dart';
 import '../bloc/rider_tracking_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../domain/usecases/orders_usecase.dart';
-import '../widgets/track order/track_order_cleaning_panel.dart';
-import '../widgets/track order/track_order_details_card.dart';
-import '../widgets/track order/track_order_hero_card.dart';
-import '../widgets/track order/track_order_info_panel.dart';
-import '../widgets/track order/track_order_map_view.dart';
-import '../widgets/track order/track_order_rating_sheet.dart';
+import '../widgets/track_order/track_order_cleaning_panel.dart';
+import '../widgets/track_order/track_order_details_card.dart';
+import '../widgets/track_order/track_order_hero_card.dart';
+import '../widgets/track_order/track_order_info_panel.dart';
+import '../widgets/track_order/track_order_map_view.dart';
+import '../widgets/track_order/track_order_rating_sheet.dart';
 
 enum OrderPhase {
   waiting,
