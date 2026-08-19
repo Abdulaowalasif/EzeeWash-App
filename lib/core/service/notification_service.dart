@@ -156,6 +156,7 @@ class NotificationService {
 
   static void _onTap([Map<String, dynamic>? data]) {
     String targetRoute = RoutesName.alertsNavigate;
+    Object? routeExtra;
 
     if (data != null) {
       final rawType =
@@ -192,7 +193,7 @@ class NotificationService {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           // GoRouter handles StatefulShellRoute branch switching and 
           // sub-route stack building automatically when using go().
-          router.go(targetRoute);
+          router.go(targetRoute, extra: routeExtra);
         });
         return;
       }
