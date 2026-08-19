@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/constants/order_status.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/order_entity.dart';
@@ -211,7 +212,11 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
             if (state is OrdersLoaded) {
               try {
                 order = state.orders.firstWhere((o) => o.id == widget.orderId);
-              } catch (_) {}
+              } catch (_) {
+                try {
+                  order = state.orders.firstWhere((o) => o.groupId == widget.orderId);
+                } catch (_) {}
+              }
             }
 
             // 2. Try the local fetched copy
@@ -257,7 +262,13 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
             _checkRating(context, order!, isDark);
           });
 
-          return _TrackContent(order: order, isDark: isDark);
+          List<OrderEntity> groupOrders = [order!];
+          if (order.groupId != null && order.groupId!.isNotEmpty && state is OrdersLoaded) {
+            groupOrders = state.orders.where((o) => o.groupId == order!.groupId).toList();
+            groupOrders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          }
+
+          return _TrackContent(order: order, groupOrders: groupOrders, isDark: isDark);
         },
       ),
     );
@@ -266,9 +277,10 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
 
 class _TrackContent extends StatelessWidget {
   final OrderEntity order;
+  final List<OrderEntity> groupOrders;
   final bool isDark;
 
-  const _TrackContent({required this.order, required this.isDark});
+  const _TrackContent({required this.order, required this.groupOrders, required this.isDark});
 
   String get _status => order.status;
 
@@ -363,11 +375,7 @@ class _TrackContent extends StatelessWidget {
           ),
           child: Column(
             children: [
-              TrackOrderHeroCard(
-                order: order,
-                progress: _progress,
-                statusLabel: _statusLabel,
-              ),
+              _MultiOrderServicesList(groupOrders: groupOrders, isDark: isDark),
               const SizedBox(height: 18),
               _PhaseBannerResolver(phase: _phase, isDark: isDark),
               const SizedBox(height: 18),
@@ -608,4 +616,128 @@ class _CancelledView extends StatelessWidget {
     onButton: () => context.pop(),
     animDuration: const Duration(milliseconds: 600),
   );
+}
+
+class _MultiOrderServicesList extends StatelessWidget {
+  final List<OrderEntity> groupOrders;
+  final bool isDark;
+
+  const _MultiOrderServicesList({
+    required this.groupOrders,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black26 : Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Included Services',
+            style: AppTextStyles.rowTitle(isDark).copyWith(
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...groupOrders.map((o) {
+            final progress = OrderStatus.getProgress(o.status);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      AppNetworkImage(
+                        url: o.serviceImageUrl?.toString(),
+                        width: 44,
+                        height: 44,
+                        radius: 12,
+                        isDark: isDark,
+                        fallbackIcon: Icons.local_laundry_service,
+                        fallbackIconSize: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              o.serviceName,
+                              style: AppTextStyles.cardTitle(isDark).copyWith(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${o.itemCount} item${o.itemCount > 1 ? 's' : ''} • #${o.orderNumber}',
+                              style: AppTextStyles.subtitle(isDark).copyWith(
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      AppStatusBadge(status: o.status),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Text(
+                        'Progress',
+                        style: AppTextStyles.caption(isDark),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${(progress * 100).toInt()}%',
+                        style: AppTextStyles.captionMedium(isDark).copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: progress.clamp(0.0, 1.0)),
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, v, _) => ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: v,
+                        backgroundColor: isDark 
+                            ? Colors.white12 
+                            : AppColors.primary.withValues(alpha: 0.1),
+                        color: AppColors.primary,
+                        minHeight: 6,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
 }

@@ -130,14 +130,14 @@ class OrdersRepositoryImpl implements OrdersRepository {
   }
 
   @override
-  Future<Either<Failure, double>> validateCoupon(
+  Future<Either<Failure, CouponValidationResult>> validateCoupon(
     ValidateCouponParams params,
   ) async {
     final userId = client.auth.currentUser?.id;
     if (userId == null) return const Left(AuthFailure('Not authenticated'));
     try {
-      final discount = await remoteDataSource.validateCoupon(userId, params);
-      return Right(discount);
+      final result = await remoteDataSource.validateCoupon(userId, params);
+      return Right(result);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {

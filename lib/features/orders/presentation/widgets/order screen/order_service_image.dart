@@ -8,16 +8,24 @@ import '../../../../../core/widgets/app_network_image.dart';
 class OrderServiceImage extends StatelessWidget {
   final String? imageUrl;
   final bool isDark;
+  final double size;
+  final double radius;
 
-  const OrderServiceImage({super.key, this.imageUrl, required this.isDark});
+  const OrderServiceImage({
+    super.key,
+    this.imageUrl,
+    required this.isDark,
+    this.size = 54,
+    this.radius = 16,
+  });
 
   @override
   Widget build(BuildContext context) {
     return AppNetworkImage(
       url: imageUrl,
-      width: 54,
-      height: 54,
-      radius: 16,
+      width: size,
+      height: size,
+      radius: radius,
       isDark: isDark,
       fallbackIcon: Icons.local_laundry_service,
     );

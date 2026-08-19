@@ -58,6 +58,7 @@ class OrderModel extends OrderEntity {
     super.stripePaymentIntentId,
     super.couponCode,
     super.discountAmount,
+    super.groupId,
     super.riderLat,
     super.riderLng,
     super.riderId,
@@ -139,6 +140,7 @@ class OrderModel extends OrderEntity {
       // ─── NEW: Parse Coupon Fields ───
       couponCode: j['coupon_code'] as String?,
       discountAmount: (j['discount_amount'] as num?)?.toDouble() ?? 0.0,
+      groupId: j['group_id'] as String?,
 
       riderLat: (activeRiderData?['current_lat'] as num?)?.toDouble(),
       riderLng: (activeRiderData?['current_lng'] as num?)?.toDouble(),

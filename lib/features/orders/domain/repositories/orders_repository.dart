@@ -24,7 +24,7 @@ abstract class OrdersRepository {
     double stars,
     String? comment,
   );
-  Future<Either<Failure, double>> validateCoupon(ValidateCouponParams params);
+  Future<Either<Failure, CouponValidationResult>> validateCoupon(ValidateCouponParams params);
   Future<Either<Failure, String>> createPaymentIntent(
     CreatePaymentIntentParams params,
   );

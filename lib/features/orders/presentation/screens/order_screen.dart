@@ -215,7 +215,83 @@ class _OrdersBodyState extends State<_OrdersBody> {
     super.dispose();
   }
 
-  Widget _buildList(List<OrderEntity> displayed, bool isActiveTab) {
+  Widget _buildList(List<OrderEntity> rawDisplayed, bool isActiveTab) {
+    // ── GROUP ORDERS BY GROUP ID ──
+    final Map<String, List<OrderEntity>> groupedMap = {};
+    final List<OrderEntity> displayed = [];
+
+    for (final order in rawDisplayed) {
+      if (order.groupId != null && order.groupId!.isNotEmpty) {
+        if (!groupedMap.containsKey(order.groupId)) {
+          groupedMap[order.groupId!] = [];
+        }
+        groupedMap[order.groupId!]!.add(order);
+      } else {
+        displayed.add(order);
+      }
+    }
+
+    for (final group in groupedMap.values) {
+      if (group.length == 1) {
+        displayed.add(group.first);
+        continue;
+      }
+
+      final primary = group.first;
+      double totalP = 0.0;
+      int totalItems = 0;
+      for (final o in group) {
+        totalP += o.totalPrice;
+        totalItems += o.itemCount;
+      }
+      
+      final merged = OrderEntity(
+        id: primary.id,
+        orderNumber: primary.orderNumber,
+        userId: primary.userId,
+        serviceId: primary.serviceId,
+        serviceName: '${group.length} Services',
+        serviceImageUrl: primary.serviceImageUrl,
+        storeId: primary.storeId,
+        storeName: primary.storeName,
+        status: primary.status,
+        itemCount: totalItems,
+        totalPrice: totalP,
+        pickupAddress: primary.pickupAddress,
+        deliveryAddress: primary.deliveryAddress,
+        pickupDate: primary.pickupDate,
+        pickupTime: primary.pickupTime,
+        deliveryDate: primary.deliveryDate,
+        deliveryTime: primary.deliveryTime,
+        specialInstructions: primary.specialInstructions,
+        progress: primary.progress,
+        timeline: primary.timeline,
+        createdAt: primary.createdAt,
+        paymentMethod: primary.paymentMethod,
+        paymentStatus: primary.paymentStatus,
+        stripePaymentIntentId: primary.stripePaymentIntentId,
+        couponCode: primary.couponCode,
+        discountAmount: primary.discountAmount,
+        groupId: primary.groupId,
+        riderLat: primary.riderLat,
+        riderLng: primary.riderLng,
+        riderId: primary.riderId,
+        pickupRiderId: primary.pickupRiderId,
+        deliveryRiderId: primary.deliveryRiderId,
+        riderName: primary.riderName,
+        riderPhone: primary.riderPhone,
+        riderAvatarUrl: primary.riderAvatarUrl,
+        riderVehicleType: primary.riderVehicleType,
+        riderVehiclePlate: primary.riderVehiclePlate,
+        riderRating: primary.riderRating,
+        riderIsOnline: primary.riderIsOnline,
+      );
+      displayed.add(merged);
+    }
+    
+    // Maintain descending sort by date
+    displayed.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
     if (displayed.isEmpty) {
       return AppEmptyState(
         icon: widget.filter.isActive
@@ -240,9 +316,20 @@ class _OrdersBodyState extends State<_OrdersBody> {
       itemBuilder: (context, i) {
         final order = displayed[i];
         final tab = isActiveTab ? 'a' : 'h';
+        
+        // Find if this is a merged multi-order by looking for it in groupedMap
+        List<OrderEntity>? group;
+        if (order.groupId != null && groupedMap.containsKey(order.groupId)) {
+          final g = groupedMap[order.groupId!];
+          if (g != null && g.length > 1) {
+            group = g;
+          }
+        }
+
         return OrderCard(
           key: ValueKey('${tab}_${order.id}'),
           order: order,
+          groupOrders: group,
           isHistory: !isActiveTab,
           isDark: widget.isDark,
           onPress: () =>

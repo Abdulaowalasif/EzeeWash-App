@@ -23,14 +23,16 @@ class CheckoutCouponValidating extends CheckoutState {
 class CheckoutCouponValidated extends CheckoutState {
   final String couponCode;
   final double discountAmount;
+  final String? targetServiceId;
 
   const CheckoutCouponValidated({
     required this.couponCode,
     required this.discountAmount,
+    this.targetServiceId,
   });
 
   @override
-  List<Object?> get props => [couponCode, discountAmount];
+  List<Object?> get props => [couponCode, discountAmount, targetServiceId];
 }
 
 class CheckoutCouponError extends CheckoutState {
@@ -74,10 +76,11 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     final result = await validateCouponUseCase(params);
     result.fold(
       (failure) => emit(CheckoutCouponError(failure.message)),
-      (discount) => emit(
+      (validationResult) => emit(
         CheckoutCouponValidated(
           couponCode: params.code,
-          discountAmount: discount,
+          discountAmount: validationResult.discountAmount,
+          targetServiceId: validationResult.targetServiceId,
         ),
       ),
     );

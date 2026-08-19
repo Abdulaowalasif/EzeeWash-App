@@ -7,6 +7,7 @@ import 'package:flutter_stripe/flutter_stripe.dart' hide PaymentMethod;
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -32,7 +33,8 @@ import '../bloc/orders_bloc.dart';
 import '../bloc/orders_state.dart';
 import '../models/reorder_params.dart';
 import '../widgets/place order/po_address_step.dart';
-import '../widgets/place order/po_payment_step.dart';
+import '../widgets/place order/po_confirmation_step.dart';
+import '../widgets/place order/po_payment_method_step.dart';
 import '../widgets/place order/po_schedule_step.dart';
 import '../widgets/place order/po_service_card.dart';
 import '../widgets/place order/po_store_card.dart';
@@ -91,6 +93,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   // ─── Coupon tracking ──────────────────────────────────────────────────────────
   String? _appliedCoupon;
   double _discountAmount = 0.0;
+  String? _couponTargetServiceId;
   
   late final PageController _pageController;
   Completer<String?>? _couponCompleter;
@@ -192,6 +195,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
             _deliveryTimeSlots.isNotEmpty;
       case 4: return _addrCtrl.text.trim().isNotEmpty;
       case 5: return _effectiveQuantity > 0;
+      case 6: return true;
       default: return false;
     }
   }
@@ -201,6 +205,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     'Select Store',
     'Schedule',
     'Address Selection',
+    'Confirm Service',
     'Payment',
   ][_step - 1];
 
@@ -373,7 +378,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       code: code,
       serviceIds: currentServiceIds,
       serviceSubtotals: subtotals,
-      orderBeforeDiscount: _subtotal + _kServiceCharge,
+      orderBeforeDiscount: _subtotal,
     );
     context.read<CheckoutCubit>().validateCoupon(params);
     return _couponCompleter!.future;
@@ -383,6 +388,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     setState(() {
       _appliedCoupon = null;
       _discountAmount = 0.0;
+      _couponTargetServiceId = null;
     });
   }
 
@@ -574,7 +580,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
 
     final int count = _selectedServiceIndices.length;
     final double scPerOrder = count > 0 ? _kServiceCharge / count : 0.0;
-    final double discPerOrder = count > 0 ? _discountAmount / count : 0.0;
+    final String sharedGroupId = const Uuid().v4();
 
     for (final idx in _selectedServiceIndices) {
       int qty = 0;
@@ -601,6 +607,18 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         price = _getPerPcsPrice(idx) * qty;
       }
 
+      double appliedDiscount = 0.0;
+      if (_discountAmount > 0) {
+        if (_couponTargetServiceId != null) {
+          if (_services[idx].id == _couponTargetServiceId) {
+            appliedDiscount = _discountAmount;
+          }
+        } else {
+          // Global coupon: apply proportionally based on service price
+          appliedDiscount = _subtotal > 0 ? (price / _subtotal) * _discountAmount : 0.0;
+        }
+      }
+
       context.read<OrdersBloc>().add(
         OrderPlaceRequested(_buildParams(
           method: method,
@@ -608,8 +626,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           qty: qty,
           price: price,
           serviceChargeToApply: scPerOrder,
-          discountToApply: discPerOrder,
+          discountToApply: appliedDiscount,
           idx: idx,
+          groupId: sharedGroupId,
         )),
       );
     }
@@ -623,6 +642,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     required double serviceChargeToApply,
     required double discountToApply,
     int? idx,
+    String? groupId,
   }) {
     final rp = widget.reorderParams;
     final finalPrice = price + serviceChargeToApply - discountToApply;
@@ -642,6 +662,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       paymentMethod: method,
       couponCode: discountToApply > 0 ? _appliedCoupon : null,
       discountAmount: discountToApply,
+      groupId: groupId,
     );
   }
 
@@ -709,6 +730,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               setState(() {
                 _appliedCoupon = state.couponCode.toUpperCase();
                 _discountAmount = state.discountAmount;
+                _couponTargetServiceId = state.targetServiceId;
                 if (!_cardAvailable) _paymentMethod = PaymentMethod.cashOnDelivery;
               });
               _couponCompleter?.complete(null);
@@ -781,7 +803,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 16),
-                  AppStepProgress(step: _step, totalSteps: 5, isDark: isDark),
+                  AppStepProgress(step: _step, totalSteps: 6, isDark: isDark),
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -799,7 +821,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                       controller: _pageController,
                       physics: const NeverScrollableScrollPhysics(),
                       children: List.generate(
-                        5,
+                        6,
                             (i) => SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
                           child: _buildStep(i + 1, isDark),
@@ -809,7 +831,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                   ),
                   AppStepperBottomNav(
                     step: _step,
-                    totalSteps: 5,
+                    totalSteps: 6,
                     enabled: _canProceed,
                     isDark: isDark,
                     isLoading:
@@ -833,7 +855,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                         if (!ok) return;
                       }
                       if (_step == 2) await _refreshTimeSlots();
-                      if (_step < 5) {
+                      if (_step < 6) {
                         _moveToStep(_step + 1);
                       } else {
                         _onConfirm();
@@ -923,24 +945,26 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           onChanged: () => setState(() {}),
         );
 
-      default:
+      case 5:
         final rp = widget.reorderParams;
-        return PoPaymentStep(
-          selectedMethod: _paymentMethod,
+        return PoConfirmationStep(
           subtotal: _subtotal,
           serviceCharge: _kServiceCharge,
           totalPrice: _totalPrice,
-          discountAmount: _discountAmount,
-          cardAvailable: _cardAvailable,
           isDark: isDark,
-          stripeError: _stripeError,
-          appliedCoupon: _appliedCoupon,
           selectedIndices: _selectedServiceIndices.toList(),
           services: _services,
           serviceQuantities: _serviceQuantities,
           comforterQuantities: _comforterQuantities,
           reorderParams: rp,
-          onAddService: (idx) => setState(() => _selectedServiceIndices.add(idx)),
+          onAddService: (idx) => setState(() {
+            _selectedServiceIndices.add(idx);
+            if (_isComforterClean(idx)) {
+              _comforterQuantities[idx] = {'Single': 0, 'Twin XL': 0, 'Double': 1, 'Queen': 0, 'King': 0};
+            } else {
+              _serviceQuantities[idx] = 1;
+            }
+          }),
           onRemoveService: (idx) => setState(() {
             _selectedServiceIndices.remove(idx);
             _serviceQuantities.remove(idx);
@@ -970,6 +994,28 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           '${BusinessLogicUtils.formatDate(_pickupDate)} at $_pickupTime',
           deliveryInfo:
           '${BusinessLogicUtils.formatDate(_deliveryDate)} at $_deliveryTime',
+        );
+
+      default:
+        return PoPaymentMethodStep(
+          selectedMethod: _paymentMethod,
+          subtotal: _subtotal,
+          serviceCharge: _kServiceCharge,
+          totalPrice: _totalPrice,
+          discountAmount: _discountAmount,
+          cardAvailable: _cardAvailable,
+          isDark: isDark,
+          stripeError: _stripeError,
+          appliedCoupon: _appliedCoupon,
+          selectedIndices: _selectedServiceIndices.toList(),
+          services: _services,
+          serviceQuantities: _serviceQuantities,
+          comforterQuantities: _comforterQuantities,
+          serviceName: widget.reorderParams?.serviceName ?? _serviceName,
+          storeName: widget.reorderParams?.storeName ??
+              (_storeIdx != null ? _stores[_storeIdx!].name : ''),
+          pickupInfo: '${BusinessLogicUtils.formatDate(_pickupDate)} at $_pickupTime',
+          deliveryInfo: '${BusinessLogicUtils.formatDate(_deliveryDate)} at $_deliveryTime',
           onMethodChanged: (m) => setState(() => _paymentMethod = m),
           onApplyCoupon: _validateAndApplyCoupon,
           onRemoveCoupon: _removeCoupon,

@@ -50,6 +50,7 @@ class OrderEntity extends Equatable {
   // ─── NEW: Coupon fields ───
   final String? couponCode;
   final double discountAmount;
+  final String? groupId;
 
   // ─── Rider Initial Coordinates ───
   final double? riderLat;
@@ -95,6 +96,7 @@ class OrderEntity extends Equatable {
     this.stripePaymentIntentId,
     this.couponCode,
     this.discountAmount = 0.0,
+    this.groupId,
     this.riderLat,
     this.riderLng,
     this.riderId,
@@ -122,6 +124,7 @@ class OrderEntity extends Equatable {
     paymentStatus,
     couponCode,
     discountAmount,
+    groupId,
     riderLat,
     riderLng,
     riderId,

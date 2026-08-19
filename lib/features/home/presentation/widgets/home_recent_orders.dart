@@ -12,6 +12,7 @@ import '../../../../routes/routes_name.dart';
 import '../../../orders/presentation/bloc/order_event.dart';
 import '../../../orders/presentation/bloc/orders_bloc.dart';
 import '../../../orders/presentation/bloc/orders_state.dart';
+import '../../../orders/domain/entities/order_entity.dart';
 
 class HomeRecentOrders extends StatelessWidget {
   final bool isDark;
@@ -26,7 +27,76 @@ class HomeRecentOrders extends StatelessWidget {
           return AppShimmer.recentOrderList(isDark: isDark);
         }
         if (state is OrdersLoaded) {
-          final recent = state.orders.take(2).toList();
+          final activeOrders = state.orders.where((o) => o.isActive).toList();
+          
+          final Map<String, List<OrderEntity>> groupedMap = {};
+          final List<OrderEntity> displayed = [];
+
+          for (final order in activeOrders) {
+            if (order.groupId != null && order.groupId!.isNotEmpty) {
+              if (!groupedMap.containsKey(order.groupId)) {
+                groupedMap[order.groupId!] = [];
+              }
+              groupedMap[order.groupId!]!.add(order);
+            } else {
+              displayed.add(order);
+            }
+          }
+
+          for (final group in groupedMap.values) {
+            if (group.length == 1) {
+              displayed.add(group.first);
+              continue;
+            }
+
+            final primary = group.first;
+            final merged = OrderEntity(
+              id: primary.id,
+              orderNumber: primary.orderNumber,
+              userId: primary.userId,
+              serviceId: primary.serviceId,
+              serviceName: '${group.length} Services',
+              serviceImageUrl: primary.serviceImageUrl,
+              storeId: primary.storeId,
+              storeName: primary.storeName,
+              status: primary.status,
+              itemCount: group.fold<int>(0, (sum, o) => sum + o.itemCount),
+              totalPrice: group.fold<double>(0.0, (sum, o) => sum + o.totalPrice),
+              pickupAddress: primary.pickupAddress,
+              deliveryAddress: primary.deliveryAddress,
+              pickupDate: primary.pickupDate,
+              pickupTime: primary.pickupTime,
+              deliveryDate: primary.deliveryDate,
+              deliveryTime: primary.deliveryTime,
+              specialInstructions: primary.specialInstructions,
+              progress: primary.progress,
+              timeline: primary.timeline,
+              createdAt: primary.createdAt,
+              paymentMethod: primary.paymentMethod,
+              paymentStatus: primary.paymentStatus,
+              stripePaymentIntentId: primary.stripePaymentIntentId,
+              couponCode: primary.couponCode,
+              discountAmount: primary.discountAmount,
+              groupId: primary.groupId,
+              riderLat: primary.riderLat,
+              riderLng: primary.riderLng,
+              riderId: primary.riderId,
+              pickupRiderId: primary.pickupRiderId,
+              deliveryRiderId: primary.deliveryRiderId,
+              riderName: primary.riderName,
+              riderPhone: primary.riderPhone,
+              riderAvatarUrl: primary.riderAvatarUrl,
+              riderVehicleType: primary.riderVehicleType,
+              riderVehiclePlate: primary.riderVehiclePlate,
+              riderRating: primary.riderRating,
+              riderIsOnline: primary.riderIsOnline,
+            );
+            displayed.add(merged);
+          }
+          
+          displayed.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          final recent = displayed.take(2).toList();
+
           if (recent.isEmpty) {
             return Center(
               child: Text(
@@ -37,7 +107,7 @@ class HomeRecentOrders extends StatelessWidget {
           }
           return Column(
             children: recent
-                .map(
+                .map<Widget>(
                   (order) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: RecentOrderCard(
@@ -46,7 +116,7 @@ class HomeRecentOrders extends StatelessWidget {
                       serviceName: order.serviceName,
                       status: order.status,
                       progress: order.progress,
-                      imageUrl: order.serviceImageUrl.toString(),
+                      imageUrl: order.serviceImageUrl?.toString(),
                       isDark: isDark,
                     ),
                   ),

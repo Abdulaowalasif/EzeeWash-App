@@ -28,6 +28,7 @@ class PlaceOrderParams extends Equatable {
   final PaymentMethod paymentMethod;
   final String? couponCode;
   final double discountAmount;
+  final String? groupId;
 
   const PlaceOrderParams({
     required this.serviceId,
@@ -44,6 +45,7 @@ class PlaceOrderParams extends Equatable {
     this.paymentMethod = PaymentMethod.cashOnDelivery,
     this.couponCode,
     this.discountAmount = 0.0,
+    this.groupId,
   });
 
   @override
@@ -58,6 +60,7 @@ class PlaceOrderParams extends Equatable {
     paymentMethod,
     couponCode,
     discountAmount,
+    groupId,
   ];
 }
 
@@ -90,3 +93,17 @@ class CreatePaymentIntentParams extends Equatable {
   @override
   List<Object?> get props => [amount, serviceTitle];
 }
+
+class CouponValidationResult extends Equatable {
+  final double discountAmount;
+  final String? targetServiceId;
+
+  const CouponValidationResult({
+    required this.discountAmount,
+    this.targetServiceId,
+  });
+
+  @override
+  List<Object?> get props => [discountAmount, targetServiceId];
+}
+

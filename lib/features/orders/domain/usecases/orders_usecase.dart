@@ -148,12 +148,12 @@ class SubmitRiderRatingParams extends Equatable {
 
 // ─── Validate Coupon ──────────────────────────────────────────────────────────
 
-class ValidateCouponUseCase implements UseCase<double, ValidateCouponParams> {
+class ValidateCouponUseCase implements UseCase<CouponValidationResult, ValidateCouponParams> {
   final OrdersRepository repository;
   ValidateCouponUseCase(this.repository);
 
   @override
-  Future<Either<Failure, double>> call(ValidateCouponParams params) =>
+  Future<Either<Failure, CouponValidationResult>> call(ValidateCouponParams params) =>
       repository.validateCoupon(params);
 }
 

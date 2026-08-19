@@ -449,7 +449,7 @@ class SettingsReceiptPicker extends StatefulWidget {
 
 class _SettingsReceiptPickerState extends State<SettingsReceiptPicker> {
   DateTime? _selectedDate;
-  OrderEntity? _selectedOrder;
+  String? _selectedGroupKey;
 
   @override
   Widget build(BuildContext context) {
@@ -469,6 +469,16 @@ class _SettingsReceiptPickerState extends State<SettingsReceiptPicker> {
                   )
                   .toList();
 
+        // ── Group orders by groupId (or fallback to id if null) ──
+        final Map<String, List<OrderEntity>> groupedOrders = {};
+        for (final o in filtered) {
+          final key = o.groupId ?? o.id;
+          groupedOrders.putIfAbsent(key, () => []).add(o);
+        }
+        
+        // Find the selected group to pass to PDF generator
+        final selectedGroup = _selectedGroupKey != null ? groupedOrders[_selectedGroupKey] : null;
+
         return AppCard(
           isDark: widget.isDark,
           padding: const EdgeInsets.all(16),
@@ -481,21 +491,21 @@ class _SettingsReceiptPickerState extends State<SettingsReceiptPicker> {
                 selectedDate: _selectedDate,
                 onDatePicked: (d) => setState(() {
                   _selectedDate = d;
-                  _selectedOrder = null;
+                  _selectedGroupKey = null;
                 }),
                 onClear: () => setState(() {
                   _selectedDate = null;
-                  _selectedOrder = null;
+                  _selectedGroupKey = null;
                 }),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<OrderEntity>(
-                initialValue: _selectedOrder,
+              DropdownButtonFormField<String>(
+                value: groupedOrders.containsKey(_selectedGroupKey) ? _selectedGroupKey : null,
                 isExpanded: true,
                 hint: Text(
-                  filtered.isEmpty
+                  groupedOrders.isEmpty
                       ? 'No orders on this date'
-                      : 'Select Order Number',
+                      : 'Select Order',
                   style: AppTextStyles.subtitle(widget.isDark),
                 ),
                 dropdownColor: widget.isDark
@@ -523,22 +533,33 @@ class _SettingsReceiptPickerState extends State<SettingsReceiptPicker> {
                     ),
                   ),
                 ),
-                items: filtered
-                    .map(
-                      (o) => DropdownMenuItem<OrderEntity>(
-                        value: o,
-                        child: Text(
-                          'Order #${o.orderNumber}',
-                          style: AppTextStyles.body(widget.isDark),
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: filtered.isEmpty
+                items: groupedOrders.entries.map((entry) {
+                  final key = entry.key;
+                  final list = entry.value;
+                  final isMulti = list.length > 1;
+                  
+                  String title = '';
+                  final time = DateFormat('hh:mm a').format(list.first.createdAt);
+                  if (isMulti) {
+                    final orderNumbers = list.map((e) => '#${e.orderNumber}').join(', ');
+                    title = 'Multi-Order: $orderNumbers • $time';
+                  } else {
+                    title = 'Order #${list.first.orderNumber} • $time';
+                  }
+
+                  return DropdownMenuItem<String>(
+                    value: key,
+                    child: Text(
+                      title,
+                      style: AppTextStyles.body(widget.isDark),
+                    ),
+                  );
+                }).toList(),
+                onChanged: groupedOrders.isEmpty
                     ? null
-                    : (v) => setState(() => _selectedOrder = v),
+                    : (v) => setState(() => _selectedGroupKey = v),
               ),
-              if (_selectedOrder != null) ...[
+              if (selectedGroup != null && selectedGroup.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 SettingsMenuTile(
                   icon: Iconsax.receipt_2,
@@ -550,12 +571,14 @@ class _SettingsReceiptPickerState extends State<SettingsReceiptPicker> {
                     color: AppColors.primary.withValues(alpha: 0.8),
                   ),
                   onTap: () async {
-                    final pdf = await PdfService.generateOrderInvoice(
-                      _selectedOrder!,
-                    );
+                    final pdf = await PdfService.generateMultiOrderInvoice(selectedGroup);
+                    final nameSuffix = selectedGroup.length > 1 
+                        ? 'Group_${selectedGroup.first.orderNumber}_Multi' 
+                        : selectedGroup.first.orderNumber;
+                    
                     await Printing.layoutPdf(
                       onLayout: (f) async => pdf,
-                      name: 'Invoice_${_selectedOrder!.orderNumber}',
+                      name: 'Invoice_$nameSuffix',
                     );
                   },
                 ),

@@ -24,15 +24,19 @@ import 'order_service_image.dart';
 
 class OrderCard extends StatefulWidget {
   final OrderEntity order;
+  final List<OrderEntity>? groupOrders;
   final bool isHistory;
   final bool isDark;
+  final bool isSubCard;
   final VoidCallback onPress;
 
   const OrderCard({
     super.key,
     required this.order,
+    this.groupOrders,
     required this.isHistory,
     required this.isDark,
+    this.isSubCard = false,
     required this.onPress,
   });
 
@@ -42,6 +46,8 @@ class OrderCard extends StatefulWidget {
 
 class _OrderCardState extends State<OrderCard> {
   bool _expanded = false;
+
+  bool get _isMultiOrder => widget.groupOrders != null && widget.groupOrders!.length > 1;
 
   void _confirmCancel(BuildContext ctx) {
     AppConfirmDialog.show(
@@ -111,72 +117,74 @@ class _OrderCardState extends State<OrderCard> {
         currentLevel <
         OrderStatus.getStepCompletionOrder(OrderStatus.assignPickup);
 
-    return GestureDetector(
-      onTap: widget.onPress,
-      child: AppCard(
-        isDark: widget.isDark,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+
+    final innerContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Header row ─────────────────────────────────────────────────
+        Row(
           children: [
-            // ── Header row ─────────────────────────────────────────────────
-            Row(
-              children: [
-                OrderServiceImage(
-                  imageUrl: o.serviceImageUrl,
-                  isDark: widget.isDark,
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        o.serviceName,
-                        style: AppTextStyles.cardTitle(
-                          widget.isDark,
-                        ).copyWith(fontSize: 15),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        o.storeName,
-                        style: AppTextStyles.subtitle(widget.isDark),
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          Text(
-                            '#${o.orderNumber}',
-                            style: AppTextStyles.captionMedium(
-                              widget.isDark,
-                            ).copyWith(color: AppColors.primary, fontSize: 11),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              OrderStatus.format(displayStatus).toUpperCase(),
-                              style: AppTextStyles.statusBadge(statusColor),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+            OrderServiceImage(
+              imageUrl: o.serviceImageUrl,
+              isDark: widget.isDark,
+              size: widget.isSubCard ? 46 : 54,
+              radius: widget.isSubCard ? 12 : 16,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    o.serviceName,
+                    style: AppTextStyles.cardTitle(
+                      widget.isDark,
+                    ).copyWith(fontSize: widget.isSubCard ? 14 : 15),
                   ),
-                ),
+                  const SizedBox(height: 3),
+                  Text(
+                    o.storeName,
+                    style: AppTextStyles.subtitle(widget.isDark),
+                  ),
+                  if (!widget.isSubCard) ...[
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Text(
+                          '#${o.orderNumber}',
+                          style: AppTextStyles.captionMedium(
+                            widget.isDark,
+                          ).copyWith(color: AppColors.primary, fontSize: 11),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            OrderStatus.format(displayStatus).toUpperCase(),
+                            style: AppTextStyles.statusBadge(statusColor),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       '৳${o.totalPrice.toStringAsFixed(0)}',
-                      style: AppTextStyles.priceLarge,
+                      style: AppTextStyles.priceLarge.copyWith(
+                        fontSize: widget.isSubCard ? 15 : 18,
+                      ),
                     ),
                     Text(
                       '${o.itemCount} pcs',
@@ -186,45 +194,91 @@ class _OrderCardState extends State<OrderCard> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-
+            SizedBox(height: widget.isSubCard ? 12 : 16),
             // ── Progress bar ────────────────────────────────────────────────
             _ProgressBar(progress: progress, isDark: widget.isDark),
-            const SizedBox(height: 16),
+            SizedBox(height: widget.isSubCard ? 12 : 16),
 
             // ── Action buttons ──────────────────────────────────────────────
             Row(
               children: [
-                Expanded(
-                  child: _SecondaryButton(
-                    isHistory: widget.isHistory,
-                    expanded: _expanded,
-                    isDark: widget.isDark,
-                    onReview: () => _showReviewSheet(context),
-                    onToggleDetails: () =>
-                        setState(() => _expanded = !_expanded),
+                if (_isMultiOrder) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: Icon(
+                        _expanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.remove_red_eye_outlined,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      onPressed: () => setState(() => _expanded = !_expanded),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.primary, width: 1.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      label: Text(
+                        _expanded ? 'Hide Services' : 'View Services',
+                        style: AppTextStyles.buttonOutline.copyWith(fontSize: 12),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _PrimaryButton(
-                    isHistory: widget.isHistory,
-                    canCancel: canCancel,
-                    isDark: widget.isDark,
-                    orderId: widget.order.id,
-                    onReorder: () => _handleReorder(context),
-                    onCancel: _confirmCancel,
+                ] else ...[
+                  Expanded(
+                    child: _SecondaryButton(
+                      isHistory: widget.isHistory,
+                      expanded: _expanded,
+                      isDark: widget.isDark,
+                      onReview: () => _showReviewSheet(context),
+                      onToggleDetails: () =>
+                          setState(() => _expanded = !_expanded),
+                    ),
                   ),
-                ),
+                  if (!(widget.isSubCard && widget.isHistory)) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _PrimaryButton(
+                        isHistory: widget.isHistory,
+                        canCancel: canCancel,
+                        isDark: widget.isDark,
+                        orderId: widget.order.id,
+                        onReorder: () => _handleReorder(context),
+                        onCancel: _confirmCancel,
+                      ),
+                    ),
+                  ],
+                ],
               ],
             ),
 
-            // ── Inline timeline ─────────────────────────────────────────────
-            if (_expanded && !widget.isHistory) ...[
-              const SizedBox(height: 24),
-              Divider(
-                color: widget.isDark ? Colors.white12 : Colors.grey.shade200,
-              ),
+            // ── Inline timeline or Nested Cards ─────────────────────────────
+            if (_expanded) ...[
+              if (_isMultiOrder) ...[
+                const SizedBox(height: 16),
+                Divider(
+                  color: widget.isDark ? Colors.white12 : Colors.grey.shade200,
+                ),
+                const SizedBox(height: 16),
+                ...widget.groupOrders!.map((subOrder) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: OrderCard(
+                      key: ValueKey('sub_${subOrder.id}'),
+                      order: subOrder,
+                      groupOrders: null,
+                      isHistory: widget.isHistory,
+                      isDark: widget.isDark,
+                      isSubCard: true,
+                      onPress: () {},
+                    ),
+                  );
+                }),
+              ] else if (!widget.isHistory) ...[
+                const SizedBox(height: 24),
+                Divider(
+                  color: widget.isDark ? Colors.white12 : Colors.grey.shade200,
+                ),
               const SizedBox(height: 20),
               Text(
                 'Order Tracking',
@@ -250,10 +304,38 @@ class _OrderCardState extends State<OrderCard> {
                   currentLevel: currentLevel,
                   isDark: widget.isDark,
                 ),
+              ],
             ],
           ],
+    );
+
+    Widget cardWidget;
+    if (widget.isSubCard) {
+      cardWidget = Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: widget.isDark
+              ? AppColors.darkSurface.withOpacity(0.5)
+              : const Color(0xFFF8FAFF),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: widget.isDark ? Colors.white12 : Colors.blueAccent.withOpacity(0.08),
+            width: 1,
+          ),
         ),
-      ),
+        child: innerContent,
+      );
+    } else {
+      cardWidget = AppCard(
+        isDark: widget.isDark,
+        padding: const EdgeInsets.all(20),
+        child: innerContent,
+      );
+    }
+
+    return GestureDetector(
+      onTap: widget.onPress,
+      child: cardWidget,
     );
   }
 }

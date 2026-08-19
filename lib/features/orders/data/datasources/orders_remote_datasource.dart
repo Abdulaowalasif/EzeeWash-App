@@ -28,7 +28,7 @@ abstract class OrdersRemoteDataSource {
     double stars,
     String? comment,
   );
-  Future<double> validateCoupon(String userId, ValidateCouponParams params);
+  Future<CouponValidationResult> validateCoupon(String userId, ValidateCouponParams params);
   Future<String> createPaymentIntent(CreatePaymentIntentParams params);
 }
 
@@ -120,6 +120,9 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
             // ─── NEW: Coupon insertion ───
             'coupon_code': params.couponCode,
             'discount_amount': params.discountAmount,
+            
+            // ─── NEW: Group ID for multi-orders ───
+            if (params.groupId != null) 'group_id': params.groupId,
           })
           .select(_selectNoTimeline)
           .single();
@@ -248,7 +251,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
   }
 
   @override
-  Future<double> validateCoupon(
+  Future<CouponValidationResult> validateCoupon(
     String userId,
     ValidateCouponParams params,
   ) async {
@@ -341,7 +344,10 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         }
       }
 
-      return discount.clamp(0.0, params.orderBeforeDiscount);
+      return CouponValidationResult(
+        discountAmount: discount.clamp(0.0, params.orderBeforeDiscount),
+        targetServiceId: targetServiceId,
+      );
     } on ServerException {
       rethrow;
     } catch (e) {

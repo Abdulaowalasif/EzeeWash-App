@@ -7,6 +7,9 @@ import 'package:flutter/services.dart';
 import '../../../../core/constants/app_color.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../domain/entities/promo_entity.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../services/presentation/bloc/service_bloc.dart';
+import '../../../services/presentation/bloc/service_state.dart';
 
 class PromoBannerSlider extends StatefulWidget {
   final List<PromoEntity> promos;
@@ -227,9 +230,24 @@ class _PromoCardState extends State<_PromoCard>
         ? '${promo.discountValue.toInt()}%'
         : '৳${promo.discountValue.toInt()}';
 
+    String? localServiceName;
+    if (promo.targetServiceId != null && promo.targetServiceId!.isNotEmpty) {
+      final serviceState = context.read<ServicesBloc>().state;
+      if (serviceState is ServicesLoaded) {
+        final match = serviceState.services.where((s) => s.id == promo.targetServiceId);
+        if (match.isNotEmpty) {
+          localServiceName = match.first.title;
+        }
+      }
+    }
+
     final serviceName = (promo.targetServiceName?.isNotEmpty ?? false)
         ? promo.targetServiceName!.toUpperCase()
-        : 'SPECIAL OFFER';
+        : (localServiceName != null && localServiceName.isNotEmpty)
+            ? localServiceName.toUpperCase()
+            : (promo.targetServiceId != null && promo.targetServiceId!.isNotEmpty)
+                ? 'FOR SPECIFIC SERVICE'
+                : 'AVAILABLE FOR ALL SERVICE';
 
     final hasImage = promo.bannerUrl != null && promo.bannerUrl!.isNotEmpty;
 
