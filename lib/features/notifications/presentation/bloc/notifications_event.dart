@@ -30,3 +30,8 @@ final class NotificationsMarkAllReadRequested extends NotificationsEvent {
 final class NotificationsRealtimeTick extends NotificationsEvent {
   const NotificationsRealtimeTick();
 }
+
+/// Clear notifications data on logout
+final class NotificationsClearData extends NotificationsEvent {
+  const NotificationsClearData();
+}

@@ -1,6 +1,7 @@
 // lib/ezzewash_app.dart
 import 'package:ezzewash/features/promos/presentation/bloc/promo_bloc.dart';
 import 'package:ezzewash/routes/app_router.dart';
+import 'package:ezzewash/routes/routes_name.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -41,9 +42,9 @@ class _EzzeWashAppState extends State<EzzeWashApp> {
     _router = createRouter(_authBloc);
   }
 
-  void _recreateRouter() {
+  void _handleLogout() {
     setState(() {
-      _router = createRouter(_authBloc);
+      _router = createRouter(_authBloc, initialLocation: RoutesName.login);
     });
   }
 
@@ -80,7 +81,7 @@ class _EzzeWashAppState extends State<EzzeWashApp> {
         ),
       ],
       child: AuthReactiveLoader(
-        onLogout: _recreateRouter,
+        onLogout: _handleLogout,
         child: ValueListenableBuilder<ThemeMode>(
           valueListenable: ThemePrefs.notifier,
           builder: (context, currentMode, child) {
@@ -92,13 +93,21 @@ class _EzzeWashAppState extends State<EzzeWashApp> {
 
             return ConnectivityWrapper(
               isDarkMode: isDarkMode,
-              child: MaterialApp.router(
-                debugShowCheckedModeBanner: false,
-                title: AppConstants.appName,
-                theme: AppTheme.light(),
-                darkTheme: AppTheme.dark(),
-                themeMode: currentMode,
-                routerConfig: _router,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 400),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: child,
+                ),
+                child: MaterialApp.router(
+                  key: ValueKey(_router),
+                  debugShowCheckedModeBanner: false,
+                  title: AppConstants.appName,
+                  theme: AppTheme.light(),
+                  darkTheme: AppTheme.dark(),
+                  themeMode: currentMode,
+                  routerConfig: _router,
+                ),
               ),
             );
           },

@@ -17,6 +17,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     on<ProfileLoadRequested>(_onLoad);
     on<ProfileUpdateRequested>(_onUpdate);
     on<ProfileAvatarUpdateRequested>(_onAvatarUpdate);
+    on<ProfileClearData>((event, emit) => emit(const ProfileInitial()));
   }
 
   // ─── Handlers ──────────────────────────────────────────────────────────────

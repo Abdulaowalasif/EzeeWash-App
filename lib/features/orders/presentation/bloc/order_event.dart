@@ -30,6 +30,11 @@ final class OrderCancelRequested extends OrdersEvent {
   List<Object> get props => [orderId];
 }
 
+/// Clear orders data on logout
+final class OrdersClearData extends OrdersEvent {
+  const OrdersClearData();
+}
+
 /// Switch between the Active and Completed tabs.
 final class OrdersFilterToggled extends OrdersEvent {
   final bool showActive;

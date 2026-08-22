@@ -30,6 +30,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     on<NotificationMarkReadRequested>(_onMarkRead);
     on<NotificationsMarkAllReadRequested>(_onMarkAllRead);
     on<NotificationsRealtimeTick>(_onRealtimeTick);
+    on<NotificationsClearData>((event, emit) => emit(const NotificationsInitial()));
   }
 
   // ─── Handlers ──────────────────────────────────────────────────────────────

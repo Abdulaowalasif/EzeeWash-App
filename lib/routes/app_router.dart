@@ -31,9 +31,9 @@ import '../main_screen.dart';
 import 'routes_name.dart';
 import '../features/splash/splash_screen.dart';
 
-GoRouter createRouter(AuthBloc authBloc) {
+GoRouter createRouter(AuthBloc authBloc, {String initialLocation = RoutesName.splash}) {
   final router = GoRouter(
-    initialLocation: RoutesName.splash,
+    initialLocation: initialLocation,
     redirect: (context, state) async {
       final authState = authBloc.state;
       final location = state.matchedLocation;
@@ -46,6 +46,10 @@ GoRouter createRouter(AuthBloc authBloc) {
 
       if (authState is AuthInitial || authState is AuthLoading) {
         return isLogin ? null : RoutesName.login;
+      }
+
+      if (authState is AuthError) {
+        return null;
       }
 
       if (authState is AuthAuthenticated) {

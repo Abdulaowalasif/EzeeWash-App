@@ -38,6 +38,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     on<OrdersRealtimeTick>(_onRealtimeTick);
     on<OrderSubmitServiceReview>(_onSubmitServiceReview);
     on<OrderSubmitRiderRating>(_onSubmitRiderRating);
+    on<OrdersClearData>((event, emit) => emit(const OrdersInitial()));
   }
 
   // ─── Handlers ──────────────────────────────────────────────────────────────

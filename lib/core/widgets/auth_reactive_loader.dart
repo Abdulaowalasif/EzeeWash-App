@@ -71,6 +71,11 @@ class AuthReactiveLoaderState extends State<AuthReactiveLoader> {
   void _handleUnauthenticated() {
     if (_loaded) {
       widget.onLogout();
+      
+      // Clear all user-specific data from BLoCs
+      context.read<OrdersBloc>().add(const OrdersClearData());
+      context.read<NotificationsBloc>().add(const NotificationsClearData());
+      context.read<ProfileBloc>().add(const ProfileClearData());
     }
     _loaded = false;
     _lastLoadedUserId = null;
@@ -85,7 +90,7 @@ class AuthReactiveLoaderState extends State<AuthReactiveLoader> {
           listener: (ctx, state) {
             if (state is AuthAuthenticated) {
               _triggerLoad(state.user.id);
-            } else if (state is AuthUnauthenticated || state is AuthError) {
+            } else if (state is AuthUnauthenticated) {
               _handleUnauthenticated();
             }
           },

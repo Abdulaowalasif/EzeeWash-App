@@ -45,3 +45,8 @@ final class ProfileAvatarUpdateRequested extends ProfileEvent {
   @override
   List<Object> get props => [imageFile.path];
 }
+
+/// Clear profile data on logout
+final class ProfileClearData extends ProfileEvent {
+  const ProfileClearData();
+}
