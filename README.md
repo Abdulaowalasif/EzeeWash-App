@@ -1,4 +1,4 @@
-# EzeeWash 🧺
+# EzzeWash 🧺
 
 A full-stack laundry service platform built with Flutter and Supabase — consisting of a **Customer App** and a **Rider App**.
 

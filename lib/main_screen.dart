@@ -71,7 +71,7 @@ class _MainScreenState extends State<MainScreen> {
                           : AppColors.lightSurface,
                       title: Text('Exit App', style: AppTextStyles.h4(isDark)),
                       content: Text(
-                        'Are you sure you want to exit EzeeWash?',
+                        'Are you sure you want to exit EzzeWash?',
                         style: AppTextStyles.body(isDark),
                       ),
                       shape: RoundedRectangleBorder(

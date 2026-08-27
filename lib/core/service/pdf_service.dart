@@ -24,7 +24,7 @@ class PdfService {
     final font = await PdfGoogleFonts.hindSiliguriRegular();
     final boldFont = await PdfGoogleFonts.hindSiliguriBold();
 
-    // Using EzeeWash Primary Color (Blue)
+    // Using EzzeWash Primary Color (Blue)
     const primaryBlue = PdfColor.fromInt(0xFF2196F3);
     final double serviceCharge = _calculateServiceCharge(1);
     final double discount = order.discountAmount;
@@ -55,7 +55,7 @@ class PdfService {
           pw.Align(
             alignment: pw.Alignment.center,
             child: pw.Text(
-              'Thank you for using EzeeWash Laundry Services!',
+              'Thank you for using EzzeWash Laundry Services!',
               style: pw.TextStyle(
                 font: font,
                 fontSize: 10,
@@ -114,7 +114,7 @@ class PdfService {
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
             pw.Text(
-              'EZEEWASH',
+              'EZZEWASH',
               style: pw.TextStyle(font: boldFont, fontSize: 24, color: color),
             ),
             pw.Text(
@@ -405,7 +405,7 @@ class PdfService {
           pw.Align(
             alignment: pw.Alignment.center,
             child: pw.Text(
-              'Thank you for using EzeeWash Laundry Services!',
+              'Thank you for using EzzeWash Laundry Services!',
               style: pw.TextStyle(
                 font: font,
                 fontSize: 10,
@@ -435,7 +435,7 @@ class PdfService {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
-                'INVOICE (MULTI-ORDER)',
+                'INVOICE',
                 style: pw.TextStyle(
                   font: boldFont,
                   fontSize: 26,
@@ -469,7 +469,7 @@ class PdfService {
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
             pw.Text(
-              'EZEEWASH',
+              'EZZEWASH',
               style: pw.TextStyle(font: boldFont, fontSize: 24, color: color),
             ),
             pw.Text(

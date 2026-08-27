@@ -5,7 +5,7 @@
 // Usage:
 //   Text('Hello', style: AppTextStyles.heading(isDark))
 //   Text('Sub', style: AppTextStyles.caption(isDark))
-//   Text('EzeeWash', style: AppTextStyles.brandLogo)
+//   Text('EzzeWash', style: AppTextStyles.brandLogo)
 //
 // All styles use the Alexandria font (set globally in AppTheme) via
 // GoogleFonts.alexandria so they remain consistent with the theme.

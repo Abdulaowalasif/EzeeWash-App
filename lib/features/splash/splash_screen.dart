@@ -55,7 +55,7 @@ class _SplashScreenState extends State<SplashScreen> {
             child: Transform.scale(
               scale: 1.6, // Scales the image up by 60% to bypass internal padding
               child: Image.asset(
-                'assets/logo/Ezeewash Splash.gif',
+                'assets/logo/Ezzewash Splash.gif',
                 width: screenWidth * 0.9,
                 fit: BoxFit.contain,
               ),
